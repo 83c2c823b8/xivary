@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>arXiv Research Library</title>
+    <link rel="stylesheet" href="popup.css">
+    <script type="module" src="popup.js"></script>
+  </head>
+  <body>
+    <header>
+      <p class="eyebrow">ARXIV RESEARCH LIBRARY</p>
+      <h1>Your reading starts here.</h1>
+      <p>Saved in this browser, ready when you are.</p>
+    </header>
+    <nav aria-label="Library sections">
+      <button id="favorites-tab" type="button" aria-pressed="true" aria-controls="favorites-section">Favorites <span id="favorites-count">0</span></button>
+      <button id="following-tab" type="button" aria-pressed="false" aria-controls="following-section">Following <span id="following-count">0</span></button>
+    </nav>
+    <main>
+      <div class="status-row">
+        <p id="status" role="status" aria-live="polite">Loading library…</p>
+        <button id="refresh" type="button">Refresh</button>
+      </div>
+      <section id="favorites-section" aria-labelledby="favorites-tab">
+        <ul id="favorites-list" aria-label="Favorite papers"></ul>
+        <p id="favorites-empty" class="empty" hidden>No favorites yet. Visit an arXiv abstract page and select Favorite.</p>
+      </section>
+      <section id="following-section" aria-labelledby="following-tab" hidden>
+        <p class="hint">Each follow is an author reference from a specific paper. Identical names on other papers are kept separate.</p>
+        <ul id="following-list" aria-label="Followed authors"></ul>
+        <p id="following-empty" class="empty" hidden>No authors followed yet. Select Follow next to an author on arXiv.</p>
+      </section>
+    </main>
+    <footer>Local library · No account required</footer>
+  </body>
+</html>

@@ -1,0 +1,34 @@
+{
+  "manifest_version": 3,
+  "name": "arXiv Research Library",
+  "version": "0.1.0",
+  "description": "Save arXiv papers and follow author references in a private, local library.",
+  "minimum_chrome_version": "102",
+  "permissions": ["storage"],
+  "background": {
+    "service_worker": "src/background/service-worker.js",
+    "type": "module"
+  },
+  "action": {
+    "default_title": "arXiv Research Library",
+    "default_popup": "src/popup/popup.html"
+  },
+  "content_scripts": [{
+    "matches": ["https://arxiv.org/abs/*"],
+    "js": ["src/content/arxiv.js"],
+    "css": ["src/content/arxiv.css"],
+    "run_at": "document_idle"
+  }],
+  "web_accessible_resources": [{
+    "resources": [
+      "src/content/arxiv-page.js",
+      "src/content/extract-paper.js",
+      "src/domain/identifiers.js",
+      "src/domain/paper.js",
+      "src/domain/author.js",
+      "src/repository/paper-repository.js",
+      "src/repository/repository-client.js"
+    ],
+    "matches": ["https://arxiv.org/*"]
+  }]
+}

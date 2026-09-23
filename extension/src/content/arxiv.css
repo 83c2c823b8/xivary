@@ -1,0 +1,16 @@
+.arxiv-library-button {
+  margin: 0.2rem 0.4rem;
+  padding: 0.3rem 0.6rem;
+  border: 1px solid #8b1d27;
+  border-radius: 4px;
+  background: #fff;
+  color: #8b1d27;
+  font: 600 12px/1.4 system-ui, sans-serif;
+  cursor: pointer;
+  vertical-align: middle;
+}
+.arxiv-library-button[aria-pressed="true"] { background: #8b1d27; color: #fff; }
+.arxiv-library-button:focus-visible { outline: 3px solid #1475bc; outline-offset: 2px; }
+.arxiv-library-button:disabled { opacity: 0.6; cursor: wait; }
+#arxiv-library-controls { margin: 0.5rem 0; }
+.arxiv-library-status { font: 13px/1.5 system-ui, sans-serif; }
