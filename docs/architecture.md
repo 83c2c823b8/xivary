@@ -1,102 +1,73 @@
 # Architecture
 
-## Implemented MVP
+## Implemented Chromium client
 
 ```text
-arXiv content UI ─┐
-                 ├─ RepositoryClient (PaperRepository contract)
-Extension popup ─┘          │ Chrome runtime JSON messages
-                           v
-                  MV3 service worker
-                           │ validated method allowlist
-                           v
-                  LocalRepository
-                           │ storage adapter
-                           v
-                  chrome.storage.local
+arXiv content quick actions ─┐
+popup launcher ──────────────┤
+Library / Following / Author ├── RepositoryClient ── runtime messages ── LocalRepository
+Search result bookmarks ─────┘                                      │
+                                                                  storage adapter
+                                                                       │
+                                                              chrome.storage.local
+
+Author page / Search page ── arXiv paper service ── export.arxiv.org Atom API
+                                      │
+                     pure query building + result normalization
 ```
 
-UI code only invokes the asynchronous `PaperRepository` methods. A
-`RepositoryClient` carries those calls to the worker. The worker creates exactly
-one `LocalRepository`, backed by `ChromeLocalStorage`. Only
-`extension/src/lib/storage.js` accesses Chrome's storage API. The content script
-is a small classic-script bootstrap that imports ES modules; its module graph is
-declared web accessible only to the arXiv origin. There is no bundler, framework,
-remote script loading or application HTTP request.
+The arXiv content module only integrates bookmark and author-follow controls. The
+popup owns counts and navigation. Browsing and management live in full extension
+tabs: `library/`, `authors/`, `author/`, and `search/`.
 
-The worker accepts same-extension messages on a versioned channel, allows only
-the six repository operations, checks argument counts and validates domain data
-before saving. Page text is treated as text, never HTML. Abstract and PDF links
-are derived from validated arXiv identifiers. The only extension API permission
-is `storage`; content injection is restricted to HTTPS arXiv abstract pages.
-Implementation follows Chrome's [content script documentation](https://developer.chrome.com/docs/extensions/develop/concepts/content-scripts)
-and [message passing documentation](https://developer.chrome.com/docs/extensions/develop/concepts/messaging).
+All persistence crosses the asynchronous `PaperRepository` contract. UI modules
+instantiate only `RepositoryClient`; the MV3 worker owns the sole
+`LocalRepository`. `extension/src/lib/storage.js` is the only module that accesses
+`chrome.storage.local`. The worker validates a method allowlist and argument counts,
+and serializes reads, migrations, and writes to avoid local read-modify-write races.
 
-Repository contract (all methods return promises):
+The internal `favorites` name and methods remain as a compatibility layer, while
+all visible language says Saved Papers and Library. Schema migrations validate the
+complete result before one replacement write and preserve unknown fields.
 
-| Method | Result |
-| --- | --- |
-| `listFavorites()` | `Paper[]`, newest saved first |
-| `listFollowing()` | `Author[]`, newest followed first |
-| `toggleFavorite(paper)` | Saved `Paper`, or `null` after removal |
-| `removeFavorite(arxivId)` | No value; idempotent |
-| `toggleFollow(authorReference)` | Saved `Author`, or `null` after removal |
-| `unfollowAuthor(id)` | No value; idempotent |
+## Records and services
 
-Errors reject the promise and appear in the UI. An unsuccessful write never
-produces a successful toggle response. Read and write operations share a queue
-in the worker, preventing interleaved read-modify-write races across tabs and the
-popup. A failed operation does not block later operations. Storage is read on
-every operation; the worker keeps no authoritative in-memory cache, so worker
-suspension or restart does not discard saved state. This queue is only an
-in-process concurrency mechanism, not a distributed lock. Additional writers
-must not instantiate their own repository in UI contexts.
+Schema 4 keeps canonical saved papers, authors, author collections, memberships,
+settings, and author paper caches in one local envelope. Cache records are external
+search results rather than user-owned saved records. Explicitly bookmarking a
+result creates a canonical Paper through `toggleFavorite`; refreshing a cache can
+therefore never erase notes or saved state.
 
-The popup loads when opened and can refresh explicitly. Page buttons refresh
-when the window receives focus or the document becomes visible. There is no
-cross-window realtime event stream. Favorites and following are separate
-collections; deleting a favorite does not unfollow its authors.
+The reusable arXiv service maps an author identity to a name query, builds API
+queries, normalizes Atom entries into a Paper-like result, and defines the 24-hour
+freshness rule. Chrome-specific navigation and DOM rendering stay in page modules.
+The field expansion modules are also pure and deterministic. These contracts can
+be ported to a backend or mobile client without Chrome storage or UI types.
 
-## Future system — not implemented
+Direct result retrieval uses the public arXiv Atom endpoint under the manifest's
+single host permission. Search always exposes the equivalent native arXiv URL.
+Author matching currently uses canonical display names, so namesakes remain an
+explicit limitation. ORCID linking is future work.
+
+## Repository contract
+
+Alongside saved-paper and author-collection operations, the repository exposes
+`getAuthorPaperCache(authorId)` and `putAuthorPaperCache(cache)`. Follow operations
+are fast and never fetch. Cache writes and saved-paper writes remain distinct.
+
+## Future system
 
 ```text
-Chromium extension
-        |
-        | HTTPS / REST / JSON
-        v
-Shared backend API ----------------> PostgreSQL
-        ^                                 ^
-        | HTTPS / REST / JSON             |
-        |                         periodic arXiv polling
-   Android app                            |
-                                     notifications
+Chromium extension   Android   iPad/iOS   Web app
+         \              |        |         /
+          +-------------+--------+--------+
+                         |
+                  HTTPS REST/JSON API
+                         |
+                     PostgreSQL
 ```
 
-Both clients use the REST/JSON API. Neither connects directly to PostgreSQL.
-The shared backend owns database access, future authentication and future
-background jobs. Deploy it on an ordinary Linux machine or Raspberry Pi using
-a standard application process, PostgreSQL and an HTTPS reverse proxy. Hosting
-provider, container runtime and programming language remain open choices.
-No Firebase, Supabase or proprietary cloud SDK is assumed by the client contract.
-
-At the worker composition root, a future `HttpRepository` can implement the same
-contract, or a synchronizing repository can combine local persistence and remote
-HTTP operations. Existing UI calls remain unchanged. A remote toggle must be
-implemented atomically on the server; automatic retries require idempotency
-semantics to avoid toggling twice. This MVP does not retry mutations automatically.
-
-Records are plain JSON, use explicit timestamps and stable keys, and live in a
-versioned storage envelope. An explicit migration can add per-record `version`
-and `deletedAt` fields without restructuring the UI/domain boundary. Current
-removals are hard deletes; before synchronization exists they must become
-tombstones, with a defined conflict-resolution and acknowledgment strategy.
-Client clock timestamps alone are not sufficient for distributed ordering.
-
-Follow identity currently uses a canonical name key across papers. Schema 2
-explicitly migrates legacy paper-specific follows by normalized name; see the
-[data model](../shared/schema/data-model.md#migration-from-schema-1). This is a
-name-based approximation, not verified person identity. Future verified
-identifiers (for example ORCID) will need an explicit linking/migration strategy.
-
-Backend, authentication, synchronization, Android, polling and notifications
-remain future work. The repository contains no implementation of these features.
+The future API owns authentication, conflict handling, tombstones, and server-side
+ordering. Clients will not connect directly to PostgreSQL. No provider-specific
+cloud SDK is assumed; the backend can run on Linux or a Raspberry Pi. None of that
+sync, mobile, backend, embedding, or semantic-search work is implemented here.

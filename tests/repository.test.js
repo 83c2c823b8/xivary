@@ -35,15 +35,15 @@ test("empty library and favorites toggle persist through a new repository instan
   await repository.removeFavorite(paper.arxivId);
 });
 
-test("follow toggle, unfollow and favorite removal are independent", async () => {
+test("follow, unfollow and favorite removal are independent", async () => {
   const { repository } = fixture();
   await repository.toggleFavorite(paper);
-  const saved = await repository.toggleFollow(author);
+  const saved = await repository.followAuthor(author);
   assert.deepEqual(await repository.listFollowing(), [saved]);
   await repository.removeFavorite(paper.arxivId);
   assert.equal((await repository.listFollowing()).length, 1);
-  assert.equal(await repository.toggleFollow(author), null);
-  await repository.toggleFollow(author);
+  await repository.unfollowAuthor(saved.id);
+  await repository.followAuthor(author);
   await repository.unfollowAuthor(saved.id);
   await repository.unfollowAuthor(saved.id);
   assert.deepEqual(await repository.listFollowing(), []);
@@ -56,14 +56,14 @@ test("follow on paper A is recognized on B; unfollow on B is recognized on A", a
   const authorA = paperA.authors[0];
   const authorB = paperB.authors[1];
   const isFollowing = async reference => (await repository.listFollowing()).some(item => item.id === reference.id);
-  await repository.toggleFollow(paperB.authors[0]);
-  await repository.toggleFollow(authorA);
+  await repository.followAuthor(paperB.authors[0]);
+  await repository.followAuthor(authorA);
   assert.equal(await isFollowing(authorB), true);
   assert.equal(await new LocalRepository(storage).listFollowing().then(items => items.some(item => item.id === authorB.id)), true);
-  assert.equal(await repository.toggleFollow(authorB), null);
+  await repository.unfollowAuthor(authorB.id);
   assert.equal(await isFollowing(authorA), false);
   assert.equal(await isFollowing(paperB.authors[0]), true);
-  await repository.toggleFollow(authorB);
+  await repository.followAuthor(authorB);
   await repository.unfollowAuthor(authorA.id);
   assert.equal(await isFollowing(authorB), false);
   assert.equal(await isFollowing(paperB.authors[0]), true);
@@ -73,7 +73,7 @@ test("overlapping writes do not lose favorites or followed authors", async () =>
   const { repository } = fixture();
   await Promise.all(Array.from({ length: 15 }, (_, index) => repository.toggleFavorite({
     ...paper, arxivId: `2401.${String(index).padStart(5, "0")}`,
-  })).concat(repository.toggleFollow(author)));
+  })).concat(repository.followAuthor(author)));
   assert.equal((await repository.listFavorites()).length, 15);
   assert.equal((await repository.listFollowing()).length, 1);
   await Promise.all([repository.toggleFavorite(paper), repository.toggleFavorite(paper)]);
@@ -94,7 +94,7 @@ test("failed writes reject, leave persisted state intact, and do not poison the 
 
 test("unsupported or corrupt data is not overwritten", async () => {
   const { repository, area } = fixture();
-  for (const state of [null, { schemaVersion: 3, favorites: [], following: [] }, { schemaVersion: 1, favorites: [{}], following: [] }]) {
+  for (const state of [null, { schemaVersion: 5, favorites: [], following: [] }, { schemaVersion: 1, favorites: [{}], following: [] }]) {
     await area.set({ [STORAGE_KEY]: state });
     await assert.rejects(repository.toggleFavorite(paper));
     assert.deepEqual((await area.get())[STORAGE_KEY], state);
@@ -128,7 +128,7 @@ test("legacy follows migrate once, merge canonical names, and leave favorites un
     id: stableAuthorKey(latest.displayName), displayName: latest.displayName,
     normalizedName: "anne-marie o'neill", followedAt: early, updatedAt: late,
   });
-  assert.equal((await storage.read()).schemaVersion, 2);
+  assert.equal((await storage.read()).schemaVersion, 4);
   assert.deepEqual((await storage.read()).favorites, favorites);
   assert.equal((await storage.read()).extra, "keep");
   const writes = area.set;
@@ -160,7 +160,10 @@ test("empty legacy following migrates without changing saved favorites", async (
   const favorites = [createPaper(paper, now)];
   await storage.write({ schemaVersion: 1, favorites, following: [] });
   assert.deepEqual(await repository.listFavorites(), favorites);
-  assert.deepEqual(await storage.read(), { schemaVersion: 2, favorites, following: [] });
+  assert.equal((await storage.read()).schemaVersion, 4);
+  assert.deepEqual((await storage.read()).favorites, favorites);
+  assert.deepEqual((await storage.read()).memberships, []);
+  assert.equal((await storage.read()).collections[0].name, "Following");
 });
 
 test("read results are detached, newest first, and unknown fields survive writes", async () => {
@@ -176,7 +179,7 @@ test("read results are detached, newest first, and unknown fields survive writes
   state.futureMetadata = "preserved";
   state.favorites[0].version = 7;
   await storage.write(state);
-  await repository.toggleFollow(author);
+  await repository.followAuthor(author);
   assert.equal((await storage.read()).futureMetadata, "preserved");
   assert.equal((await storage.read()).favorites[0].version, 7);
 });
@@ -191,13 +194,48 @@ test("client and worker exchange repository results and propagate errors", async
   });
   const saved = await client.toggleFavorite(paper);
   assert.deepEqual(await client.listFavorites(), [saved]);
-  const followed = await client.toggleFollow(author);
+  const followed = await client.followAuthor(author);
   assert.deepEqual(await client.listFollowing(), [followed]);
   await client.unfollowAuthor(followed.id);
   await client.removeFavorite(paper.arxivId);
   await assert.rejects(client.toggleFavorite({}), /arXiv ID/);
   const disconnected = new RepositoryClient({ sendMessage: async () => undefined });
   await assert.rejects(disconnected.listFavorites(), /unavailable/);
+});
+
+test("saved state is shared through the repository while author cache stays separate", async () => {
+  const { repository, storage } = fixture();
+  const cachedPaper = {
+    id: "https://arxiv.org/abs/2401.00001v2", title: "A paper", authors: ["Alex Kim"],
+    abstract: "Summary", publishedAt: now, categories: ["math.AG"],
+  };
+  const cache = await repository.putAuthorPaperCache({
+    authorId: "arxiv-author:name:v1:alex%20kim", papers: [cachedPaper],
+    fetchedAt: now, queryUsed: 'au:"Alex Kim"',
+  });
+  assert.equal((await repository.listFavorites()).length, 0);
+  await repository.toggleFavorite(cache.papers[0]);
+  assert.equal((await new LocalRepository(storage).listFavorites())[0].arxivId, "2401.00001");
+  assert.deepEqual(await repository.getAuthorPaperCache(cache.authorId), cache);
+});
+
+test("schema 3 migrates to an empty author cache without changing saved or collection data", async () => {
+  const { repository, storage } = fixture();
+  const saved = createPaper(paper, now);
+  const followed = await repository.followAuthor(author);
+  const current = await storage.read();
+  const schema3 = { ...current, schemaVersion: 3, favorites: [saved] };
+  delete schema3.authorPaperCaches;
+  await storage.write(schema3);
+  assert.deepEqual(await repository.listFavorites(), [saved]);
+  const migrated = await storage.read();
+  assert.equal(migrated.schemaVersion, 4);
+  assert.deepEqual(migrated.favorites, schema3.favorites);
+  assert.deepEqual(migrated.authors, schema3.authors);
+  assert.deepEqual(migrated.collections, schema3.collections);
+  assert.deepEqual(migrated.memberships, schema3.memberships);
+  assert.deepEqual(migrated.authorPaperCaches, []);
+  assert.equal(migrated.authors[0].id, followed.id);
 });
 
 test("worker rejects unknown methods, malformed arguments and external senders", () => {

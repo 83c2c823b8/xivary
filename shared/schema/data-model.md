@@ -1,4 +1,4 @@
-# Shared data model (schema version 2)
+# Shared data model (schema version 4)
 
 The extension stores JSON-compatible objects. Timestamps are UTC ISO 8601 strings
 generated on save, such as `2026-09-24T01:02:03.000Z`. The same record shapes can
@@ -18,6 +18,9 @@ later cross a REST/JSON API; they have no Chrome or cloud-provider types.
 | `tags` | string[] | Defaults to `[]`; trimmed, nonempty, unique strings |
 | `note` | string | Defaults to `""` |
 | `read` | boolean | Defaults to `false` |
+| `categories` | string[] | arXiv categories when available; defaults to `[]` |
+| `abstract` | string | arXiv abstract when available; defaults to `""` |
+| `publishedAt` | ISO timestamp or null | arXiv publication date when available |
 
 `2401.00001v2` and `2401.00001v3` both identify `2401.00001`.
 Legacy identifiers retain their archive prefix, for example `hep-th/9901001`.
@@ -39,17 +42,20 @@ Each entry in `Paper.authors` is an AuthorReference:
 | `sourceArxivId` | string | Unversioned paper that supplied this reference |
 | `sourceAuthorIndex` | integer | Zero-based position within that paper's authors |
 
-A followed Author has only `id`, `displayName`, `normalizedName` and the following
+A stored Author has `id`, `displayName`, `normalizedName` and the following
 timestamps. Paper provenance remains metadata on paper references and never
 contributes to follow identity:
 
 | Field | Type | Meaning |
 | --- | --- | --- |
-| `followedAt` | ISO timestamp | When this canonical author name was followed |
+| `followedAt` | ISO timestamp | First time this canonical author was followed; retained after unfollow |
 | `updatedAt` | ISO timestamp | Last record change; initially equals `followedAt` |
 
 `Paper.authors` does not embed follow timestamps; favorites and follows have
-independent lifetimes.
+independent lifetimes. Authors persist after their final membership is removed.
+`updatedAt` describes Author metadata, not membership changes. No ORCID discovery
+is implemented; an optional future `orcid` can be metadata without replacing the
+canonical name key.
 
 ### Canonical name-key strategy v1
 
@@ -85,15 +91,58 @@ Namesakes share follow state under this approximation. Initials, reordered names
 and spelling variants not covered by these rules remain separate. Verified person
 identity and any future key changes require an explicit migration.
 
+## AuthorCollection
+
+| Field | Type | Meaning |
+| --- | --- | --- |
+| `id` | string | Opaque `collection:{UUID}`, independent of the name |
+| `name` | string | NFKC/whitespace-normalized, nonempty, at most 80 characters |
+| `createdAt` | ISO timestamp | Creation time |
+| `updatedAt` | ISO timestamp | Creation or most recent rename time |
+
+Duplicate collection names (case-insensitive after normalization) are rejected.
+Names are display values and never membership keys. The migration's default
+collection has reserved ID `collection:following`; newly created defaults get
+UUID-based IDs like any other new collection.
+
+## AuthorCollectionMembership
+
+| Field | Type | Meaning |
+| --- | --- | --- |
+| `authorId` | string | References `Author.id` |
+| `collectionId` | string | References `AuthorCollection.id` |
+| `addedAt` | ISO timestamp | Membership creation time |
+| `updatedAt` | ISO timestamp | Membership's last change; initially equals addedAt |
+
+The `(authorId, collectionId)` pair is unique. Adds are idempotent and do not
+reset timestamps on an existing membership. An author is followed if and only
+if at least one membership exists. Removing a membership or deleting a collection
+never deletes an Author entity. Removing all memberships globally unfollows the
+author. These are local hard deletes, not sync tombstones.
+
+## Settings
+
+`lastUsedAuthorCollectionId` is a collection ID or `null`. Creating a collection
+or explicitly adding membership updates it; unchecking a collection does not.
+`followAuthor` does nothing if already followed, otherwise adds to last-used,
+falling back to the first remaining collection. If none exist, it creates
+Following. Deleting last-used selects the first remaining collection, or null.
+Collection creation with an initial author saves both in one atomic repository
+operation. The setting never holds a dangling collection ID.
+
 ## Local persistence
 
 The `arxivResearchLibrary` key in `chrome.storage.local` holds:
 
 ```json
 {
-  "schemaVersion": 2,
+  "schemaVersion": 4,
   "favorites": [],
-  "following": []
+  "authors": [],
+  "collections": [],
+  "memberships": [],
+  "authorPaperCaches": [],
+  "settings": { "lastUsedAuthorCollectionId": null }
 }
 ```
 
@@ -104,7 +153,23 @@ through one serialized repository instance. Lists are returned as detached copie
 The collection is intentionally simple for this MVP; a larger local library may
 need indexed or per-record storage and a migration.
 
-### Migration from schema 1
+## AuthorPaperCache
+
+| Field | Type | Meaning |
+| --- | --- | --- |
+| `authorId` | string | Stable author key used for the feed |
+| `papers` | PaperResult[] | Normalized external arXiv results |
+| `fetchedAt` | ISO timestamp | Completion time of the arXiv request |
+| `queryUsed` | string | Exact author query used for retrieval |
+
+Caches use a centralized 24-hour TTL. A stale cache renders immediately and is
+refreshed in the background. Cached results do not contain saved timestamps or
+user notes and are not canonical saved-paper records. Bookmarking a result
+explicitly creates a Paper through the repository.
+
+### Migrations
+
+#### Schema 1 identity migration (preserved)
 
 Previously, follows used
 `arxiv-author:v1:{sourceArxivId}:{sourceAuthorIndex}:{encodedNormalizedName}`.
@@ -118,15 +183,37 @@ operation after updating (including a list read), the sole worker repository:
    fields. Equal update timestamps keep the first stored record. Migration does
    not replace these timestamps with the migration time.
 4. Removes `sourceArxivId` and `sourceAuthorIndex` from followed Author records.
-5. Persists the library with `schemaVersion: 2`. Favorites (including embedded
-   legacy author references) and unrelated envelope fields are left unchanged.
+5. Continues directly to the collection migration below. Favorites (including
+   embedded legacy author references) and unrelated envelope fields are unchanged.
 
 The write completes before the requested operation proceeds. Invalid data or a
 failed migration write rejects the request without replacing the stored library;
-the next request can retry. Schema 2 reads do not repeat migration. New paper
+the next request can retry. Schema 4 reads do not repeat migration. New paper
 references use canonical author keys; old embedded references remain display-only
 metadata and are never used to look up follow state. The original pre-normalization
 spelling of legacy display names cannot be recovered if the old code changed it.
+
+#### Schema 2 to 3 collections
+
+On the first repository operation (including reads), existing `following` becomes
+`authors` without changing its records or canonical IDs. Create exactly one
+collection named Following (`collection:following`) and one membership per author.
+Membership `addedAt`/`updatedAt` use the existing `followedAt`/`updatedAt`; collection
+timestamps use migration time. Set last-used to that collection and remove the
+old `following` property. Even an empty legacy library gets the empty default
+collection. A genuinely new library starts empty and creates Following on demand.
+
+Validate authors, collections, unique pairs, foreign keys, settings and favorites
+before persisting the migrated envelope once. No partially migrated envelope is written. Failed
+writes leave the old library intact; migration retries on the next operation.
+Repeated reads/restarts never recreate collections or memberships. Retained
+unknown record/envelope fields and all Favorites remain unchanged.
+
+#### Schema 3 to 4 author paper cache
+
+Schema 3 libraries receive an empty `authorPaperCaches` array. Existing saved
+papers, authors, collections, memberships, settings, and unknown fields are
+retained. Cache refreshes never change `favorites`.
 
 Reload the extension and open arXiv tabs after updating so all UI contexts use the
 new key format. No manual clearing or re-following is necessary.

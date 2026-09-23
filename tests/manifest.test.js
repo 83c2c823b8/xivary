@@ -16,12 +16,21 @@ async function files(directory) {
 test("manifest uses MV3, narrow permissions and existing entry points", async () => {
   assert.equal(manifest.manifest_version, 3);
   assert.deepEqual(manifest.permissions, ["storage"]);
+  assert.deepEqual(manifest.host_permissions, ["https://export.arxiv.org/*"]);
   assert.equal(manifest.background.type, "module");
   assert.deepEqual(manifest.content_scripts[0].matches, ["https://arxiv.org/abs/*"]);
   const paths = [manifest.background.service_worker, manifest.action.default_popup,
     ...manifest.content_scripts.flatMap(script => [...script.js, ...script.css]),
     ...manifest.web_accessible_resources.flatMap(group => group.resources)];
   for (const path of paths) await access(resolve(root, path));
+});
+
+test("full-tab extension pages and their local assets exist", async () => {
+  for (const page of ["library/library.html", "authors/authors.html", "author/author.html", "search/search.html"]) {
+    const htmlPath = resolve(root, "src", page);
+    const html = await readFile(htmlPath, "utf8");
+    for (const match of html.matchAll(/(?:src|href)="([^"#]+)"/g)) await access(resolve(dirname(htmlPath), match[1]));
+  }
 });
 
 test("local module imports and popup assets exist; content module graph is accessible", async () => {

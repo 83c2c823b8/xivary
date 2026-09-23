@@ -15,5 +15,12 @@ export function extractPaper(document, pageUrl) {
     .map(element => element.textContent).filter(name => name.trim());
   const authors = authorNames.length ? authorNames
     : [...document.querySelectorAll('meta[name="citation_author"]')].map(element => element.content);
-  return createPaper({ arxivId: url.pathname.slice(5), title, authors });
+  const category = document.querySelector(".primary-subject")?.textContent?.match(/\(([^)]+)\)/)?.[1];
+  const publishedAt = meta("citation_date");
+  return createPaper({
+    arxivId: url.pathname.slice(5), title, authors,
+    categories: category ? [category] : [],
+    abstract: meta("citation_abstract") || "",
+    publishedAt: publishedAt ? new Date(publishedAt).toISOString() : undefined,
+  });
 }

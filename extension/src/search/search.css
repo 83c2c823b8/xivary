@@ -1,0 +1,4 @@
+.search-form { display:grid; grid-template-columns:2fr 1fr; gap:16px; align-items:end; }
+.search-form>label { display:grid; gap:4px; font-size:12px; font-weight:650; }.search-form input,.search-form select { width:100%; } fieldset { border:1px solid #cfc8ca; padding:8px 12px; grid-column:1/-1; } fieldset label { margin-right:18px; }
+.form-actions,details { grid-column:1/-1; } pre { white-space:pre-wrap; overflow-wrap:anywhere; font-size:12px; } hr { border:0; border-top:1px solid #d9d5d6; margin:30px 0 20px; }
+@media(max-width:620px){.search-form{grid-template-columns:1fr}}

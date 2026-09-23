@@ -19,6 +19,14 @@ export class RepositoryClient extends PaperRepository {
   listFollowing() { return this.request("listFollowing"); }
   toggleFavorite(paper) { return this.request("toggleFavorite", [paper]); }
   removeFavorite(arxivId) { return this.request("removeFavorite", [arxivId]); }
-  toggleFollow(author) { return this.request("toggleFollow", [author]); }
+  followAuthor(author) { return this.request("followAuthor", [author]); }
   unfollowAuthor(id) { return this.request("unfollowAuthor", [id]); }
+  getAuthorLibrary() { return this.request("getAuthorLibrary"); }
+  createAuthorCollection(name, author = null) { return this.request("createAuthorCollection", [name, author]); }
+  renameAuthorCollection(id, name) { return this.request("renameAuthorCollection", [id, name]); }
+  deleteAuthorCollection(id) { return this.request("deleteAuthorCollection", [id]); }
+  addAuthorToCollection(author, collectionId) { return this.request("addAuthorToCollection", [author, collectionId]); }
+  removeAuthorFromCollection(authorId, collectionId) { return this.request("removeAuthorFromCollection", [authorId, collectionId]); }
+  getAuthorPaperCache(authorId) { return this.request("getAuthorPaperCache", [authorId]); }
+  putAuthorPaperCache(cache) { return this.request("putAuthorPaperCache", [cache]); }
 }

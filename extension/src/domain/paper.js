@@ -16,6 +16,16 @@ export function createPaper(input, now = new Date().toISOString()) {
   if (input.read !== undefined && typeof input.read !== "boolean") {
     throw new TypeError("Read must be a boolean.");
   }
+  const categories = input.categories ?? [];
+  if (!Array.isArray(categories) || categories.some(category => typeof category !== "string")) {
+    throw new TypeError("Categories must be an array of strings.");
+  }
+  if (input.abstract !== undefined && typeof input.abstract !== "string") {
+    throw new TypeError("Abstract must be a string.");
+  }
+  if (input.publishedAt !== undefined && input.publishedAt !== null && Number.isNaN(Date.parse(input.publishedAt))) {
+    throw new TypeError("Published date must be an ISO date.");
+  }
   return {
     arxivId,
     title: cleanText(input.title, "Paper title"),
@@ -32,5 +42,8 @@ export function createPaper(input, now = new Date().toISOString()) {
     tags: [...new Set(tags.map(tag => tag.trim()).filter(Boolean))],
     note: input.note ?? "",
     read: input.read ?? false,
+    categories: [...new Set(categories.map(category => category.trim()).filter(Boolean))],
+    abstract: input.abstract?.trim() ?? "",
+    publishedAt: input.publishedAt ? isoDate(input.publishedAt) : null,
   };
 }

@@ -2,7 +2,10 @@ import { REPOSITORY_CHANNEL } from "../repository/repository-client.js";
 
 const methods = new Map([
   ["listFavorites", 0], ["listFollowing", 0], ["toggleFavorite", 1],
-  ["removeFavorite", 1], ["toggleFollow", 1], ["unfollowAuthor", 1],
+  ["removeFavorite", 1], ["followAuthor", 1], ["unfollowAuthor", 1],
+  ["getAuthorLibrary", 0], ["createAuthorCollection", 2], ["renameAuthorCollection", 2],
+  ["deleteAuthorCollection", 1], ["addAuthorToCollection", 2], ["removeAuthorFromCollection", 2],
+  ["getAuthorPaperCache", 1], ["putAuthorPaperCache", 1],
 ]);
 
 export function createRepositoryHandler(repository, extensionId) {

@@ -1,0 +1,17 @@
+:root { color-scheme: light; font: 15px/1.55 system-ui,sans-serif; color: #29272b; background: #f7f6f3; }
+* { box-sizing: border-box; } body { margin: 0; } a { color: #7e1f2b; text-underline-offset: 3px; }
+button,input,select { font: inherit; } button { border: 1px solid #c9c2c4; border-radius: 4px; background: #fff; color: #593039; padding: 6px 10px; cursor: pointer; }
+button:hover { background: #f4e9eb; } button:disabled { opacity: .55; cursor: wait; }
+button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible { outline: 3px solid #1475bc; outline-offset: 2px; }
+.page-header { background: #fff; border-bottom: 1px solid #dedadc; } .page-header>div,main { width: min(1040px,calc(100% - 32px)); margin: auto; }
+.page-header>div { padding: 22px 0 18px; } .eyebrow { margin: 0; color: #8b1d27; font-size: 10px; font-weight: 750; letter-spacing: .12em; }
+h1 { margin: 3px 0 4px; font: 650 clamp(25px,4vw,34px)/1.2 Georgia,serif; } .subtitle,.metadata,.status,.empty { color: #676269; }
+main { padding: 26px 0 60px; } .toolbar { display: flex; align-items: end; flex-wrap: wrap; gap: 10px; margin-bottom: 22px; }
+.toolbar label { display: grid; gap: 4px; font-size: 12px; font-weight: 650; } input[type=search],input[type=text],select { min-width: 210px; padding: 8px; border: 1px solid #bdb6b8; border-radius: 4px; background: #fff; }
+.paper-list,.author-list { list-style: none; padding: 0; margin: 0; border-top: 1px solid #d9d5d6; } .paper-row,.author-row { padding: 18px 4px; border-bottom: 1px solid #d9d5d6; }
+.paper-row h2,.author-row h2 { margin: 0 0 5px; font-size: 17px; line-height: 1.35; } .metadata { margin: 4px 0; font-size: 12px; }
+.abstract { max-width: 82ch; margin: 9px 0; color: #464248; } .actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 9px; font-size: 13px; }
+.bookmark { display: inline-grid; place-items: center; width: 31px; height: 31px; padding: 4px; color: #565158; } .bookmark svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linejoin: round; }
+.bookmark[aria-pressed=true] svg { fill: #8b1d27; stroke: #8b1d27; } .status { min-height: 1.4em; font-size: 13px; } .status.error { color: #a01b27; }
+.empty { padding: 34px 4px; text-align: center; } .year { margin: 28px 0 6px; font: 650 20px Georgia,serif; } [hidden] { display: none!important; }
+@media(max-width:560px){.page-header>div,main{width:min(100% - 22px,1040px)}input[type=search],input[type=text],select{min-width:0;width:100%}.toolbar>*{flex:1 1 100%}}

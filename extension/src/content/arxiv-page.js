@@ -1,6 +1,7 @@
 import { RepositoryClient } from "../repository/repository-client.js";
 import { normalizeAuthorName } from "../domain/author.js";
 import { extractPaper } from "./extract-paper.js";
+import { openAuthorCollectionPicker } from "../ui/author-collection-picker.js";
 
 export async function mountArxivPage() {
   const heading = document.querySelector("h1.title");
@@ -20,8 +21,8 @@ export async function mountArxivPage() {
   catch (error) { status.textContent = `Library: ${error.message}`; return; }
 
   const repository = new RepositoryClient();
-  const favorite = makeButton("Favorite", paper.title);
-  controls.prepend(favorite);
+  const favorite = makeBookmarkButton(paper.title);
+  heading.append(favorite);
   const followingButtons = [];
   const unused = [...paper.authors];
   for (const link of document.querySelectorAll(".authors a")) {
@@ -30,23 +31,32 @@ export async function mountArxivPage() {
     const index = unused.findIndex(author => author.normalizedName === normalizeAuthorName(link.textContent));
     if (index < 0) continue;
     const [author] = unused.splice(index, 1);
-    const button = makeButton("Follow", author.displayName);
+    const button = makeButton("+ Follow", author.displayName);
+    button.setAttribute("aria-haspopup", "dialog");
+    button.setAttribute("aria-expanded", "false");
     button.title = "Follow this author across papers using their normalized name.";
     link.after(button);
     followingButtons.push({ author, button });
-    button.addEventListener("click", () => act(button, async () => {
-      const record = await repository.toggleFollow(author);
-      followingButtons.filter(item => item.author.id === author.id).forEach(item => {
-        setPressed(item.button, Boolean(record), "Follow", "Following", item.author.displayName);
+    button.addEventListener("click", () => {
+      if (busy || refreshing) return;
+      if (button.getAttribute("aria-pressed") === "true") {
+        void openAuthorCollectionPicker({ repository, author, anchor: button, onChange: refresh });
+        return;
+      }
+      void act(button, async () => {
+        const record = await repository.followAuthor(author);
+        followingButtons.filter(item => item.author.id === author.id).forEach(item => {
+          setPressed(item.button, Boolean(record), "+ Follow", "Following ▾", item.author.displayName);
+        });
+        return `Following ${author.displayName}. Click Following to choose collections.`;
       });
-      return record ? `Following ${author.displayName}.` : `Unfollowed ${author.displayName}.`;
-    }));
+    });
   }
 
   favorite.addEventListener("click", () => act(favorite, async () => {
     const record = await repository.toggleFavorite(paper);
-    setPressed(favorite, Boolean(record), "Favorite", "Favorited", paper.title);
-    return record ? "Paper saved." : "Paper removed from favorites.";
+    setBookmarkState(favorite, Boolean(record), paper.title);
+    return record ? "Paper saved." : "Paper removed from the library.";
   }));
 
   let busy = false;
@@ -72,10 +82,10 @@ export async function mountArxivPage() {
       const [favorites, following] = await Promise.all([
         repository.listFavorites(), repository.listFollowing(),
       ]);
-      setPressed(favorite, favorites.some(item => item.arxivId === paper.arxivId), "Favorite", "Favorited", paper.title);
+      setBookmarkState(favorite, favorites.some(item => item.arxivId === paper.arxivId), paper.title);
       const ids = new Set(following.map(item => item.id));
       followingButtons.forEach(({ author, button }) => {
-        setPressed(button, ids.has(author.id), "Follow", "Following", author.displayName);
+        setPressed(button, ids.has(author.id), "+ Follow", "Following ▾", author.displayName);
       });
       status.textContent = "";
     } catch (error) { status.textContent = `Library unavailable: ${error.message}`; }
@@ -93,6 +103,22 @@ function makeButton(label, name) {
   button.className = "arxiv-library-button";
   setPressed(button, false, label, label, name);
   return button;
+}
+
+function makeBookmarkButton(name) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "arxiv-library-bookmark";
+  button.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.75 3.75h10.5v16.5L12 16.5l-5.25 3.75V3.75Z"/></svg>';
+  setBookmarkState(button, false, name);
+  return button;
+}
+
+function setBookmarkState(button, saved, name) {
+  button.classList.toggle("is-saved", saved);
+  button.setAttribute("aria-pressed", String(saved));
+  button.setAttribute("aria-label", `${saved ? "Saved" : "Save paper"}: ${name}`);
+  button.title = saved ? "Saved" : "Save paper";
 }
 
 function setPressed(button, pressed, off, on, name) {
