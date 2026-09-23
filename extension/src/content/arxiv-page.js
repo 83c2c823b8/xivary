@@ -31,12 +31,14 @@ export async function mountArxivPage() {
     if (index < 0) continue;
     const [author] = unused.splice(index, 1);
     const button = makeButton("Follow", author.displayName);
-    button.title = "Follow this author reference from this paper. Names are not unique across papers.";
+    button.title = "Follow this author across papers using their normalized name.";
     link.after(button);
     followingButtons.push({ author, button });
     button.addEventListener("click", () => act(button, async () => {
       const record = await repository.toggleFollow(author);
-      setPressed(button, Boolean(record), "Follow", "Following", author.displayName);
+      followingButtons.filter(item => item.author.id === author.id).forEach(item => {
+        setPressed(item.button, Boolean(record), "Follow", "Following", item.author.displayName);
+      });
       return record ? `Following ${author.displayName}.` : `Unfollowed ${author.displayName}.`;
     }));
   }

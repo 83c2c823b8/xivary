@@ -56,9 +56,7 @@ function paperRow(paper) {
 function authorRow(author) {
   const row = document.createElement("li");
   row.append(textNode("h2", author.displayName));
-  row.append(textNode("p", `From arXiv:${author.sourceArxivId} · author ${author.sourceAuthorIndex + 1}`, "metadata"));
   const actions = textNode("div", "", "actions");
-  actions.append(link("Source paper", `https://arxiv.org/abs/${normalizeArxivId(author.sourceArxivId)}`));
   actions.append(removeButton("Unfollow", `Unfollow: ${author.displayName}`, () => repository.unfollowAuthor(author.id)));
   row.append(actions);
   return row;

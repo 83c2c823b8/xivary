@@ -92,10 +92,11 @@ removals are hard deletes; before synchronization exists they must become
 tombstones, with a defined conflict-resolution and acknowledgment strategy.
 Client clock timestamps alone are not sufficient for distributed ordering.
 
-Author identity resolution must remain separate from display-name normalization.
-Future verified identifiers (for example ORCID) and explicit reference-to-person
-links can unify occurrences without changing existing saved reference IDs. Do
-not silently merge historical records using normalized names.
+Follow identity currently uses a canonical name key across papers. Schema 2
+explicitly migrates legacy paper-specific follows by normalized name; see the
+[data model](../shared/schema/data-model.md#migration-from-schema-1). This is a
+name-based approximation, not verified person identity. Future verified
+identifiers (for example ORCID) will need an explicit linking/migration strategy.
 
 Backend, authentication, synchronization, Android, polling and notifications
 remain future work. The repository contains no implementation of these features.

@@ -1,7 +1,7 @@
 # arXiv Research Library
 
-A local-first Chromium extension for collecting arXiv papers and following author
-references. Plain JavaScript, HTML and CSS; no dependencies, build step, account,
+A local-first Chromium extension for collecting arXiv papers and following
+authors. Plain JavaScript, HTML and CSS; no dependencies, build step, account,
 or cloud service. Only the extension MVP is implemented.
 
 ## Current features
@@ -14,9 +14,10 @@ or cloud service. Only the extension MVP is implemented.
 - Support modern and legacy arXiv IDs, with revisions sharing one paper ID.
 - Keep storage behind an asynchronous repository contract and a service worker.
 
-Author follows identify a **named author occurrence on a particular paper**.
-Names are not globally unique, so identical names on different papers are kept
-separate. The popup shows the source paper to distinguish these references.
+Author follows apply **across papers using a canonical name key**. Unicode,
+whitespace, apostrophe/dash variants and case are normalized for matching while
+the original display name is preserved. Different people with the same normalized
+name share follow state; verified person identity is future work.
 This MVP does not discover other papers by an author or deliver alerts.
 
 ## Install
@@ -33,6 +34,12 @@ No `npm install` is required. After changing source files, select **Reload** on
 the extension card and reload any open arXiv pages. Existing local data survives
 extension reloads and browser restarts, but removing the extension or clearing
 its storage deletes the library.
+
+Existing paper-specific follows migrate automatically on the first library
+operation after updating. Equivalent names merge into one follow, preserving the
+earliest `followedAt`, latest `updatedAt`, and display name of the latest updated
+record (first stored record wins ties). Paper provenance is removed from follows;
+saved favorites are unchanged. See the [migration details](shared/schema/data-model.md#migration-from-schema-1).
 
 ## Repository structure
 
@@ -73,7 +80,7 @@ Manual browser acceptance checks:
 1. Load the unpacked extension. Check that its extension card has no errors.
 2. On an abstract page, favorite the paper and follow an author. Reload the page
    and verify both states remain selected.
-3. Open the popup. Verify the title, authors and source paper, and open Abstract
+3. Open the popup. Verify the title and authors, and open Abstract
    and PDF links. Switch between Favorites and Following.
 4. Remove a favorite and unfollow an author in the popup. Return focus to the
    arXiv page and verify its buttons update.
@@ -83,12 +90,15 @@ Manual browser acceptance checks:
    library persists. Following remains independent of favorite removal.
 7. Check empty lists and keyboard navigation. The popup Refresh button retries
    failed reads; failures should display a message rather than report success.
+8. Follow an author on paper A, then open paper B by that author. It should show
+   Following immediately after loading. Unfollow there and return to A; its
+   button should show Follow. Other authors should remain independent.
 
 ## Limitations
 
 - Data stays in one browser profile. No export/import or cross-device backup yet.
-- Author references are intentionally conservative: the same person on different
-  papers must be followed separately; name/order changes can create new references.
+- Author identity is based on normalized names: namesakes share follow state,
+  while spelling changes, initials and reordered names can still produce separate keys.
 - Content extraction depends on arXiv citation metadata and abstract-page markup.
   Only the exact `https://arxiv.org/abs/*` host/path is supported.
 - Controls refresh on page focus/visibility and popup opening/Refresh; no live

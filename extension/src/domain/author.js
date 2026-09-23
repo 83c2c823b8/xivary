@@ -1,32 +1,40 @@
 import { cleanText, isoDate, normalizeArxivId } from "./identifiers.js";
 
-/** Name normalization v1: NFKC, trim, collapse whitespace, Unicode lowercase.
- * Punctuation and diacritics are preserved. This is NOT a person identifier.
+/** Name-key normalization v1: NFKC, whitespace, apostrophe/dash variants, lowercase.
+ * Accents, initials and name order remain significant. Names can still collide.
  */
 export function normalizeAuthorName(name) {
-  return cleanText(name, "Author name").toLowerCase();
+  return cleanText(name, "Author name")
+    .replace(/[\u2018\u2019\u02bc]/gu, "'")
+    .replace(/[\u2010-\u2015\u2212]/gu, "-")
+    .toLowerCase();
 }
 
-/** Conservative identity: a named author occurrence on an unversioned paper.
- * Two papers with the same name intentionally produce distinct references.
- */
+export function stableAuthorKey(name) {
+  return `arxiv-author:name:v1:${encodeURIComponent(normalizeAuthorName(name))}`;
+}
+
+function authorIdentity(displayName) {
+  return {
+    id: stableAuthorKey(displayName),
+    displayName,
+    normalizedName: normalizeAuthorName(displayName),
+  };
+}
+
+/** Paper provenance is metadata only; it never contributes to author identity. */
 export function createAuthorReference({ displayName, sourceArxivId, sourceAuthorIndex }) {
-  const name = cleanText(displayName, "Author name");
   const paperId = normalizeArxivId(sourceArxivId);
   if (!Number.isSafeInteger(sourceAuthorIndex) || sourceAuthorIndex < 0) {
     throw new TypeError("Author position must be a nonnegative integer.");
   }
-  const normalizedName = normalizeAuthorName(name);
   return {
-    id: `arxiv-author:v1:${paperId}:${sourceAuthorIndex}:${encodeURIComponent(normalizedName)}`,
-    displayName: name,
-    normalizedName,
+    ...authorIdentity(displayName),
     sourceArxivId: paperId,
     sourceAuthorIndex,
   };
 }
 
 export function createAuthor(input, now = new Date().toISOString()) {
-  const reference = createAuthorReference(input);
-  return { ...reference, followedAt: isoDate(now), updatedAt: isoDate(now) };
+  return { ...authorIdentity(input.displayName), followedAt: isoDate(now), updatedAt: isoDate(now) };
 }

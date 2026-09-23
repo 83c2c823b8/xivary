@@ -1,4 +1,4 @@
-# Shared data model (schema version 1)
+# Shared data model (schema version 2)
 
 The extension stores JSON-compatible objects. Timestamps are UTC ISO 8601 strings
 generated on save, such as `2026-09-24T01:02:03.000Z`. The same record shapes can
@@ -33,52 +33,57 @@ Each entry in `Paper.authors` is an AuthorReference:
 
 | Field | Type | Meaning |
 | --- | --- | --- |
-| `id` | string | Versioned, deterministic reference key described below |
-| `displayName` | string | Visible author name, NFKC with whitespace collapsed |
-| `normalizedName` | string | Normalization v1, for comparison; **not unique** |
+| `id` | string | Canonical name key described below; independent of paper/position |
+| `displayName` | string | Original visible author name, preserving case and punctuation |
+| `normalizedName` | string | Name-key normalization v1; **not a verified person identity** |
 | `sourceArxivId` | string | Unversioned paper that supplied this reference |
 | `sourceAuthorIndex` | integer | Zero-based position within that paper's authors |
 
-A followed Author has all those fields plus:
+A followed Author has only `id`, `displayName`, `normalizedName` and the following
+timestamps. Paper provenance remains metadata on paper references and never
+contributes to follow identity:
 
 | Field | Type | Meaning |
 | --- | --- | --- |
-| `followedAt` | ISO timestamp | When this reference was followed |
+| `followedAt` | ISO timestamp | When this canonical author name was followed |
 | `updatedAt` | ISO timestamp | Last record change; initially equals `followedAt` |
 
 `Paper.authors` does not embed follow timestamps; favorites and follows have
 independent lifetimes.
 
-### Normalization and identity strategy v1
+### Canonical name-key strategy v1
 
 1. Apply Unicode NFKC to the display name.
 2. Trim leading/trailing whitespace and collapse each internal whitespace run
    to one ASCII space.
-3. Use JavaScript `toLowerCase()` (locale-independent Unicode lowercasing).
-4. Preserve punctuation, initials, accents and name order. Do not transliterate,
-   remove diacritics, expand initials, or infer surname order.
+3. Map apostrophes U+2018, U+2019 and U+02BC to ASCII `'`; map dashes U+2010–U+2015
+   and minus U+2212 to ASCII `-`. NFKC also normalizes fullwidth variants.
+4. Use JavaScript `toLowerCase()` (locale-independent Unicode lowercasing).
+5. Preserve other punctuation, initials, accents and name order. Do not
+   transliterate, remove diacritics, expand initials, or infer surname order.
+
+Only the key and `normalizedName` are normalized. `displayName` retains the original
+input string, including case, Unicode punctuation and whitespace.
 
 For example, `  Ａlex  KIM ` becomes `alex kim`; `Renée Smith` and `Renee Smith`
 remain different. Prefer visible page names because citation metadata sometimes
 reverses given/surname order. Metadata is an extraction fallback only.
 
-The reference ID is:
+The stable author key is:
 
 ```text
-arxiv-author:v1:{sourceArxivId}:{sourceAuthorIndex}:{encodeURIComponent(normalizedName)}
+arxiv-author:name:v1:{encodeURIComponent(normalizedName)}
 ```
 
-Example: `arxiv-author:v1:2401.00001:0:alex%20kim`.
+Example: `arxiv-author:name:v1:alex%20kim`. Neither paper ID, author position nor
+other paper metadata is included. Page extraction computes this key; page rendering
+compares it to IDs from `listFollowing()`. Following or unfollowing affects every
+paper containing that canonical name. Existing open pages refresh on focus or
+visibility, as before.
 
-The source paper, author position and normalized name together identify an
-**occurrence**, not a globally verified person. This is deliberate: two people
-can share a name, and arXiv author-search URLs are not unique person identifiers.
-Duplicate names at different positions also remain separate. An unchanged author
-at the same position across paper revisions has the same ID. A name or author
-order change may produce a new reference. The same person on different papers
-has separate references and separate follows until a future explicit identity
-resolution feature links them. Existing keys must not be silently regenerated
-when normalization rules change; such a change needs a versioned migration.
+Namesakes share follow state under this approximation. Initials, reordered names
+and spelling variants not covered by these rules remain separate. Verified person
+identity and any future key changes require an explicit migration.
 
 ## Local persistence
 
@@ -86,7 +91,7 @@ The `arxivResearchLibrary` key in `chrome.storage.local` holds:
 
 ```json
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "favorites": [],
   "following": []
 }
@@ -98,6 +103,33 @@ Unknown fields are preserved on retained records. Writes replace the envelope
 through one serialized repository instance. Lists are returned as detached copies.
 The collection is intentionally simple for this MVP; a larger local library may
 need indexed or per-record storage and a migration.
+
+### Migration from schema 1
+
+Previously, follows used
+`arxiv-author:v1:{sourceArxivId}:{sourceAuthorIndex}:{encodedNormalizedName}`.
+This caused one person's follow state to differ by paper. On the first repository
+operation after updating (including a list read), the sole worker repository:
+
+1. Validates the existing library and legacy author IDs/timestamps.
+2. Computes each follow's new key from its stored `displayName`, not its old ID.
+3. Merges records with the same key. The earliest `followedAt` is retained; the
+   latest `updatedAt` record supplies `displayName`, `updatedAt` and optional
+   fields. Equal update timestamps keep the first stored record. Migration does
+   not replace these timestamps with the migration time.
+4. Removes `sourceArxivId` and `sourceAuthorIndex` from followed Author records.
+5. Persists the library with `schemaVersion: 2`. Favorites (including embedded
+   legacy author references) and unrelated envelope fields are left unchanged.
+
+The write completes before the requested operation proceeds. Invalid data or a
+failed migration write rejects the request without replacing the stored library;
+the next request can retry. Schema 2 reads do not repeat migration. New paper
+references use canonical author keys; old embedded references remain display-only
+metadata and are never used to look up follow state. The original pre-normalization
+spelling of legacy display names cannot be recovered if the old code changed it.
+
+Reload the extension and open arXiv tabs after updating so all UI contexts use the
+new key format. No manual clearing or re-following is necessary.
 
 ## Future additions, not current behavior
 

@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { normalizeArxivId } from "../extension/src/domain/identifiers.js";
 import { createPaper } from "../extension/src/domain/paper.js";
-import { createAuthor, createAuthorReference, normalizeAuthorName } from "../extension/src/domain/author.js";
+import { createAuthor, createAuthorReference, normalizeAuthorName, stableAuthorKey } from "../extension/src/domain/author.js";
 import { extractPaper } from "../extension/src/content/extract-paper.js";
 
 const now = "2026-09-24T01:02:03.000Z";
@@ -52,15 +52,30 @@ test("name normalization is explicit, Unicode aware and conservative", () => {
   assert.notEqual(normalizeAuthorName("A. Smith"), normalizeAuthorName("A Smith"));
 });
 
-test("author identity never merges people solely by name", () => {
+test("canonical author identity is independent of paper, position and display formatting", () => {
   const reference = { displayName: "Alex Kim", sourceArxivId: "2401.00001", sourceAuthorIndex: 0 };
   const author = createAuthor(reference, now);
   assert.equal(author.id, createAuthorReference({ ...reference, displayName: " ALEX  KIM ", sourceArxivId: "2401.00001v2" }).id);
-  assert.notEqual(author.id, createAuthorReference({ ...reference, sourceArxivId: "2401.00002" }).id);
-  assert.notEqual(author.id, createAuthorReference({ ...reference, sourceAuthorIndex: 1 }).id);
+  assert.equal(author.id, createAuthorReference({ ...reference, sourceArxivId: "2401.00002" }).id);
+  assert.equal(author.id, createAuthorReference({ ...reference, sourceAuthorIndex: 1 }).id);
+  assert.equal(author.id, stableAuthorKey(" Ａlex\t  KIM \n"));
+  assert.equal(author.id, "arxiv-author:name:v1:alex%20kim");
+  assert.equal("sourceArxivId" in author, false);
+  assert.equal("sourceAuthorIndex" in author, false);
   assert.equal(author.followedAt, now);
   assert.equal(author.updatedAt, now);
   assert.throws(() => createAuthorReference({ ...reference, sourceAuthorIndex: -1 }));
+});
+
+test("punctuation variants normalize only in the key and preserve the original display name", () => {
+  const displayName = "  Anne–Marie O’Neill  ";
+  const author = createAuthor({ displayName }, now);
+  assert.equal(author.displayName, displayName);
+  assert.equal(author.normalizedName, "anne-marie o'neill");
+  assert.equal(author.id, stableAuthorKey("Anne-Marie O'Neill"));
+  assert.equal(author.id, stableAuthorKey("Anne—Marie OʼNeill"));
+  assert.notEqual(author.id, stableAuthorKey("Anne Marie ONeill"));
+  assert.notEqual(author.id, stableAuthorKey("Alex Kim"));
 });
 
 function fakeDocument({ title, visibleTitle, names = [], visibleNames = [] }) {
