@@ -156,6 +156,12 @@ a paper to one updates it. A one-click save uses that collection, falls back to 
 first paper collection, and recreates **Saved Papers** if none exists. Creating a
 collection with a paper atomically creates both collection and membership.
 
+`openArxivLinksInNewTab` is a boolean user preference. It defaults to `false`, so
+ordinary clicks on arXiv destinations from extension pages navigate in the current
+tab. Existing schema 5 records that predate the preference treat an omitted value
+as `false`; the field is written on the next state mutation or when explicitly
+changed. This additive setting does not change collection or migration semantics.
+
 ## Local persistence
 
 The `arxivResearchLibrary` key in `chrome.storage.local` holds:
@@ -177,7 +183,8 @@ The `arxivResearchLibrary` key in `chrome.storage.local` holds:
   "authorPaperCaches": [],
   "settings": {
     "lastUsedAuthorCollectionId": null,
-    "lastUsedPaperCollectionId": "paper-collection:saved-papers"
+    "lastUsedPaperCollectionId": "paper-collection:saved-papers",
+    "openArxivLinksInNewTab": false
   }
 }
 ```

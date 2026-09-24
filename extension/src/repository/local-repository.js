@@ -215,6 +215,21 @@ export class LocalRepository extends PaperRepository {
     });
   }
 
+  getPreferences() {
+    return this.run(state => structuredClone({
+      openArxivLinksInNewTab: state.settings.openArxivLinksInNewTab,
+    }));
+  }
+
+  setOpenArxivLinksInNewTab(enabled) {
+    if (typeof enabled !== "boolean") return Promise.reject(new TypeError("The link preference must be true or false."));
+    return this.run(async state => {
+      state.settings.openArxivLinksInNewTab = enabled;
+      await this.storage.write(state);
+      return structuredClone({ openArxivLinksInNewTab: enabled });
+    });
+  }
+
   newCollection(state, name) {
     const normalized = collectionName(state, name);
     const now = this.clock();
@@ -354,7 +369,11 @@ function prepareState(stored, now) {
     schemaVersion: 5, favorites: [],
     paperCollections: [{ id: DEFAULT_PAPER_COLLECTION_ID, name: "Saved Papers", createdAt: now, updatedAt: now }],
     paperMemberships: [], authors: [], collections: [], memberships: [], authorPaperCaches: [],
-    settings: { lastUsedAuthorCollectionId: null, lastUsedPaperCollectionId: DEFAULT_PAPER_COLLECTION_ID },
+    settings: {
+      lastUsedAuthorCollectionId: null,
+      lastUsedPaperCollectionId: DEFAULT_PAPER_COLLECTION_ID,
+      openArxivLinksInNewTab: false,
+    },
   } : structuredClone(stored);
   if (!state || ![1, 2, 3, 4, 5].includes(state.schemaVersion) || !Array.isArray(state.favorites)) {
     throw new Error("Unsupported or damaged library data. Existing data was left unchanged.");
@@ -381,6 +400,8 @@ function prepareState(stored, now) {
   if (![state.authors, state.collections, state.memberships].every(Array.isArray) || !state.settings) {
     throw new Error("Invalid author collection data.");
   }
+  if (state.settings.openArxivLinksInNewTab === undefined) state.settings.openArxivLinksInNewTab = false;
+  if (typeof state.settings.openArxivLinksInNewTab !== "boolean") throw new Error("Invalid link preference.");
   const authorIds = new Set();
   for (const author of state.authors) {
     const validated = createAuthor(author, author.followedAt);

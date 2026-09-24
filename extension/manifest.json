@@ -29,7 +29,9 @@
       "src/domain/paper.js",
       "src/domain/author.js",
       "src/repository/paper-repository.js",
-      "src/repository/repository-client.js"
+      "src/repository/repository-client.js",
+      "assets/fonts/IBMPlexSans-Regular.woff2",
+      "assets/fonts/IBMPlexSans-SemiBold.woff2"
     ],
     "matches": ["https://arxiv.org/*"]
   }]

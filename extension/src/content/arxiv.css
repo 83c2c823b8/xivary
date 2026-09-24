@@ -1,3 +1,17 @@
+@font-face {
+  font-family: "IBM Plex Sans";
+  src: url("../../assets/fonts/IBMPlexSans-Regular.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: "IBM Plex Sans";
+  src: url("../../assets/fonts/IBMPlexSans-SemiBold.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+}
 .arxiv-library-button {
   display: inline-flex;
   justify-content: center;
@@ -12,7 +26,7 @@
   background: #191a1b;
   color: #fff;
   box-shadow: 0 1px 1px #0003;
-  font: 600 13px/1.35 system-ui, sans-serif;
+  font: 600 13px/1.35 "IBM Plex Sans", system-ui, sans-serif;
   cursor: pointer;
   vertical-align: middle;
 }
@@ -36,5 +50,5 @@
 .arxiv-library-bookmark:focus-visible { outline: 3px solid #1475bc; outline-offset: 2px; }
 .arxiv-library-bookmark:disabled { opacity: 0.55; cursor: wait; }
 #arxiv-library-controls { min-height: 0.5rem; margin: 0.2rem 0; }
-.arxiv-library-status { font: 13px/1.5 system-ui, sans-serif; }
+.arxiv-library-status { font: 400 13px/1.5 "IBM Plex Sans", system-ui, sans-serif; }
 @media (max-width: 520px) { .arxiv-library-bookmark { float: none; display: inline-flex; margin-left: 0.5rem; } }

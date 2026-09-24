@@ -23,9 +23,15 @@ The old UI word “Favorite” is now **Save**, **Saved**, and **Library**. The 
 repository methods and persisted `favorites` property retain their old names for
 backward compatibility. Existing saved papers are migrated losslessly.
 
-The interface uses a local system sans-serif stack in this pass. IBM Plex Sans is
-not bundled yet, avoiding a new font asset and license-distribution path; no font
-is loaded from the network at runtime.
+The interface bundles IBM Plex Sans Regular and SemiBold WOFF2 assets from IBM's
+official distribution under the SIL Open Font License 1.1. No font is loaded from
+the network at runtime; provenance, checksums, and the license live beside the
+font files in `extension/assets/fonts/`.
+
+arXiv destinations opened from extension pages navigate in the current tab by
+default. The popup's restrained Preferences control exposes one opt-in setting,
+**Open arXiv links in a new tab**. Modifier-click behavior remains native because
+paper and author destinations are ordinary links rather than scripted navigation.
 
 ## Paper collections
 

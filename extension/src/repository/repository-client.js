@@ -36,4 +36,6 @@ export class RepositoryClient extends PaperRepository {
   removeAuthorFromCollection(authorId, collectionId) { return this.request("removeAuthorFromCollection", [authorId, collectionId]); }
   getAuthorPaperCache(authorId) { return this.request("getAuthorPaperCache", [authorId]); }
   putAuthorPaperCache(cache) { return this.request("putAuthorPaperCache", [cache]); }
+  getPreferences() { return this.request("getPreferences"); }
+  setOpenArxivLinksInNewTab(enabled) { return this.request("setOpenArxivLinksInNewTab", [enabled]); }
 }

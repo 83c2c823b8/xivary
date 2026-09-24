@@ -1,3 +1,17 @@
+@font-face {
+  font-family: "IBM Plex Sans";
+  src: url("../../assets/fonts/IBMPlexSans-Regular.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: "IBM Plex Sans";
+  src: url("../../assets/fonts/IBMPlexSans-SemiBold.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+}
 :root {
   color-scheme: light;
   --bg: #f8f8f7;
@@ -9,7 +23,7 @@
   --link: #245b91;
   --link-hover: #173f69;
   --focus: #1769aa;
-  font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font: 400 15px/1.5 "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   color: var(--text);
   background: var(--bg);
 }
@@ -28,22 +42,34 @@ button {
   color: var(--text);
   cursor: pointer;
 }
+.button-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 38px;
+  padding: 6px 11px;
+  border: 1px solid var(--border-strong);
+  border-radius: 3px;
+  background: var(--surface);
+  color: var(--text);
+  text-decoration: none;
+}
+.button-link:hover { border-color: #92979d; background: #f0f1f2; color: var(--text); }
 button:hover { background: #f0f1f2; border-color: #92979d; }
 button:disabled { opacity: .55; cursor: wait; }
 button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible,
 summary:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 
 .page-header { background: var(--surface); border-bottom: 1px solid var(--border); }
-.page-header > div, main { width: min(1160px, calc(100% - 48px)); margin: 0 auto; }
+.page-header > div, main { width: min(1280px, calc(100% - 48px)); margin: 0 auto; }
 .app-bar { display: flex; align-items: center; min-height: 48px; border-bottom: 1px solid #eceeef; }
-.app-name { color: var(--text); font-size: 15px; font-weight: 650; text-decoration: none; white-space: nowrap; }
+.app-name { color: var(--text); font-size: 15px; font-weight: 600; text-decoration: none; white-space: nowrap; }
 .app-name:hover { color: var(--text); }
 .app-nav { display: flex; align-items: center; gap: 4px; margin-left: 32px; }
 .app-nav a { display: flex; align-items: center; min-height: 34px; padding: 5px 10px; border-radius: 3px; color: #50555a; font-size: 14px; text-decoration: none; }
 .app-nav a:hover { color: var(--text); background: #f2f3f3; }
 .app-nav a[aria-current="page"] { color: var(--text); font-weight: 600; background: #e8e9ea; }
 .page-heading { padding: 14px 0 15px; }
-h1 { margin: 0; font-size: 24px; line-height: 1.3; font-weight: 650; letter-spacing: -.01em; }
+h1 { margin: 0; font-size: 24px; line-height: 1.3; font-weight: 600; letter-spacing: -.01em; }
 .subtitle { margin: 3px 0 0; }
 .subtitle, .metadata, .status, .empty { color: var(--muted); }
 
@@ -61,7 +87,7 @@ input[type="search"], input[type="text"], select {
 }
 .paper-list, .author-list { list-style: none; padding: 0; margin: 0; border-top: 1px solid var(--border); }
 .paper-row, .author-row { padding: 15px 2px 16px; border-bottom: 1px solid var(--border); }
-.paper-row h2, .author-row h2 { margin: 0 0 4px; font-size: 17px; line-height: 1.35; font-weight: 650; }
+.paper-row h2, .author-row h2 { margin: 0 0 4px; font-size: 17px; line-height: 1.35; font-weight: 600; }
 .paper-row h2 a, .author-row h2 a { text-decoration: none; }
 .paper-row h2 a:hover, .author-row h2 a:hover { text-decoration: underline; }
 .metadata { margin: 2px 0; font-size: 13px; line-height: 1.45; }
@@ -75,12 +101,12 @@ input[type="search"], input[type="text"], select {
 .status { min-height: 1.35em; margin: 8px 0; font-size: 13px; }
 .status.error { color: #a01b27; }
 .empty { padding: 28px 2px; text-align: left; font-size: 14px; }
-.year { margin: 22px 0 5px; font-size: 18px; line-height: 1.3; font-weight: 650; }
+.year { margin: 22px 0 5px; font-size: 18px; line-height: 1.3; font-weight: 600; }
 .visually-hidden { position: absolute !important; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 [hidden] { display: none !important; }
 
 @media (max-width: 600px) {
-  .page-header > div, main { width: min(100% - 24px, 1160px); }
+  .page-header > div, main { width: min(100% - 24px, 1280px); }
   .app-bar { align-items: flex-start; flex-direction: column; padding: 9px 0 0; }
   .app-nav { gap: 4px; width: 100%; min-height: 38px; margin: 3px 0 0; }
   input[type="search"], input[type="text"], select { min-width: 0; width: 100%; }

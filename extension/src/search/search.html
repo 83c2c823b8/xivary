@@ -6,6 +6,6 @@
 </header>
 <main><form id="search-form" class="search-form"><label>Query<input id="query" type="search" maxlength="200" required placeholder="e.g. mirror symmetry for K3"></label><label>Field<select id="field"></select></label>
 <fieldset><legend>Mode</legend><label><input type="radio" name="mode" value="exact"> Exact</label><label><input type="radio" name="mode" value="balanced" checked> Balanced</label><label><input type="radio" name="mode" value="broad"> Broad</label></fieldset>
-<div class="form-actions"><button type="submit">Search</button><button id="native-search" type="button">Open on arXiv</button></div><details><summary>Expanded query</summary><pre id="preview">Enter a query to preview.</pre></details></form>
+<div class="form-actions"><button type="submit">Search</button><a id="native-search" class="button-link" href="https://arxiv.org/search/advanced">Open on arXiv</a></div><details><summary>Expanded query</summary><pre id="preview">Enter a query to preview.</pre></details></form>
 <hr><h2>Results</h2><p id="status" class="status" role="status" aria-live="polite"></p><ul id="results" class="paper-list"></ul><p id="empty" class="empty" hidden>No results returned.</p></main>
 </body></html>

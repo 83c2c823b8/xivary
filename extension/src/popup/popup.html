@@ -8,7 +8,7 @@
   <script type="module" src="popup.js"></script>
 </head>
 <body>
-  <header><h1>arXiv Research Library</h1></header>
+  <header><h1>arXiv Research Library</h1><button id="show-preferences" class="header-action" type="button" aria-label="Preferences" title="Preferences" aria-expanded="false" aria-controls="preferences"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10m4 0h2M4 17h2m4 0h10M14 4v6M6 14v6"/></svg></button></header>
   <main>
     <nav aria-label="Open library pages">
       <button data-page="library/library.html">
@@ -20,6 +20,9 @@
         <span>Following</span><span id="following-count" class="count">—</span>
       </button>
     </nav>
+    <section id="preferences" aria-label="Preferences" hidden>
+      <label><input id="open-arxiv-new-tab" type="checkbox"> <span>Open arXiv links in a new tab</span></label>
+    </section>
     <p id="status" role="status" aria-live="polite"></p>
   </main>
 </body>

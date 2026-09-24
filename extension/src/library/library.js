@@ -54,6 +54,7 @@ function render() {
   element("papers").replaceChildren(...visible.map(paper => paperRow(paper, {
     saved: true,
     showAbstract: false,
+    openArxivLinksInNewTab: library.settings.openArxivLinksInNewTab,
     onToggle: button => managePaper(paper, button),
   })));
   element("count").textContent = query && inCollection.length

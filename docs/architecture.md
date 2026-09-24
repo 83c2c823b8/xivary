@@ -20,6 +20,11 @@ The arXiv content module only integrates bookmark and author-follow controls. Th
 popup owns counts and navigation. Browsing and management live in full extension
 tabs: `library/`, `authors/`, `author/`, and `search/`.
 
+The popup also owns the single low-frequency link preference. It is persisted
+through `RepositoryClient` with the rest of the settings. Extension-owned arXiv
+anchors omit `target` by default and use `_blank` only when that preference is
+enabled, preserving native modifier-click behavior.
+
 The default author interaction is deliberately binary: Follow and Following.
 Following removes all memberships on unfollow. Author-collection data and
 repository methods remain intact for backward compatibility but have no default

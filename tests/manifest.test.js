@@ -29,7 +29,9 @@ test("full-tab extension pages and their local assets exist", async () => {
   for (const page of ["library/library.html", "authors/authors.html", "author/author.html", "search/search.html"]) {
     const htmlPath = resolve(root, "src", page);
     const html = await readFile(htmlPath, "utf8");
-    for (const match of html.matchAll(/(?:src|href)="([^"#]+)"/g)) await access(resolve(dirname(htmlPath), match[1]));
+    for (const match of html.matchAll(/(?:src|href)="([^"#]+)"/g)) {
+      if (!/^[a-z][a-z\d+.-]*:/i.test(match[1])) await access(resolve(dirname(htmlPath), match[1]));
+    }
   }
 });
 

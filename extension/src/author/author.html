@@ -5,7 +5,11 @@
   <div class="page-heading"><a class="local-back" href="../authors/authors.html">← Following</a><h1 id="name">Researcher</h1><p id="identity" class="subtitle">Matched by author name</p></div>
 </header>
 <main>
-  <div class="toolbar author-tools"><button id="refresh" type="button">Refresh</button><button id="open-search" type="button">Open on arXiv</button><span id="updated" class="metadata"></span></div>
+  <div class="toolbar author-tools">
+    <button id="refresh" class="icon-control" type="button" aria-label="Refresh" title="Refresh"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6v5h-5"/><path d="M18.2 15a7 7 0 1 1-.7-7.8L20 10"/></svg></button>
+    <a id="open-search" class="icon-control" aria-label="Open on arXiv" title="Open on arXiv"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9"/><path d="M19 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h5"/></svg></a>
+    <span id="updated" class="metadata"></span>
+  </div>
   <p id="status" class="status" role="status" aria-live="polite"></p>
   <div id="papers"></div>
   <p id="empty" class="empty" hidden>No papers were returned for this author name.</p>
