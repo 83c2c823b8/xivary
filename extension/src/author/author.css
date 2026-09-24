@@ -1,1 +1,8 @@
-.author-summary { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:10px; font-size:12px; } #updated { margin-left:auto; } .year-list { list-style:none; padding:0; margin:0; border-top:1px solid #d7d9dc; }
+.local-back { display: inline-block; margin-bottom: 5px; font-size: 13px; }
+.author-tools #updated { margin-left: auto; }
+.year-group + .year-group { margin-top: 26px; }
+.year-list { list-style: none; padding: 0; margin: 0; border-top: 1px solid var(--border); }
+
+@media (max-width: 600px) {
+  .author-tools #updated { flex-basis: 100%; margin-left: 0; }
+}

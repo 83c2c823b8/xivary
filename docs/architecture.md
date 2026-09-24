@@ -23,8 +23,9 @@ tabs: `library/`, `authors/`, `author/`, and `search/`.
 The default author interaction is deliberately binary: Follow and Following.
 Following removes all memberships on unfollow. Author-collection data and
 repository methods remain intact for backward compatibility but have no default
-UI. Paper collections remain user-facing and use progressive disclosure for
-creation and management. Search exists but is absent from primary navigation.
+UI. Paper collections remain user-facing through the Library sidebar, with
+progressive disclosure for creation and management. Search exists but is absent
+from primary navigation.
 
 All persistence crosses the asynchronous `PaperRepository` contract. UI modules
 instantiate only `RepositoryClient`; the MV3 worker owns the sole

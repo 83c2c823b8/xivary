@@ -9,11 +9,13 @@ let selected = "";
 let busy = false;
 
 element("filter").addEventListener("input", render);
-element("collection-filter").addEventListener("change", () => { selected = element("collection-filter").value; closePanels(); render(); });
 element("show-create").addEventListener("click", () => togglePanel("create"));
 element("show-manage").addEventListener("click", () => togglePanel("manage"));
-element("cancel-create").addEventListener("click", closePanels);
-element("close-manage").addEventListener("click", closePanels);
+element("cancel-create").addEventListener("click", () => closePanels("create"));
+element("close-manage").addEventListener("click", () => closePanels("manage"));
+for (const name of ["create", "manage"]) element(`${name}-form`).addEventListener("keydown", event => {
+  if (event.key === "Escape") { event.preventDefault(); closePanels(name); }
+});
 element("create-form").addEventListener("submit", event => {
   event.preventDefault();
   void mutate(async () => {
@@ -46,12 +48,7 @@ async function load() {
 
 function render() {
   if (!library) return;
-  const filter = element("collection-filter");
-  filter.replaceChildren(
-    new Option(`All Saved (${library.papers.length})`, ""),
-    ...library.collections.map(collection => new Option(`${collection.name} (${library.memberships.filter(item => item.collectionId === collection.id).length})`, collection.id)),
-  );
-  filter.value = selected;
+  renderCollections();
   element("show-manage").hidden = !selected;
   if (!selected) element("manage-form").hidden = true;
   element("rename-name").value = library.collections.find(collection => collection.id === selected)?.name || "";
@@ -67,6 +64,37 @@ function render() {
   element("count").textContent = `${visible.length} of ${inCollection.length}`;
   element("empty").textContent = library.papers.length ? "No papers in this view." : "No saved papers yet. Use the bookmark on an arXiv page or paper result.";
   element("empty").hidden = visible.length > 0;
+}
+
+function renderCollections() {
+  const entries = [
+    { id: "", name: "All Saved", count: library.papers.length },
+    ...library.collections.map(collection => ({
+      ...collection,
+      count: library.memberships.filter(item => item.collectionId === collection.id).length,
+    })),
+  ];
+  element("collection-list").replaceChildren(...entries.map(entry => {
+    const item = document.createElement("li");
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "collection-link";
+    button.dataset.collectionId = entry.id;
+    if (entry.id === selected) button.setAttribute("aria-current", "page");
+    const name = document.createElement("span");
+    name.textContent = entry.name;
+    const count = document.createElement("span");
+    count.className = "collection-count";
+    count.textContent = entry.count;
+    button.append(name, count);
+    button.addEventListener("click", () => {
+      selected = entry.id;
+      closePanels();
+      render();
+    });
+    item.append(button);
+    return item;
+  }));
 }
 
 async function managePaper(paper, button) {
@@ -86,11 +114,12 @@ function togglePanel(name) {
   panel.querySelector("input")?.focus();
 }
 
-function closePanels() {
+function closePanels(returnFocus) {
   element("create-form").hidden = true;
   element("manage-form").hidden = true;
   element("show-create").setAttribute("aria-expanded", "false");
   element("show-manage").setAttribute("aria-expanded", "false");
+  if (returnFocus) element(returnFocus === "create" ? "show-create" : "show-manage").focus();
 }
 
 async function mutate(operation, message) {
@@ -102,5 +131,5 @@ async function mutate(operation, message) {
   finally { busy = false; setDisabled(false); }
 }
 
-function setDisabled(value) { document.querySelectorAll("button,input,select").forEach(node => { node.disabled = value; }); }
+function setDisabled(value) { document.querySelectorAll("button,input").forEach(node => { node.disabled = value; }); }
 function setStatus(message, error = false) { element("status").textContent = message; element("status").classList.toggle("error", error); }
