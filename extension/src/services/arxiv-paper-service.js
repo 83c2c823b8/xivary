@@ -1,4 +1,5 @@
 import { normalizeArxivId } from "../domain/identifiers.js";
+import { normalizeAuthorName } from "../domain/author.js";
 
 export const AUTHOR_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 
@@ -55,6 +56,16 @@ export function normalizeCachedAuthorResults({ authorId, papers, fetchedAt, quer
 export function isAuthorCacheFresh(cache, now = Date.now(), ttlMs = AUTHOR_CACHE_TTL_MS) {
   return Boolean(cache) && Number.isFinite(ttlMs) && ttlMs >= 0
     && now - Date.parse(cache.fetchedAt) < ttlMs;
+}
+
+/** Require one returned author to match the followed full name. This prevents a
+ * query result from passing when given and family names occur on different people.
+ * Name-key matching still cannot distinguish two people with the same full name.
+ */
+export function paperMatchesAuthor(paper, author) {
+  if (!paper || !Array.isArray(paper.authors) || !author) return false;
+  const target = normalizeAuthorName(author.displayName);
+  return paper.authors.some(item => normalizeAuthorName(typeof item === "string" ? item : item.displayName) === target);
 }
 
 export async function fetchArxivPapers(searchQuery, fetchImpl = fetch) {

@@ -5,6 +5,10 @@
   box-shadow: 0 6px 25px #0003; color: #252529; font: 13px/1.5 system-ui, sans-serif;
 }
 .arxiv-collection-picker strong { display: block; overflow-wrap: anywhere; margin-bottom: 8px; }
+.arxiv-collection-picker .collection-picker-heading { display: flex; align-items: start; justify-content: space-between; gap: 10px; }
+.arxiv-collection-picker .collection-picker-heading strong { margin: 3px 0 0; }
+.arxiv-collection-picker .collection-picker-subtitle { margin: 2px 0 8px; color: #60656b; font-size: 12px; overflow-wrap: anywhere; }
+.arxiv-collection-picker .collection-picker-status { min-height: 1.4em; margin: 3px 0; color: #60656b; font-size: 12px; }
 .arxiv-collection-picker label { display: flex; gap: 8px; align-items: center; margin: 8px 0; overflow-wrap: anywhere; }
 .arxiv-collection-picker input[type=checkbox] { width: auto; flex: none; }
 .arxiv-collection-picker form { border-top: 1px solid #ddd; margin-top: 12px; padding-top: 12px; }

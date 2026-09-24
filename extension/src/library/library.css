@@ -1,1 +1,5 @@
-#filter { width: min(430px,80vw); } .toolbar .metadata { margin-left: auto; }
+#filter { width: min(360px, 70vw); }
+.toolbar .metadata { margin-left: auto; }
+#create-form, .collection-manager { display: flex; align-items: end; flex-wrap: wrap; gap: 8px; }
+#create-form label, .collection-manager label { display: grid; gap: 3px; font-size: 12px; font-weight: 600; }
+.collection-manager { padding: 10px; margin: -6px 0 14px; background: #fff; border: 1px solid #d7d9dc; }

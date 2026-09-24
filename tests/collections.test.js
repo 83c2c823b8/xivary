@@ -42,7 +42,7 @@ test("schema 2 follows migrate to Following once, preserving author and favorite
   assert.equal(library.collections[0].name, "Following");
   assert.deepEqual(library.memberships, authors.map(author => ({ authorId: author.id, collectionId: library.collections[0].id, addedAt: now, updatedAt: now })));
   assert.deepEqual((await storage.read()).favorites, favorites);
-  assert.equal((await storage.read()).schemaVersion, 4);
+  assert.equal((await storage.read()).schemaVersion, 5);
   await repository.listFollowing();
   await new LocalRepository(storage).getAuthorLibrary();
   assert.equal(writes(), 1);

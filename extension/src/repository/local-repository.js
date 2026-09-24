@@ -5,6 +5,7 @@ import { cleanText, normalizeArxivId } from "../domain/identifiers.js";
 import { normalizeCachedAuthorResults } from "../services/arxiv-paper-service.js";
 
 const newest = field => (a, b) => b[field].localeCompare(a[field]);
+const DEFAULT_PAPER_COLLECTION_ID = "paper-collection:saved-papers";
 
 export class LocalRepository extends PaperRepository {
   constructor(storage, clock = () => new Date().toISOString(), makeId = () => crypto.randomUUID()) {
@@ -20,7 +21,7 @@ export class LocalRepository extends PaperRepository {
     const result = this.pending.then(async () => {
       const stored = await this.storage.read();
       const state = prepareState(stored, this.clock());
-      if (stored && stored.schemaVersion !== 4) await this.storage.write(state);
+      if (stored && stored.schemaVersion !== 5) await this.storage.write(state);
       return operation(state);
     });
     this.pending = result.catch(() => {});
@@ -29,6 +30,21 @@ export class LocalRepository extends PaperRepository {
 
   listFavorites() {
     return this.run(state => structuredClone(state.favorites).sort(newest("savedAt")));
+  }
+
+  getPaperLibrary() {
+    return this.run(state => structuredClone({
+      papers: state.favorites, collections: state.paperCollections,
+      memberships: state.paperMemberships, settings: state.settings,
+    }));
+  }
+
+  savePaper(input) {
+    return this.run(async state => {
+      const paper = this.addPaperToDefaultCollection(state, input);
+      await this.storage.write(state);
+      return structuredClone(paper);
+    });
   }
 
   listFollowing() {
@@ -41,9 +57,9 @@ export class LocalRepository extends PaperRepository {
   toggleFavorite(input) {
     return this.run(async state => {
       const paper = createPaper(input, this.clock());
-      const exists = state.favorites.some(item => item.arxivId === paper.arxivId);
-      state.favorites = state.favorites.filter(item => item.arxivId !== paper.arxivId);
-      if (!exists) state.favorites.push(paper);
+      const exists = state.paperMemberships.some(item => item.arxivId === paper.arxivId);
+      if (exists) this.removePaperEverywhere(state, paper.arxivId);
+      else this.addPaperToDefaultCollection(state, paper);
       await this.storage.write(state);
       return exists ? null : paper;
     });
@@ -52,7 +68,58 @@ export class LocalRepository extends PaperRepository {
   removeFavorite(arxivId) {
     return this.run(async state => {
       const id = normalizeArxivId(arxivId);
-      state.favorites = state.favorites.filter(paper => paper.arxivId !== id);
+      this.removePaperEverywhere(state, id);
+      await this.storage.write(state);
+    });
+  }
+
+  createPaperCollection(name, paper = null) {
+    return this.run(async state => {
+      const collection = this.newPaperCollection(state, name);
+      state.settings.lastUsedPaperCollectionId = collection.id;
+      if (paper !== null) this.addPaperMembership(state, paper, collection.id);
+      await this.storage.write(state);
+      return structuredClone(collection);
+    });
+  }
+
+  renamePaperCollection(id, name) {
+    return this.run(async state => {
+      const collection = requirePaperCollection(state, id);
+      collection.name = paperCollectionName(state, name, id);
+      collection.updatedAt = this.clock();
+      await this.storage.write(state);
+      return structuredClone(collection);
+    });
+  }
+
+  deletePaperCollection(id) {
+    return this.run(async state => {
+      requirePaperCollection(state, id);
+      state.paperCollections = state.paperCollections.filter(item => item.id !== id);
+      state.paperMemberships = state.paperMemberships.filter(item => item.collectionId !== id);
+      this.removeOrphanedPapers(state);
+      if (state.settings.lastUsedPaperCollectionId === id) {
+        state.settings.lastUsedPaperCollectionId = state.paperCollections[0]?.id ?? null;
+      }
+      await this.storage.write(state);
+    });
+  }
+
+  addPaperToCollection(input, collectionId) {
+    return this.run(async state => {
+      const paper = this.addPaperMembership(state, input, collectionId);
+      await this.storage.write(state);
+      return structuredClone(paper);
+    });
+  }
+
+  removePaperFromCollection(arxivId, collectionId) {
+    return this.run(async state => {
+      requirePaperCollection(state, collectionId);
+      const id = normalizeArxivId(arxivId);
+      state.paperMemberships = state.paperMemberships.filter(item => item.arxivId !== id || item.collectionId !== collectionId);
+      this.removeOrphanedPapers(state);
       await this.storage.write(state);
     });
   }
@@ -169,6 +236,48 @@ export class LocalRepository extends PaperRepository {
     state.settings.lastUsedAuthorCollectionId = collectionId;
     return author;
   }
+
+  newPaperCollection(state, name, id = `paper-collection:${this.makeId()}`) {
+    const normalized = paperCollectionName(state, name);
+    const now = this.clock();
+    const collection = { id, name: normalized, createdAt: now, updatedAt: now };
+    if (state.paperCollections.some(item => item.id === id)) throw new Error("Collection ID collision. Please retry.");
+    state.paperCollections.push(collection);
+    return collection;
+  }
+
+  addPaperToDefaultCollection(state, input) {
+    const candidate = createPaper(input, this.clock());
+    const existing = state.favorites.find(item => item.arxivId === candidate.arxivId);
+    if (state.paperMemberships.some(item => item.arxivId === candidate.arxivId)) return existing;
+    let collection = state.paperCollections.find(item => item.id === state.settings.lastUsedPaperCollectionId)
+      || state.paperCollections[0];
+    if (!collection) collection = this.newPaperCollection(state, "Saved Papers", DEFAULT_PAPER_COLLECTION_ID);
+    return this.addPaperMembership(state, existing || candidate, collection.id);
+  }
+
+  addPaperMembership(state, input, collectionId) {
+    requirePaperCollection(state, collectionId);
+    const now = this.clock();
+    const candidate = createPaper(input, now);
+    let paper = state.favorites.find(item => item.arxivId === candidate.arxivId);
+    if (!paper) { paper = candidate; state.favorites.push(paper); }
+    if (!state.paperMemberships.some(item => item.arxivId === paper.arxivId && item.collectionId === collectionId)) {
+      state.paperMemberships.push({ arxivId: paper.arxivId, collectionId, addedAt: now, updatedAt: now });
+    }
+    state.settings.lastUsedPaperCollectionId = collectionId;
+    return paper;
+  }
+
+  removePaperEverywhere(state, arxivId) {
+    state.paperMemberships = state.paperMemberships.filter(item => item.arxivId !== arxivId);
+    state.favorites = state.favorites.filter(item => item.arxivId !== arxivId);
+  }
+
+  removeOrphanedPapers(state) {
+    const savedIds = new Set(state.paperMemberships.map(item => item.arxivId));
+    state.favorites = state.favorites.filter(item => savedIds.has(item.arxivId));
+  }
 }
 
 function validDate(value) {
@@ -225,12 +334,29 @@ function collectionName(state, value, exceptId) {
   return name;
 }
 
+function requirePaperCollection(state, id) {
+  const collection = state.paperCollections.find(item => item.id === id);
+  if (!collection) throw new Error("Collection no longer exists. Refresh and try again.");
+  return collection;
+}
+
+function paperCollectionName(state, value, exceptId) {
+  const name = cleanText(value, "Collection name");
+  if (name.length > 80) throw new Error("Collection names must be at most 80 characters.");
+  if (state.paperCollections.some(item => item.id !== exceptId && item.name.toLowerCase() === name.toLowerCase())) {
+    throw new Error("A collection with this name already exists.");
+  }
+  return name;
+}
+
 function prepareState(stored, now) {
   const state = stored === undefined ? {
-    schemaVersion: 4, favorites: [], authors: [], collections: [], memberships: [], authorPaperCaches: [],
-    settings: { lastUsedAuthorCollectionId: null },
+    schemaVersion: 5, favorites: [],
+    paperCollections: [{ id: DEFAULT_PAPER_COLLECTION_ID, name: "Saved Papers", createdAt: now, updatedAt: now }],
+    paperMemberships: [], authors: [], collections: [], memberships: [], authorPaperCaches: [],
+    settings: { lastUsedAuthorCollectionId: null, lastUsedPaperCollectionId: DEFAULT_PAPER_COLLECTION_ID },
   } : structuredClone(stored);
-  if (!state || ![1, 2, 3, 4].includes(state.schemaVersion) || !Array.isArray(state.favorites)) {
+  if (!state || ![1, 2, 3, 4, 5].includes(state.schemaVersion) || !Array.isArray(state.favorites)) {
     throw new Error("Unsupported or damaged library data. Existing data was left unchanged.");
   }
   for (const paper of state.favorites) {
@@ -288,5 +414,39 @@ function prepareState(stored, now) {
   }
   if (!Array.isArray(state.authorPaperCaches)) throw new Error("Invalid author paper cache data.");
   state.authorPaperCaches = state.authorPaperCaches.map(normalizeCachedAuthorResults);
+  if (state.schemaVersion === 4) {
+    state.paperCollections = [{ id: DEFAULT_PAPER_COLLECTION_ID, name: "Saved Papers", createdAt: now, updatedAt: now }];
+    state.paperMemberships = state.favorites.map(paper => ({
+      arxivId: paper.arxivId, collectionId: DEFAULT_PAPER_COLLECTION_ID,
+      addedAt: paper.savedAt, updatedAt: paper.updatedAt,
+    }));
+    state.settings = { ...state.settings, lastUsedPaperCollectionId: DEFAULT_PAPER_COLLECTION_ID };
+    state.schemaVersion = 5;
+  }
+  if (!Array.isArray(state.paperCollections) || !Array.isArray(state.paperMemberships)) {
+    throw new Error("Invalid paper collection data.");
+  }
+  const paperIds = new Set(state.favorites.map(paper => paper.arxivId));
+  const paperCollectionIds = new Set();
+  for (const collection of state.paperCollections) {
+    if (typeof collection.id !== "string" || !collection.id.startsWith("paper-collection:")
+        || paperCollectionIds.has(collection.id) || !validDate(collection.createdAt) || !validDate(collection.updatedAt)) {
+      throw new Error("Invalid paper collection data.");
+    }
+    paperCollectionName(state, collection.name, collection.id);
+    paperCollectionIds.add(collection.id);
+  }
+  const paperPairs = new Set();
+  for (const item of state.paperMemberships) {
+    const key = JSON.stringify([item.arxivId, item.collectionId]);
+    if (!paperIds.has(item.arxivId) || !paperCollectionIds.has(item.collectionId) || paperPairs.has(key)
+        || !validDate(item.addedAt) || !validDate(item.updatedAt)) throw new Error("Invalid paper collection membership.");
+    paperPairs.add(key);
+  }
+  for (const paperId of paperIds) {
+    if (!state.paperMemberships.some(item => item.arxivId === paperId)) throw new Error("Saved paper has no collection membership.");
+  }
+  const lastUsedPaper = state.settings.lastUsedPaperCollectionId;
+  if (lastUsedPaper !== null && !paperCollectionIds.has(lastUsedPaper)) throw new Error("Invalid last-used paper collection.");
   return state;
 }

@@ -3,7 +3,7 @@ export function createBookmarkButton({ saved, title, onToggle }) {
   button.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.75 3.75h10.5v16.5L12 16.5l-5.25 3.75V3.75Z"/></svg>';
   setBookmarkState(button, saved, title); button.addEventListener("click", () => void onToggle(button)); return button;
 }
-export function setBookmarkState(button, saved, title) { button.setAttribute("aria-pressed", String(saved)); button.setAttribute("aria-label", `${saved ? "Saved" : "Save paper"}: ${title}`); button.title = saved ? "Saved" : "Save paper"; }
+export function setBookmarkState(button, saved, title) { button.setAttribute("aria-pressed", String(saved)); button.setAttribute("aria-label", `${saved ? "Manage collections for" : "Save paper"}: ${title}`); button.title = saved ? "Manage collections" : "Save paper"; if(saved){button.setAttribute("aria-haspopup","dialog");if(!button.hasAttribute("aria-expanded"))button.setAttribute("aria-expanded","false")}else{button.removeAttribute("aria-haspopup");button.removeAttribute("aria-expanded")} }
 export function paperRow(paper, { saved = false, onToggle, showAbstract = true } = {}) {
   const row = document.createElement("li"); row.className = "paper-row"; const heading = document.createElement("h2");
   const title = link(paper.title, paper.absUrl); heading.append(title); row.append(heading);

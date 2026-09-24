@@ -1,27 +1,35 @@
 # arxiv-tool
 
 A local-first Chromium extension for saving arXiv papers, following researchers,
-organizing authors into collections, and running field-aware searches. Data stays
+organizing papers and authors into collections, and running field-aware searches. Data stays
 in the browser profile; there is no account or backend in this iteration.
 
 ## User experience
 
-- **arXiv abstract pages** provide only contextual actions: a subtle bookmark at
-  the title and compact Follow controls beside author names.
+- **arXiv abstract pages** provide clear, compact Save and Follow actions in their
+  natural title and author contexts.
 - **Popup** is a small launcher showing Saved Papers and Following Authors counts,
-  with links to the three full-tab pages.
-- **Library** (`src/library/library.html`) lists and filters saved papers and lets
-  you remove them from the library.
+  with links to Library and Following.
+- **Library** (`src/library/library.html`) browses All Saved or a named paper
+  collection and manages collections and memberships.
 - **Following** (`src/authors/authors.html`) manages followed researchers,
   collection filters, collection creation/rename/delete, and memberships.
 - **Researcher feed** (`src/author/author.html?authorId=…`) shows a followed
   researcher's recent arXiv papers grouped by year.
-- **Search** (`src/search/search.html`) provides the eight field presets and
-  deterministic Exact, Balanced, and Broad expansion modes.
+- **Search** remains implemented at `src/search/search.html` but is hidden from
+  primary navigation for now.
 
 The old UI word “Favorite” is now **Save**, **Saved**, and **Library**. The internal
 repository methods and persisted `favorites` property retain their old names for
 backward compatibility. Existing saved papers are migrated losslessly.
+
+## Paper collections
+
+The first one-click save uses the last-used paper collection, falling back to
+**Saved Papers**. Clicking a saved bookmark opens a multi-select picker where
+memberships can be changed or a named collection created inline. Papers remain
+globally saved while at least one membership exists. Paper and author collections,
+including their last-used settings, are independent.
 
 ## Author identity and collections
 
@@ -66,7 +74,7 @@ npm test
 npm run test:browser
 ```
 
-The Node suites cover identifiers, saved-data migration, author identity and
+The Node suites cover identifiers, saved-data migration, paper and author
 collections, cache freshness/normalization, search expansion, repository message
 boundaries, page packaging, and storage isolation. The browser smoke test uses a
 temporary profile and synthetic arXiv page.
@@ -75,13 +83,13 @@ temporary profile and synthetic arXiv page.
 
 1. Load `extension/`, open an arXiv abstract page, and confirm the outline bookmark
    sits naturally at the title and fills after saving.
-2. Save/unsave the paper, then follow an author with the compact control.
+2. Save the paper, reopen its picker, create a collection, and change memberships.
 3. Open the popup; confirm the counts and open **Following** in a normal tab.
 4. Create/rename a collection, change membership, and click the researcher's name.
 5. Confirm cached or fetched papers render by year; open an abstract and PDF, then
    save a result and confirm it appears in **Library**.
-6. Open **Search arXiv**, compare Exact, Balanced, and Broad previews/results, and
-   use **Open on arXiv** as a retrieval fallback.
+6. Open the Search page directly when testing its retained Exact, Balanced, and
+   Broad implementation; it is intentionally absent from primary navigation.
 7. Visit another paper by the followed author and confirm follow state is shared.
 8. Reload the extension and verify saved papers, follows, collections, and cache
    state persist without console errors.
@@ -106,8 +114,7 @@ scripts/         Chromium browser smoke check
 ```
 
 Only `extension/src/lib/storage.js` calls `chrome.storage.local`; every UI uses
-`RepositoryClient`. Paper collections are a future extension of the saved-paper
-page and data model. Backend sync, Android, iPad/iOS, web clients, embeddings, and
+`RepositoryClient`. Backend sync, Android, iPad/iOS, web clients, embeddings, and
 AI semantic search remain out of scope. A future provider-independent REST/JSON
 API may connect all clients to PostgreSQL on an ordinary server or Raspberry Pi.
 

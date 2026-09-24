@@ -128,7 +128,7 @@ test("legacy follows migrate once, merge canonical names, and leave favorites un
     id: stableAuthorKey(latest.displayName), displayName: latest.displayName,
     normalizedName: "anne-marie o'neill", followedAt: early, updatedAt: late,
   });
-  assert.equal((await storage.read()).schemaVersion, 4);
+  assert.equal((await storage.read()).schemaVersion, 5);
   assert.deepEqual((await storage.read()).favorites, favorites);
   assert.equal((await storage.read()).extra, "keep");
   const writes = area.set;
@@ -160,7 +160,7 @@ test("empty legacy following migrates without changing saved favorites", async (
   const favorites = [createPaper(paper, now)];
   await storage.write({ schemaVersion: 1, favorites, following: [] });
   assert.deepEqual(await repository.listFavorites(), favorites);
-  assert.equal((await storage.read()).schemaVersion, 4);
+  assert.equal((await storage.read()).schemaVersion, 5);
   assert.deepEqual((await storage.read()).favorites, favorites);
   assert.deepEqual((await storage.read()).memberships, []);
   assert.equal((await storage.read()).collections[0].name, "Following");
@@ -229,7 +229,7 @@ test("schema 3 migrates to an empty author cache without changing saved or colle
   await storage.write(schema3);
   assert.deepEqual(await repository.listFavorites(), [saved]);
   const migrated = await storage.read();
-  assert.equal(migrated.schemaVersion, 4);
+  assert.equal(migrated.schemaVersion, 5);
   assert.deepEqual(migrated.favorites, schema3.favorites);
   assert.deepEqual(migrated.authors, schema3.authors);
   assert.deepEqual(migrated.collections, schema3.collections);

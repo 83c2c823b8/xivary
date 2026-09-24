@@ -1,4 +1,4 @@
-# Shared data model (schema version 4)
+# Shared data model (schema version 5)
 
 The extension stores JSON-compatible objects. Timestamps are UTC ISO 8601 strings
 generated on save, such as `2026-09-24T01:02:03.000Z`. The same record shapes can
@@ -25,10 +25,26 @@ later cross a REST/JSON API; they have no Chrome or cloud-provider types.
 `2401.00001v2` and `2401.00001v3` both identify `2401.00001`.
 Legacy identifiers retain their archive prefix, for example `hep-th/9901001`.
 URLs are generated from the ID, not trusted from arbitrary page links. They point
-to the latest revision. Saving another revision toggles the existing favorite;
-there is only one favorite per paper. Unfavorite removes the record; saving again
-starts fresh timestamps and default user metadata. Editing user metadata is not
-part of this MVP.
+to the latest revision. There is only one canonical record per paper regardless
+of how many collections contain it. A paper is globally saved if and only if it
+has at least one PaperCollectionMembership. Removing its final membership removes
+the compatibility `favorites` record; saving again starts fresh timestamps and
+default user metadata. Editing user metadata is not part of this MVP.
+
+## PaperCollection and PaperCollectionMembership
+
+Paper collections are separate from author collections. A PaperCollection has an
+opaque `paper-collection:{UUID}` ID, normalized nonempty `name` (maximum 80
+characters), and `createdAt`/`updatedAt` timestamps. Names are case-insensitively
+unique but are never used as identifiers. The built-in default uses the stable ID
+`paper-collection:saved-papers` and display name **Saved Papers**.
+
+A PaperCollectionMembership contains `arxivId`, `collectionId`, `addedAt`, and
+`updatedAt`. The `(arxivId, collectionId)` pair is unique. Adds are idempotent.
+Papers may belong to any number of collections. Renaming changes no IDs or
+memberships. Deleting a collection deletes only its memberships; papers that
+remain in another collection remain saved. Papers left with no memberships are
+globally unsaved. **All Saved** is a UI aggregate, not a stored collection.
 
 ## AuthorReference and Author
 
@@ -122,13 +138,18 @@ author. These are local hard deletes, not sync tombstones.
 
 ## Settings
 
-`lastUsedAuthorCollectionId` is a collection ID or `null`. Creating a collection
-or explicitly adding membership updates it; unchecking a collection does not.
+`lastUsedAuthorCollectionId` is an author collection ID or `null`. Creating a
+collection or explicitly adding membership updates it; unchecking does not.
 `followAuthor` does nothing if already followed, otherwise adds to last-used,
 falling back to the first remaining collection. If none exist, it creates
 Following. Deleting last-used selects the first remaining collection, or null.
 Collection creation with an initial author saves both in one atomic repository
 operation. The setting never holds a dangling collection ID.
+
+`lastUsedPaperCollectionId` is independent. Creating a paper collection or adding
+a paper to one updates it. A one-click save uses that collection, falls back to the
+first paper collection, and recreates **Saved Papers** if none exists. Creating a
+collection with a paper atomically creates both collection and membership.
 
 ## Local persistence
 
@@ -136,13 +157,23 @@ The `arxivResearchLibrary` key in `chrome.storage.local` holds:
 
 ```json
 {
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "favorites": [],
+  "paperCollections": [{
+    "id": "paper-collection:saved-papers",
+    "name": "Saved Papers",
+    "createdAt": "…",
+    "updatedAt": "…"
+  }],
+  "paperMemberships": [],
   "authors": [],
   "collections": [],
   "memberships": [],
   "authorPaperCaches": [],
-  "settings": { "lastUsedAuthorCollectionId": null }
+  "settings": {
+    "lastUsedAuthorCollectionId": null,
+    "lastUsedPaperCollectionId": "paper-collection:saved-papers"
+  }
 }
 ```
 
@@ -188,7 +219,7 @@ operation after updating (including a list read), the sole worker repository:
 
 The write completes before the requested operation proceeds. Invalid data or a
 failed migration write rejects the request without replacing the stored library;
-the next request can retry. Schema 4 reads do not repeat migration. New paper
+the next request can retry. Schema 5 reads do not repeat migration. New paper
 references use canonical author keys; old embedded references remain display-only
 metadata and are never used to look up follow state. The original pre-normalization
 spelling of legacy display names cannot be recovered if the old code changed it.
@@ -214,6 +245,17 @@ unknown record/envelope fields and all Favorites remain unchanged.
 Schema 3 libraries receive an empty `authorPaperCaches` array. Existing saved
 papers, authors, collections, memberships, settings, and unknown fields are
 retained. Cache refreshes never change `favorites`.
+
+#### Schema 4 to 5 paper collections
+
+On the first repository operation, create exactly one **Saved Papers** collection
+and one membership for every existing favorite. Membership timestamps reuse each
+paper's `savedAt` and `updatedAt`; collection timestamps use migration time. The
+paper records are not rewritten or duplicated. Set `lastUsedPaperCollectionId` to
+the default while retaining the author setting and all author records,
+memberships, caches, and unknown fields. The complete v5 envelope is validated
+before one serialized replacement write. Failed writes leave v4 unchanged, and
+subsequent v5 reads never repeat the migration.
 
 Reload the extension and open arXiv tabs after updating so all UI contexts use the
 new key format. No manual clearing or re-following is necessary.

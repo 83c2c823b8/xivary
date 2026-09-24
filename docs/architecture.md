@@ -26,16 +26,18 @@ instantiate only `RepositoryClient`; the MV3 worker owns the sole
 `chrome.storage.local`. The worker validates a method allowlist and argument counts,
 and serializes reads, migrations, and writes to avoid local read-modify-write races.
 
-The internal `favorites` name and methods remain as a compatibility layer, while
-all visible language says Saved Papers and Library. Schema migrations validate the
-complete result before one replacement write and preserve unknown fields.
+The internal `favorites` array remains the canonical paper-record compatibility
+layer. Schema v5 adds `paperCollections` and `paperMemberships`; membership is the
+single definition of saved state. Schema migrations validate the complete result
+before one replacement write and preserve unknown fields.
 
 ## Records and services
 
-Schema 4 keeps canonical saved papers, authors, author collections, memberships,
-settings, and author paper caches in one local envelope. Cache records are external
+Schema 5 keeps canonical saved papers, paper collections and memberships, authors,
+author collections and memberships, independent last-used settings, and author
+paper caches in one local envelope. Cache records are external
 search results rather than user-owned saved records. Explicitly bookmarking a
-result creates a canonical Paper through `toggleFavorite`; refreshing a cache can
+result creates a canonical Paper through `savePaper`; refreshing a cache can
 therefore never erase notes or saved state.
 
 The reusable arXiv service maps an author identity to a name query, builds API
@@ -45,15 +47,19 @@ The field expansion modules are also pure and deterministic. These contracts can
 be ported to a backend or mobile client without Chrome storage or UI types.
 
 Direct result retrieval uses the public arXiv Atom endpoint under the manifest's
-single host permission. Search always exposes the equivalent native arXiv URL.
-Author matching currently uses canonical display names, so namesakes remain an
+single host permission. Search retains an equivalent native arXiv URL but is
+currently hidden from primary navigation. Author feeds defensively require one
+returned author to match the followed normalized full name; namesakes remain an
 explicit limitation. ORCID linking is future work.
 
 ## Repository contract
 
-Alongside saved-paper and author-collection operations, the repository exposes
+Alongside paper-collection and author-collection operations, the repository exposes
 `getAuthorPaperCache(authorId)` and `putAuthorPaperCache(cache)`. Follow operations
 are fast and never fetch. Cache writes and saved-paper writes remain distinct.
+Paper and author collections deliberately use separate records and last-used IDs.
+Their JSON-compatible IDs and join records can cross a future REST API unchanged;
+sync will still require server versions and deletion tombstones.
 
 ## Future system
 

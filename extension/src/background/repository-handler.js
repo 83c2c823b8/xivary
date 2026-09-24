@@ -1,8 +1,11 @@
 import { REPOSITORY_CHANNEL } from "../repository/repository-client.js";
 
 const methods = new Map([
-  ["listFavorites", 0], ["listFollowing", 0], ["toggleFavorite", 1],
-  ["removeFavorite", 1], ["followAuthor", 1], ["unfollowAuthor", 1],
+  ["listFavorites", 0], ["getPaperLibrary", 0], ["savePaper", 1],
+  ["listFollowing", 0], ["toggleFavorite", 1], ["removeFavorite", 1],
+  ["createPaperCollection", 2], ["renamePaperCollection", 2], ["deletePaperCollection", 1],
+  ["addPaperToCollection", 2], ["removePaperFromCollection", 2],
+  ["followAuthor", 1], ["unfollowAuthor", 1],
   ["getAuthorLibrary", 0], ["createAuthorCollection", 2], ["renameAuthorCollection", 2],
   ["deleteAuthorCollection", 1], ["addAuthorToCollection", 2], ["removeAuthorFromCollection", 2],
   ["getAuthorPaperCache", 1], ["putAuthorPaperCache", 1],

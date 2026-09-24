@@ -5,9 +5,16 @@
  */
 export class PaperRepository {
   async listFavorites() { throw new Error("Not implemented"); }
+  async getPaperLibrary() { throw new Error("Not implemented"); }
+  async savePaper(paper) { throw new Error("Not implemented"); }
   async listFollowing() { throw new Error("Not implemented"); }
   async toggleFavorite(paper) { throw new Error("Not implemented"); }
   async removeFavorite(arxivId) { throw new Error("Not implemented"); }
+  async createPaperCollection(name, paper = null) { throw new Error("Not implemented"); }
+  async renamePaperCollection(id, name) { throw new Error("Not implemented"); }
+  async deletePaperCollection(id) { throw new Error("Not implemented"); }
+  async addPaperToCollection(paper, collectionId) { throw new Error("Not implemented"); }
+  async removePaperFromCollection(arxivId, collectionId) { throw new Error("Not implemented"); }
   async followAuthor(author) { throw new Error("Not implemented"); }
   async unfollowAuthor(id) { throw new Error("Not implemented"); }
   async getAuthorLibrary() { throw new Error("Not implemented"); }
