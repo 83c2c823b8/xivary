@@ -136,6 +136,11 @@ if at least one membership exists. Removing a membership or deleting a collectio
 never deletes an Author entity. Removing all memberships globally unfollows the
 author. These are local hard deletes, not sync tombstones.
 
+Author collections are retained for stored-data and repository compatibility but
+are hidden from the default UI. The visible model is simply Follow/Following;
+unfollowing removes all memberships. A future advanced preference may expose
+organization without changing this schema.
+
 ## Settings
 
 `lastUsedAuthorCollectionId` is an author collection ID or `null`. Creating a
@@ -266,6 +271,7 @@ new key format. No manual clearing or re-following is necessary.
 - `deletedAt`: nullable timestamp/tombstone for deletions awaiting sync.
 - Verified person identifiers and explicit links between author references.
 - Server-assigned change cursors and conflict-resolution metadata.
+- Paper-note editing, only if a demonstrated workflow need justifies the added UI.
 
 Current hard deletes and device-clock `updatedAt` values do not implement sync.
 Before enabling sync, define version ownership, conflict handling, migration,

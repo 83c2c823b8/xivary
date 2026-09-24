@@ -79,6 +79,19 @@ test("removing one of multiple memberships retains follow; removing all unfollow
   assert.equal((await repository.getAuthorLibrary()).authors.length, 1);
 });
 
+test("simple unfollow removes all memberships without deleting stored author collections", async () => {
+  const { repository } = fixture();
+  const a = await repository.createAuthorCollection("A", alex);
+  const b = await repository.createAuthorCollection("B", alex);
+  const authorId = createAuthor(alex, now).id;
+  assert.equal((await repository.listFollowing()).length, 1);
+  await repository.unfollowAuthor(authorId);
+  const library = await repository.getAuthorLibrary();
+  assert.deepEqual(library.memberships, []);
+  assert.deepEqual(library.collections.map(collection => collection.id), [a.id, b.id]);
+  assert.equal(library.authors[0].id, authorId);
+});
+
 test("rename changes no IDs or memberships; deletion retains entities and repairs last-used", async () => {
   const { repository } = fixture();
   const a = await repository.createAuthorCollection("A", alex);

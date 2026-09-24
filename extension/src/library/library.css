@@ -1,5 +1,9 @@
-#filter { width: min(360px, 70vw); }
-.toolbar .metadata { margin-left: auto; }
-#create-form, .collection-manager { display: flex; align-items: end; flex-wrap: wrap; gap: 8px; }
-#create-form label, .collection-manager label { display: grid; gap: 3px; font-size: 12px; font-weight: 600; }
-.collection-manager { padding: 10px; margin: -6px 0 14px; background: #fff; border: 1px solid #d7d9dc; }
+#filter { width: min(340px, 64vw); }
+.toolbar-actions { display: flex; align-items: center; gap: 6px; }
+.toolbar .metadata { margin-left: auto; align-self: center; font-variant-numeric: tabular-nums; }
+.inline-panel { display: flex; align-items: end; flex-wrap: wrap; gap: 8px; margin: -4px 0 14px; padding: 0 0 12px; border-bottom: 1px solid #d7d9dc; }
+.inline-panel label { display: grid; gap: 3px; font-size: 12px; font-weight: 600; }
+@media (max-width: 760px) {
+  .toolbar-actions { flex: 1 1 auto; }
+  .toolbar .metadata { margin-left: 0; }
+}

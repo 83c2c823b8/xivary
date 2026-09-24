@@ -12,8 +12,8 @@ in the browser profile; there is no account or backend in this iteration.
   with links to Library and Following.
 - **Library** (`src/library/library.html`) browses All Saved or a named paper
   collection and manages collections and memberships.
-- **Following** (`src/authors/authors.html`) manages followed researchers,
-  collection filters, collection creation/rename/delete, and memberships.
+- **Following** (`src/authors/authors.html`) is a simple list of followed
+  researchers with direct feed and unfollow actions.
 - **Researcher feed** (`src/author/author.html?authorId=…`) shows a followed
   researcher's recent arXiv papers grouped by year.
 - **Search** remains implemented at `src/search/search.html` but is hidden from
@@ -31,12 +31,13 @@ memberships can be changed or a named collection created inline. Papers remain
 globally saved while at least one membership exists. Paper and author collections,
 including their last-used settings, are independent.
 
-## Author identity and collections
+## Author identity and Following
 
-Authors use a stable normalized-name key shared across papers. The first Follow
-adds the researcher to the last-used collection, or creates **Following**. Clicking
-**Following ▾** opens a multi-select collection picker. An author remains followed
-while at least one membership exists. Collection IDs are stable across renames.
+Authors use a stable normalized-name key shared across papers. **Follow** acts
+immediately and changes to **Following**; clicking **Following** unfollows. Existing
+author-collection records remain supported by the repository for compatibility,
+but organization is intentionally hidden from the default UI. A future advanced
+preference could expose it without complicating the normal Follow workflow.
 
 This identity is an approximation. Different people with the same normalized name
 share follow state and a name-based paper feed; spelling, initials, and name order
@@ -85,7 +86,7 @@ temporary profile and synthetic arXiv page.
    sits naturally at the title and fills after saving.
 2. Save the paper, reopen its picker, create a collection, and change memberships.
 3. Open the popup; confirm the counts and open **Following** in a normal tab.
-4. Create/rename a collection, change membership, and click the researcher's name.
+4. Confirm the researcher appears without collection controls, then open the feed.
 5. Confirm cached or fetched papers render by year; open an abstract and PDF, then
    save a result and confirm it appears in **Library**.
 6. Open the Search page directly when testing its retained Exact, Balanced, and
@@ -117,5 +118,6 @@ Only `extension/src/lib/storage.js` calls `chrome.storage.local`; every UI uses
 `RepositoryClient`. Backend sync, Android, iPad/iOS, web clients, embeddings, and
 AI semantic search remain out of scope. A future provider-independent REST/JSON
 API may connect all clients to PostgreSQL on an ordinary server or Raspberry Pi.
+Paper notes are also deferred; no note editor or indicator is exposed.
 
 See [architecture](docs/architecture.md) and the [data model](shared/schema/data-model.md).

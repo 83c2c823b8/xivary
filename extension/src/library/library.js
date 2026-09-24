@@ -9,13 +9,18 @@ let selected = "";
 let busy = false;
 
 element("filter").addEventListener("input", render);
-element("collection-filter").addEventListener("change", () => { selected = element("collection-filter").value; render(); });
+element("collection-filter").addEventListener("change", () => { selected = element("collection-filter").value; closePanels(); render(); });
+element("show-create").addEventListener("click", () => togglePanel("create"));
+element("show-manage").addEventListener("click", () => togglePanel("manage"));
+element("cancel-create").addEventListener("click", closePanels);
+element("close-manage").addEventListener("click", closePanels);
 element("create-form").addEventListener("submit", event => {
   event.preventDefault();
   void mutate(async () => {
     const collection = await repository.createPaperCollection(element("collection-name").value);
     selected = collection.id;
     element("collection-name").value = "";
+    closePanels();
   }, "Collection created.");
 });
 element("manage-form").addEventListener("submit", event => {
@@ -25,6 +30,7 @@ element("manage-form").addEventListener("submit", event => {
 element("delete").addEventListener("click", () => void mutate(async () => {
   await repository.deletePaperCollection(selected);
   selected = "";
+  closePanels();
 }, "Collection deleted."));
 window.addEventListener("focus", () => void load());
 void load();
@@ -46,7 +52,8 @@ function render() {
     ...library.collections.map(collection => new Option(`${collection.name} (${library.memberships.filter(item => item.collectionId === collection.id).length})`, collection.id)),
   );
   filter.value = selected;
-  element("manage-form").hidden = !selected;
+  element("show-manage").hidden = !selected;
+  if (!selected) element("manage-form").hidden = true;
   element("rename-name").value = library.collections.find(collection => collection.id === selected)?.name || "";
   const ids = selected ? new Set(library.memberships.filter(item => item.collectionId === selected).map(item => item.arxivId)) : null;
   const query = element("filter").value.trim().toLowerCase();
@@ -66,6 +73,24 @@ async function managePaper(paper, button) {
   button.setAttribute("aria-haspopup", "dialog");
   button.setAttribute("aria-expanded", "false");
   await openPaperCollectionPicker({ repository, paper, anchor: button, onChange: load });
+}
+
+function togglePanel(name) {
+  const panel = element(name === "create" ? "create-form" : "manage-form");
+  const opening = panel.hidden;
+  closePanels();
+  if (!opening) return;
+  const trigger = element(name === "create" ? "show-create" : "show-manage");
+  panel.hidden = false;
+  trigger.setAttribute("aria-expanded", "true");
+  panel.querySelector("input")?.focus();
+}
+
+function closePanels() {
+  element("create-form").hidden = true;
+  element("manage-form").hidden = true;
+  element("show-create").setAttribute("aria-expanded", "false");
+  element("show-manage").setAttribute("aria-expanded", "false");
 }
 
 async function mutate(operation, message) {

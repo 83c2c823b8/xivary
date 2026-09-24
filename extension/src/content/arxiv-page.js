@@ -1,7 +1,6 @@
 import { RepositoryClient } from "../repository/repository-client.js";
 import { normalizeAuthorName } from "../domain/author.js";
 import { extractPaper } from "./extract-paper.js";
-import { openAuthorCollectionPicker } from "../ui/author-collection-picker.js";
 import { openPaperCollectionPicker } from "../ui/paper-collection-picker.js";
 
 export async function mountArxivPage() {
@@ -33,23 +32,17 @@ export async function mountArxivPage() {
     if (index < 0) continue;
     const [author] = unused.splice(index, 1);
     const button = makeButton("Follow", author.displayName);
-    button.setAttribute("aria-haspopup", "dialog");
-    button.setAttribute("aria-expanded", "false");
-    button.title = "Follow this author across papers using their normalized name.";
     link.after(button);
     followingButtons.push({ author, button });
     button.addEventListener("click", () => {
       if (busy || refreshing) return;
-      if (button.getAttribute("aria-pressed") === "true") {
-        void openAuthorCollectionPicker({ repository, author, anchor: button, onChange: refresh });
-        return;
-      }
       void act(button, async () => {
-        const record = await repository.followAuthor(author);
+        const followed = button.getAttribute("aria-pressed") === "true";
+        const record = followed ? (await repository.unfollowAuthor(author.id), null) : await repository.followAuthor(author);
         followingButtons.filter(item => item.author.id === author.id).forEach(item => {
-          setPressed(item.button, Boolean(record), "Follow", "Following ▾", item.author.displayName);
+          setPressed(item.button, Boolean(record), "Follow", "Following", item.author.displayName);
         });
-        return `Following ${author.displayName}. Click Following to choose collections.`;
+        return followed ? `No longer following ${author.displayName}.` : `Following ${author.displayName}.`;
       });
     });
   }
@@ -80,7 +73,7 @@ export async function mountArxivPage() {
     disable(true);
     status.textContent = "Saving…";
     try { status.textContent = await operation(); }
-    catch (error) { status.textContent = `Could not save: ${error.message}`; }
+    catch (error) { status.textContent = `Could not update the library: ${error.message}`; }
     finally { busy = false; disable(false); button.focus(); }
   }
 
@@ -95,7 +88,7 @@ export async function mountArxivPage() {
       setBookmarkState(favorite, favorites.some(item => item.arxivId === paper.arxivId), paper.title);
       const ids = new Set(following.map(item => item.id));
       followingButtons.forEach(({ author, button }) => {
-        setPressed(button, ids.has(author.id), "Follow", "Following ▾", author.displayName);
+        setPressed(button, ids.has(author.id), "Follow", "Following", author.displayName);
       });
       status.textContent = "";
     } catch (error) { status.textContent = `Library unavailable: ${error.message}`; }
@@ -136,5 +129,6 @@ function setBookmarkState(button, saved, name) {
 function setPressed(button, pressed, off, on, name) {
   button.textContent = pressed ? on : off;
   button.setAttribute("aria-pressed", String(pressed));
-  button.setAttribute("aria-label", `${pressed ? on : off}: ${name}`);
+  button.setAttribute("aria-label", `${pressed ? "Unfollow" : "Follow"}: ${name}`);
+  button.title = pressed ? `Unfollow ${name}` : `Follow ${name}`;
 }

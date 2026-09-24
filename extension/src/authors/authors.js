@@ -1,18 +1,50 @@
 import { RepositoryClient } from "../repository/repository-client.js";
-import { openAuthorCollectionPicker } from "../ui/author-collection-picker.js";
-const repository=new RepositoryClient();const element=id=>document.getElementById(id);let library;let selected="";let busy=false;
-element("collection-filter").addEventListener("change",()=>{selected=element("collection-filter").value;render()});
-element("create-form").addEventListener("submit",event=>{event.preventDefault();void mutate(async()=>{const c=await repository.createAuthorCollection(element("collection-name").value);selected=c.id;element("collection-name").value=""},"Collection created.")});
-element("manage-form").addEventListener("submit",event=>{event.preventDefault();void mutate(()=>repository.renameAuthorCollection(selected,element("rename-name").value),"Collection renamed.")});
-element("delete").addEventListener("click",()=>void mutate(()=>repository.deleteAuthorCollection(selected),"Collection deleted."));window.addEventListener("focus",()=>void load());void load();
-async function load(){try{library=await repository.getAuthorLibrary();if(!library.collections.some(c=>c.id===selected))selected="";render();setStatus("")}catch(error){setStatus(error.message,true)}}
-function render(){const followed=new Set(library.memberships.map(m=>m.authorId));const visible=new Set(library.memberships.filter(m=>!selected||m.collectionId===selected).map(m=>m.authorId));
- const filter=element("collection-filter");filter.replaceChildren(new Option("All followed researchers",""),...library.collections.map(c=>new Option(`${c.name} (${library.memberships.filter(m=>m.collectionId===c.id).length})`,c.id)));filter.value=selected;
- element("manage-form").hidden=!selected;element("rename-name").value=library.collections.find(c=>c.id===selected)?.name||"";
- const authors=library.authors.filter(a=>followed.has(a.id)&&visible.has(a.id));element("authors").replaceChildren(...authors.map(authorRow));element("empty").hidden=authors.length>0;}
-function authorRow(author){const row=document.createElement("li");row.className="author-row";const h=document.createElement("h2");const a=document.createElement("a");a.textContent=author.displayName;a.href=`../author/author.html?authorId=${encodeURIComponent(author.id)}`;h.append(a);row.append(h);
- const ids=new Set(library.memberships.filter(m=>m.authorId===author.id).map(m=>m.collectionId));const p=document.createElement("p");p.className="metadata";p.textContent=library.collections.filter(c=>ids.has(c.id)).map(c=>c.name).join(" · ");row.append(p);
- const actions=document.createElement("div");actions.className="actions";const manage=document.createElement("button");manage.textContent="Collections";manage.type="button";manage.setAttribute("aria-haspopup","dialog");manage.setAttribute("aria-expanded","false");manage.addEventListener("click",()=>void openAuthorCollectionPicker({repository,author,anchor:manage,onChange:load}));
- const unfollow=document.createElement("button");unfollow.textContent="Unfollow all";unfollow.type="button";unfollow.addEventListener("click",()=>void mutate(()=>repository.unfollowAuthor(author.id),"Researcher unfollowed."));actions.append(manage,unfollow);row.append(actions);return row;}
-async function mutate(operation,message){if(busy)return;busy=true;setDisabled(true);try{await operation();await load();setStatus(message)}catch(error){setStatus(error.message,true)}finally{busy=false;setDisabled(false)}}
-function setDisabled(value){document.querySelectorAll("button,input,select").forEach(node=>node.disabled=value)}function setStatus(message,error=false){element("status").textContent=message;element("status").classList.toggle("error",error)}
+
+const repository = new RepositoryClient();
+const element = id => document.getElementById(id);
+let busy = false;
+
+window.addEventListener("focus", () => void load());
+void load();
+
+async function load() {
+  try {
+    const authors = await repository.listFollowing();
+    element("authors").replaceChildren(...authors.map(authorRow));
+    element("empty").hidden = authors.length > 0;
+    setStatus("");
+  } catch (error) { setStatus(error.message, true); }
+}
+
+function authorRow(author) {
+  const row = document.createElement("li");
+  row.className = "author-row";
+  const heading = document.createElement("h2");
+  const link = document.createElement("a");
+  link.textContent = author.displayName;
+  link.href = `../author/author.html?authorId=${encodeURIComponent(author.id)}`;
+  heading.append(link);
+  const actions = document.createElement("div");
+  actions.className = "actions";
+  const unfollow = document.createElement("button");
+  unfollow.type = "button";
+  unfollow.textContent = "Unfollow";
+  unfollow.addEventListener("click", () => void unfollowAuthor(author, unfollow));
+  actions.append(unfollow);
+  row.append(heading, actions);
+  return row;
+}
+
+async function unfollowAuthor(author, button) {
+  if (busy) return;
+  busy = true;
+  button.disabled = true;
+  try { await repository.unfollowAuthor(author.id); await load(); setStatus(`No longer following ${author.displayName}.`); }
+  catch (error) { button.disabled = false; setStatus(error.message, true); }
+  finally { busy = false; }
+}
+
+function setStatus(message, error = false) {
+  element("status").textContent = message;
+  element("status").classList.toggle("error", error);
+}

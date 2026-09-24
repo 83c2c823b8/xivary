@@ -1,12 +1,9 @@
 <!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Following Researchers</title>
-<link rel="stylesheet" href="../ui/page.css"><link rel="stylesheet" href="../ui/author-collection-picker.css"><link rel="stylesheet" href="authors.css"><script type="module" src="authors.js"></script></head><body>
+<link rel="stylesheet" href="../ui/page.css"><link rel="stylesheet" href="authors.css"><script type="module" src="authors.js"></script></head><body>
 <header class="page-header">
   <div class="app-bar"><a class="app-name" href="../library/library.html">arXiv Research Library</a><nav class="app-nav" aria-label="Primary"><a href="../library/library.html">Library</a><a href="authors.html" aria-current="page">Following</a></nav></div>
   <div class="page-heading"><h1>Following</h1></div>
 </header>
-<main><div class="toolbar"><label>Collection<select id="collection-filter"><option value="">All followed researchers</option></select></label>
-<form id="create-form"><label>New collection<input id="collection-name" type="text" maxlength="80" required></label><button>Create</button></form></div>
-<form id="manage-form" class="collection-manager" hidden><label>Selected collection<input id="rename-name" type="text" maxlength="80" required></label><button>Rename</button><button id="delete" type="button">Delete</button></form>
-<p class="metadata">A follow applies across papers using the canonical author name. Namesakes may share state.</p><p id="status" class="status" role="status" aria-live="polite"></p>
-<ul id="authors" class="author-list"></ul><p id="empty" class="empty" hidden>No followed researchers in this view.</p></main>
+<main><p id="status" class="status" role="status" aria-live="polite"></p>
+<ul id="authors" class="author-list"></ul><p id="empty" class="empty" hidden>No followed researchers.</p></main>
 </body></html>

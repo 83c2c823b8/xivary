@@ -20,6 +20,12 @@ The arXiv content module only integrates bookmark and author-follow controls. Th
 popup owns counts and navigation. Browsing and management live in full extension
 tabs: `library/`, `authors/`, `author/`, and `search/`.
 
+The default author interaction is deliberately binary: Follow and Following.
+Following removes all memberships on unfollow. Author-collection data and
+repository methods remain intact for backward compatibility but have no default
+UI. Paper collections remain user-facing and use progressive disclosure for
+creation and management. Search exists but is absent from primary navigation.
+
 All persistence crosses the asynchronous `PaperRepository` contract. UI modules
 instantiate only `RepositoryClient`; the MV3 worker owns the sole
 `LocalRepository`. `extension/src/lib/storage.js` is the only module that accesses
@@ -60,6 +66,9 @@ are fast and never fetch. Cache writes and saved-paper writes remain distinct.
 Paper and author collections deliberately use separate records and last-used IDs.
 Their JSON-compatible IDs and join records can cross a future REST API unchanged;
 sync will still require server versions and deletion tombstones.
+
+Paper note UI is deferred. The legacy-compatible Paper shape is not expanded and
+no note control or migration is part of the current product surface.
 
 ## Future system
 

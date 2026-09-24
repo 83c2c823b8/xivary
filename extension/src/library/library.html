@@ -4,8 +4,9 @@
   <div class="app-bar"><a class="app-name" href="library.html">arXiv Research Library</a><nav class="app-nav" aria-label="Primary"><a href="library.html" aria-current="page">Library</a><a href="../authors/authors.html">Following</a></nav></div>
   <div class="page-heading"><h1>Library</h1></div>
 </header>
-<main><div class="toolbar"><label>Collection<select id="collection-filter"><option value="">All Saved</option></select></label><label>Filter papers<input id="filter" type="search" placeholder="Title, author, category"></label>
-<form id="create-form"><label>New collection<input id="collection-name" type="text" maxlength="80" required></label><button>Create</button></form><span id="count" class="metadata"></span></div>
-<form id="manage-form" class="collection-manager" hidden><label>Selected collection<input id="rename-name" type="text" maxlength="80" required></label><button>Rename</button><button id="delete" type="button">Delete</button></form>
+<main><div class="toolbar"><label>Collection<select id="collection-filter"><option value="">All Saved</option></select></label><label>Filter<input id="filter" type="search" placeholder="Title, author, category"></label>
+<div class="toolbar-actions"><button id="show-create" type="button" aria-expanded="false" aria-controls="create-form">+ New collection</button><button id="show-manage" type="button" aria-expanded="false" aria-controls="manage-form" hidden>Manage</button></div><span id="count" class="metadata"></span></div>
+<form id="create-form" class="inline-panel" hidden><label>Collection name<input id="collection-name" type="text" maxlength="80" required></label><button>Create</button><button id="cancel-create" type="button">Cancel</button></form>
+<form id="manage-form" class="inline-panel" hidden><label>Collection name<input id="rename-name" type="text" maxlength="80" required></label><button>Rename</button><button id="delete" type="button">Delete</button><button id="close-manage" type="button">Done</button></form>
 <p id="status" class="status" role="status" aria-live="polite"></p><ul id="papers" class="paper-list"></ul><p id="empty" class="empty" hidden>No saved papers yet. Use the bookmark on an arXiv page or paper result.</p></main>
 </body></html>

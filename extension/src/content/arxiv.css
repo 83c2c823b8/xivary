@@ -1,17 +1,21 @@
 .arxiv-library-button {
-  min-height: 26px;
-  margin: 0 0.28rem;
-  padding: 2px 7px;
-  border: 1px solid #aeb2b7;
-  border-radius: 3px;
-  background: #fff;
-  color: #35383c;
-  font: 600 11px/1.35 system-ui, sans-serif;
+  min-width: 78px;
+  min-height: 36px;
+  margin: 0 0.35rem;
+  padding: 7px 13px;
+  border: 1px solid #454e57;
+  border-radius: 5px;
+  background: #454e57;
+  color: #fff;
+  font: 600 12px/1.35 system-ui, sans-serif;
   cursor: pointer;
   vertical-align: middle;
 }
-.arxiv-library-button:hover { background: #f0f1f2; border-color: #7f858b; }
-.arxiv-library-button[aria-pressed="true"] { color: #35383c; background: #f4f4f3; }
+.arxiv-library-button:hover { background: #343c44; border-color: #343c44; }
+.arxiv-library-button:active { background: #293038; transform: translateY(1px); }
+.arxiv-library-button[aria-pressed="true"] { color: #30353a; background: #e6e8ea; border-color: #aeb3b8; }
+.arxiv-library-button[aria-pressed="true"]:hover { background: #dadddf; border-color: #91979d; }
+.arxiv-library-button[aria-pressed="true"]:active { background: #cfd2d5; }
 .arxiv-library-button:focus-visible { outline: 3px solid #1475bc; outline-offset: 2px; }
 .arxiv-library-button:disabled { opacity: 0.6; cursor: wait; }
 .arxiv-library-bookmark {

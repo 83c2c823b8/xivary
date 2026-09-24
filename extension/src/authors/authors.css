@@ -1,2 +1,4 @@
-#create-form,.collection-manager { display:flex; align-items:end; flex-wrap:wrap; gap:8px; } #create-form label,.collection-manager label { display:grid; gap:4px; font-size:12px; font-weight:650; }
-.collection-manager { padding: 12px; margin: -8px 0 18px; background:#fff; border:1px solid #dedadc; } .author-row h2 a { text-decoration-thickness: 1px; }
+.author-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 16px; }
+.author-row h2 { margin: 0; }
+.author-row h2 a { text-decoration-thickness: 1px; }
+.author-row .actions { margin: 0; }
