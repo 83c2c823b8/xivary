@@ -23,8 +23,8 @@
   appearance: none; min-width: 146px; height: 44px;
   padding: 9px 35px 9px 16px;
   border: 1px solid var(--border-strong); border-radius: 9999px;
-  background: #fbfbfb; color: var(--text);
-  font: 400 15px/1.4 "IBM Plex Sans", system-ui, sans-serif;
+  background: var(--surface); color: var(--text);
+  font: var(--control-font);
   cursor: pointer;
 }
 .range-field svg { position: absolute; top: 50%; right: 14px; width: 14px; height: 14px; transform: translateY(-50%); fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
@@ -32,10 +32,10 @@
 .custom-dates label {
   display: flex; align-items: center; gap: 6px; height: 44px;
   padding: 0 12px 0 15px; border: 1px solid var(--border-strong);
-  border-radius: 9999px; background: #fbfbfb; color: var(--muted);
-  font: 400 15px/1.4 "IBM Plex Sans", system-ui, sans-serif;
+  border-radius: 9999px; background: var(--surface); color: var(--muted);
+  font: var(--control-font);
 }
-.custom-dates input { width: 130px; min-width: 0; height: 40px; padding: 0; border: 0; background: transparent; color: var(--text); font: inherit; }
+.custom-dates input { width: 130px; min-width: 0; height: 40px; padding: 0; border: 0; background: transparent; color: var(--text); font: inherit; line-height: inherit; }
 .custom-dates label:focus-within { outline: 2px solid var(--focus); outline-offset: 2px; }
 .custom-dates input:focus-visible { outline: none; }
 .author-filters #filter-count { margin-left: auto; }

@@ -23,6 +23,7 @@
   --link: #245b91;
   --link-hover: #173f69;
   --focus: #1769aa;
+  --control-font: 400 15.5px/1.4 "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   font: 400 15px/1.5 "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   color: var(--text);
   background: var(--bg);
@@ -93,7 +94,14 @@ input[type="search"] {
 }
 .search-field { position: relative; }
 .search-field > svg { position: absolute; z-index: 1; left: 15px; top: 50%; width: 17px; height: 17px; transform: translateY(-50%); fill: none; stroke: var(--muted); stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
-.search-field > input[type="search"] { width: 100%; padding-left: 42px; }
+.search-field > input[type="search"] { width: 100%; padding-left: 42px; color: var(--text); font: var(--control-font); }
+.search-field > input[type="search"]::placeholder,
+.inline-create input::placeholder,
+.collection-inline-form input::placeholder {
+  color: var(--muted);
+  font: inherit;
+  opacity: .82;
+}
 .paper-list, .author-list { list-style: none; padding: 0; margin: 0; border-top: 1px solid var(--border); }
 .paper-row, .author-row { padding: 15px 2px 16px; border-bottom: 1px solid var(--border); }
 .paper-row h2, .author-row h2 { margin: 0 0 4px; font-size: 17px; line-height: 1.35; font-weight: 600; }

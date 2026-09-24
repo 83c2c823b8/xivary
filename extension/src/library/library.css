@@ -52,7 +52,8 @@ body { background: var(--surface); }
   border: 1px solid var(--border-strong);
   border-radius: 3px;
   background: var(--surface);
-  font: 400 15.5px/1.4 "IBM Plex Sans", system-ui, sans-serif;
+  color: var(--text);
+  font: var(--control-font);
 }
 .collection-inline-form { padding: 1px 0; }
 .delete-confirmation { display: flex; align-items: center; gap: 7px; min-height: 42px; padding: 4px 10px; background: #f2f3f3; font-size: 13px; }
