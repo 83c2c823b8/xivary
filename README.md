@@ -45,8 +45,9 @@ including their last-used settings, are independent.
 
 Authors use a stable normalized-name key shared across papers. **Follow** acts
 immediately and changes to **Following**; clicking **Following** unfollows by
-default. Existing author-collection records remain supported and are exposed
-through the same control only when the author-organization preference is enabled.
+default. This direct action stays available when author collections are off.
+Existing author-collection records remain supported and are exposed through the
+same control only when the author-organization preference is enabled.
 
 This identity is an approximation. Different people with the same normalized name
 share follow state and a name-based paper feed; spelling, initials, and name order
@@ -87,7 +88,8 @@ npm run test:browser
 The Node suites cover identifiers, saved-data migration, paper and author
 collections, cache freshness/normalization, search expansion, repository message
 boundaries, page packaging, and storage isolation. The browser smoke test uses a
-temporary profile and synthetic arXiv page.
+temporary profile and synthetic arXiv pages, including author-line markup from
+arXiv:2512.03554.
 
 ## Manual Chromium verification
 

@@ -17,23 +17,21 @@
   justify-content: center;
   align-items: center;
   gap: 5px;
-  width: 96px;
-  min-height: 38px;
-  margin: 0 0.35rem;
-  padding: 7px 13px;
+  min-height: 30px;
+  margin: 0 0.3rem;
+  padding: 4px 9px;
   border: 1px solid #454e57;
-  border-radius: 7px;
+  border-radius: 5px;
   background: #191a1b;
   color: #fff;
-  box-shadow: 0 1px 1px #0003;
-  font: 600 13px/1.35 "IBM Plex Sans", system-ui, sans-serif;
+  font: 600 13px/1.2 "IBM Plex Sans", system-ui, sans-serif;
   cursor: pointer;
   vertical-align: middle;
 }
-.arxiv-library-button svg { flex: 0 0 auto; width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.arxiv-library-button svg { flex: 0 0 auto; width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
 .arxiv-library-button:hover { background: #303234; border-color: #303234; }
-.arxiv-library-button:active { background: #111; transform: translateY(1px); box-shadow: none; }
-.arxiv-library-button[aria-pressed="true"] { color: #30353a; background: #e6e8ea; border-color: #aeb3b8; box-shadow: inset 0 1px 2px #0002; }
+.arxiv-library-button:active { background: #111; transform: translateY(1px); }
+.arxiv-library-button[aria-pressed="true"] { color: #30353a; background: #e6e8ea; border-color: #aeb3b8; }
 .arxiv-library-button[aria-pressed="true"]:hover { background: #dadddf; border-color: #91979d; }
 .arxiv-library-button[aria-pressed="true"]:active { background: #cfd2d5; }
 .arxiv-library-button:focus-visible { outline: 3px solid #1475bc; outline-offset: 2px; }

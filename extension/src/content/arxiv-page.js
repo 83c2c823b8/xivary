@@ -88,17 +88,23 @@ export async function mountArxivPage() {
     refreshing = true;
     disable(true);
     try {
-      const [favorites, library] = await Promise.all([
-        repository.listFavorites(), repository.getAuthorLibrary(),
+      const [favorites, following] = await Promise.all([
+        repository.listFavorites(), repository.listFollowing(),
       ]);
       setBookmarkState(favorite, favorites.some(item => item.arxivId === paper.arxivId), paper.title);
-      organizeAuthorCollections = library.settings.organizeFollowedAuthorsIntoCollections;
-      const ids = new Set(library.memberships.map(item => item.authorId));
+      const ids = new Set(following.map(item => item.id));
       followingButtons.forEach(({ author, button }) => {
         setPressed(button, ids.has(author.id), "Follow", "Following", author.displayName, organizeAuthorCollections);
       });
       status.textContent = "";
     } catch (error) { status.textContent = `Library unavailable: ${error.message}`; }
+    try {
+      const preferences = await repository.getPreferences();
+      organizeAuthorCollections = preferences.organizeFollowedAuthorsIntoCollections === true;
+      followingButtons.forEach(({ author, button }) => {
+        setPressed(button, button.getAttribute("aria-pressed") === "true", "Follow", "Following", author.displayName, organizeAuthorCollections);
+      });
+    } catch (error) { status.textContent = `Could not load collection preference: ${error.message}`; }
     finally { refreshing = false; disable(false); }
   }
 
