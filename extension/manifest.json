@@ -14,6 +14,7 @@
     "default_title": "arXiv Research Library",
     "default_popup": "src/popup/popup.html"
   },
+  "options_page": "src/settings/settings.html",
   "content_scripts": [{
     "matches": ["https://arxiv.org/abs/*"],
     "js": ["src/content/arxiv.js"],
@@ -25,6 +26,7 @@
       "src/content/arxiv-page.js",
       "src/content/extract-paper.js",
       "src/ui/paper-collection-picker.js",
+      "src/ui/author-collection-picker.js",
       "src/domain/identifiers.js",
       "src/domain/paper.js",
       "src/domain/author.js",

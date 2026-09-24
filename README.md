@@ -29,8 +29,8 @@ the network at runtime; provenance, checksums, and the license live beside the
 font files in `extension/assets/fonts/`.
 
 arXiv destinations opened from extension pages navigate in the current tab by
-default. The popup's restrained Preferences control exposes one opt-in setting,
-**Open arXiv links in a new tab**. Modifier-click behavior remains native because
+default. The popup gear opens a minimal Settings page with opt-in preferences for
+new-tab links and author collections. Modifier-click behavior remains native because
 paper and author destinations are ordinary links rather than scripted navigation.
 
 ## Paper collections
@@ -44,10 +44,9 @@ including their last-used settings, are independent.
 ## Author identity and Following
 
 Authors use a stable normalized-name key shared across papers. **Follow** acts
-immediately and changes to **Following**; clicking **Following** unfollows. Existing
-author-collection records remain supported by the repository for compatibility,
-but organization is intentionally hidden from the default UI. A future advanced
-preference could expose it without complicating the normal Follow workflow.
+immediately and changes to **Following**; clicking **Following** unfollows by
+default. Existing author-collection records remain supported and are exposed
+through the same control only when the author-organization preference is enabled.
 
 This identity is an approximation. Different people with the same normalized name
 share follow state and a name-based paper feed; spelling, initials, and name order

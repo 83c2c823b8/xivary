@@ -138,8 +138,8 @@ author. These are local hard deletes, not sync tombstones.
 
 Author collections are retained for stored-data and repository compatibility but
 are hidden from the default UI. The visible model is simply Follow/Following;
-unfollowing removes all memberships. A future advanced preference may expose
-organization without changing this schema.
+unfollowing removes all memberships. The opt-in author-organization preference
+exposes collection membership controls without changing this schema.
 
 ## Settings
 
@@ -161,6 +161,12 @@ ordinary clicks on arXiv destinations from extension pages navigate in the curre
 tab. Existing schema 5 records that predate the preference treat an omitted value
 as `false`; the field is written on the next state mutation or when explicitly
 changed. This additive setting does not change collection or migration semantics.
+
+`organizeFollowedAuthorsIntoCollections` is also boolean and defaults to `false`.
+When disabled, Following remains a direct binary action and author collections are
+hidden. Enabling it reveals the existing collection picker; changing the preference
+does not create, delete, rename, or otherwise rewrite collections or memberships.
+Schema 5 records that omit it are treated as `false` without a write-on-read.
 
 ## Local persistence
 
@@ -184,7 +190,8 @@ The `arxivResearchLibrary` key in `chrome.storage.local` holds:
   "settings": {
     "lastUsedAuthorCollectionId": null,
     "lastUsedPaperCollectionId": "paper-collection:saved-papers",
-    "openArxivLinksInNewTab": false
+    "openArxivLinksInNewTab": false,
+    "organizeFollowedAuthorsIntoCollections": false
   }
 }
 ```

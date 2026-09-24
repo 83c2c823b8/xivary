@@ -18,6 +18,7 @@ test("manifest uses MV3, narrow permissions and existing entry points", async ()
   assert.deepEqual(manifest.permissions, ["storage"]);
   assert.deepEqual(manifest.host_permissions, ["https://export.arxiv.org/*"]);
   assert.equal(manifest.background.type, "module");
+  assert.equal(manifest.options_page, "src/settings/settings.html");
   assert.deepEqual(manifest.content_scripts[0].matches, ["https://arxiv.org/abs/*"]);
   const paths = [manifest.background.service_worker, manifest.action.default_popup,
     ...manifest.content_scripts.flatMap(script => [...script.js, ...script.css]),
@@ -26,7 +27,7 @@ test("manifest uses MV3, narrow permissions and existing entry points", async ()
 });
 
 test("full-tab extension pages and their local assets exist", async () => {
-  for (const page of ["library/library.html", "authors/authors.html", "author/author.html", "search/search.html"]) {
+  for (const page of ["library/library.html", "authors/authors.html", "author/author.html", "search/search.html", "settings/settings.html"]) {
     const htmlPath = resolve(root, "src", page);
     const html = await readFile(htmlPath, "utf8");
     for (const match of html.matchAll(/(?:src|href)="([^"#]+)"/g)) {

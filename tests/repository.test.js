@@ -35,23 +35,33 @@ test("empty library and favorites toggle persist through a new repository instan
   await repository.removeFavorite(paper.arxivId);
 });
 
-test("arXiv link preference defaults off, validates, and persists through the repository contract", async () => {
+test("preferences default off, validate, and persist through the repository contract", async () => {
   const { repository, storage } = fixture();
-  assert.deepEqual(await repository.getPreferences(), { openArxivLinksInNewTab: false });
+  const defaults = { openArxivLinksInNewTab: false, organizeFollowedAuthorsIntoCollections: false };
+  assert.deepEqual(await repository.getPreferences(), defaults);
   await repository.savePaper(paper);
   const prePreferenceSchema5 = await storage.read();
   delete prePreferenceSchema5.settings.openArxivLinksInNewTab;
+  delete prePreferenceSchema5.settings.organizeFollowedAuthorsIntoCollections;
   await storage.write(prePreferenceSchema5);
-  assert.deepEqual(await new LocalRepository(storage).getPreferences(), { openArxivLinksInNewTab: false });
+  assert.deepEqual(await new LocalRepository(storage).getPreferences(), defaults);
   assert.equal(Object.hasOwn((await storage.read()).settings, "openArxivLinksInNewTab"), false);
+  assert.equal(Object.hasOwn((await storage.read()).settings, "organizeFollowedAuthorsIntoCollections"), false);
   await assert.rejects(repository.setOpenArxivLinksInNewTab("yes"), /true or false/);
+  await assert.rejects(repository.setOrganizeFollowedAuthorsIntoCollections("yes"), /true or false/);
   assert.deepEqual(await repository.setOpenArxivLinksInNewTab(true), { openArxivLinksInNewTab: true });
-  assert.deepEqual(await new LocalRepository(storage).getPreferences(), { openArxivLinksInNewTab: true });
+  assert.deepEqual(await repository.setOrganizeFollowedAuthorsIntoCollections(true), { organizeFollowedAuthorsIntoCollections: true });
+  assert.deepEqual(await new LocalRepository(storage).getPreferences(), {
+    openArxivLinksInNewTab: true, organizeFollowedAuthorsIntoCollections: true,
+  });
   const handler = createRepositoryHandler(repository, "test-extension");
   const client = new RepositoryClient({ sendMessage: message => new Promise(resolve => handler(message, { id: "test-extension" }, resolve)) });
-  assert.deepEqual(await client.getPreferences(), { openArxivLinksInNewTab: true });
+  assert.deepEqual(await client.getPreferences(), {
+    openArxivLinksInNewTab: true, organizeFollowedAuthorsIntoCollections: true,
+  });
   await client.setOpenArxivLinksInNewTab(false);
-  assert.deepEqual(await new LocalRepository(storage).getPreferences(), { openArxivLinksInNewTab: false });
+  await client.setOrganizeFollowedAuthorsIntoCollections(false);
+  assert.deepEqual(await new LocalRepository(storage).getPreferences(), defaults);
 });
 
 test("follow, unfollow and favorite removal are independent", async () => {
@@ -260,7 +270,7 @@ test("schema 3 migrates to an empty author cache without changing saved or colle
 test("worker rejects unknown methods, malformed arguments and external senders", () => {
   const { repository } = fixture();
   const handler = createRepositoryHandler(repository, "test-extension");
-  for (const [method, args, id] of [["constructor", [], "test-extension"], ["run", [], "test-extension"], ["toggleFavorite", [], "test-extension"], ["setOpenArxivLinksInNewTab", [], "test-extension"], ["listFavorites", [], "other-extension"]]) {
+  for (const [method, args, id] of [["constructor", [], "test-extension"], ["run", [], "test-extension"], ["toggleFavorite", [], "test-extension"], ["setOpenArxivLinksInNewTab", [], "test-extension"], ["setOrganizeFollowedAuthorsIntoCollections", [], "test-extension"], ["listFavorites", [], "other-extension"]]) {
     let response;
     assert.equal(handler({ channel: REPOSITORY_CHANNEL, method, args }, { id }, value => { response = value; }), false);
     assert.equal(response.ok, false);

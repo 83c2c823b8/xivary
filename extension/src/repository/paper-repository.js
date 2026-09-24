@@ -27,4 +27,5 @@ export class PaperRepository {
   async putAuthorPaperCache(cache) { throw new Error("Not implemented"); }
   async getPreferences() { throw new Error("Not implemented"); }
   async setOpenArxivLinksInNewTab(enabled) { throw new Error("Not implemented"); }
+  async setOrganizeFollowedAuthorsIntoCollections(enabled) { throw new Error("Not implemented"); }
 }

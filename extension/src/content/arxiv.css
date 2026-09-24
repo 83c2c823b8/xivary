@@ -30,7 +30,7 @@
   cursor: pointer;
   vertical-align: middle;
 }
-.arxiv-library-button svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.arxiv-library-button svg { flex: 0 0 auto; width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
 .arxiv-library-button:hover { background: #303234; border-color: #303234; }
 .arxiv-library-button:active { background: #111; transform: translateY(1px); box-shadow: none; }
 .arxiv-library-button[aria-pressed="true"] { color: #30353a; background: #e6e8ea; border-color: #aeb3b8; box-shadow: inset 0 1px 2px #0002; }

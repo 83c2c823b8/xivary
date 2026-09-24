@@ -92,6 +92,19 @@ test("simple unfollow removes all memberships without deleting stored author col
   assert.equal(library.authors[0].id, authorId);
 });
 
+test("author-collection preference changes never rewrite collections or memberships", async () => {
+  const { repository, storage } = fixture();
+  const followed = await repository.followAuthor(alex);
+  const reading = await repository.createAuthorCollection("Reading", followed);
+  const before = await repository.getAuthorLibrary();
+  await repository.setOrganizeFollowedAuthorsIntoCollections(true);
+  await repository.setOrganizeFollowedAuthorsIntoCollections(false);
+  const after = await new LocalRepository(storage).getAuthorLibrary();
+  assert.deepEqual(after.collections, before.collections);
+  assert.deepEqual(after.memberships, before.memberships);
+  assert.ok(after.memberships.some(item => item.authorId === followed.id && item.collectionId === reading.id));
+});
+
 test("rename changes no IDs or memberships; deletion retains entities and repairs last-used", async () => {
   const { repository } = fixture();
   const a = await repository.createAuthorCollection("A", alex);

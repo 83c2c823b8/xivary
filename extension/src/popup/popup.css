@@ -46,11 +46,6 @@ button:hover { background: #f1f2f2; }
 button:focus-visible { outline: 2px solid #1769aa; outline-offset: 1px; }
 button svg { width: 21px; height: 21px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
 .header-action { display: inline-grid; grid-template-columns: 1fr; place-items: center; width: 36px; height: 36px; margin-left: auto; padding: 6px; }
-.header-action[aria-expanded="true"] { background: #e8e9ea; }
 .count { color: #60656b; font-weight: 500; font-variant-numeric: tabular-nums; text-align: right; }
-#preferences { margin-top: 8px; padding: 11px 10px 5px; border-top: 1px solid #e0e2e4; }
-#preferences label { display: flex; align-items: center; gap: 9px; min-height: 36px; cursor: pointer; }
-#preferences input { width: 16px; height: 16px; margin: 0; accent-color: #202124; }
-#preferences input:focus-visible { outline: 2px solid #1769aa; outline-offset: 2px; }
 #status { margin: 10px 0 0; color: #a01b27; font-size: 12px; }
 #status:empty { display: none; }

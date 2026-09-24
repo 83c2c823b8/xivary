@@ -85,6 +85,15 @@ input[type="search"], input[type="text"], select {
   background: var(--surface);
   color: var(--text);
 }
+input[type="search"] {
+  min-height: 44px;
+  padding: 9px 16px;
+  border-radius: 9999px;
+  background: #fbfbfb;
+}
+.search-field { position: relative; }
+.search-field > svg { position: absolute; z-index: 1; left: 15px; top: 50%; width: 17px; height: 17px; transform: translateY(-50%); fill: none; stroke: var(--muted); stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
+.search-field > input[type="search"] { width: 100%; padding-left: 42px; }
 .paper-list, .author-list { list-style: none; padding: 0; margin: 0; border-top: 1px solid var(--border); }
 .paper-row, .author-row { padding: 15px 2px 16px; border-bottom: 1px solid var(--border); }
 .paper-row h2, .author-row h2 { margin: 0 0 4px; font-size: 17px; line-height: 1.35; font-weight: 600; }

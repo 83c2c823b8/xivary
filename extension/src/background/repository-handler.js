@@ -10,6 +10,7 @@ const methods = new Map([
   ["deleteAuthorCollection", 1], ["addAuthorToCollection", 2], ["removeAuthorFromCollection", 2],
   ["getAuthorPaperCache", 1], ["putAuthorPaperCache", 1],
   ["getPreferences", 0], ["setOpenArxivLinksInNewTab", 1],
+  ["setOrganizeFollowedAuthorsIntoCollections", 1],
 ]);
 
 export function createRepositoryHandler(repository, extensionId) {

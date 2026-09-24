@@ -1,0 +1,13 @@
+.settings-page { width: min(760px, calc(100% - 48px)); }
+.settings-page section { padding: 3px 0 24px; }
+.settings-page section + section { padding-top: 22px; border-top: 1px solid var(--border); }
+.settings-page h2 { margin: 0 0 8px; font-size: 16px; line-height: 1.4; font-weight: 600; }
+.setting-row { display: flex; align-items: center; justify-content: space-between; gap: 24px; min-height: 48px; cursor: pointer; }
+.toggle-input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.toggle { position: relative; flex: 0 0 auto; width: 38px; height: 22px; border: 1px solid #9ca1a6; border-radius: 9999px; background: #dfe1e3; transition: background-color 120ms ease, border-color 120ms ease; }
+.toggle::after { content: ""; position: absolute; top: 3px; left: 3px; width: 14px; height: 14px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px #0003; transition: transform 120ms ease; }
+.toggle-input:checked + .toggle { border-color: #202124; background: #202124; }
+.toggle-input:checked + .toggle::after { transform: translateX(16px); }
+.toggle-input:focus-visible + .toggle { outline: 2px solid var(--focus); outline-offset: 2px; }
+.toggle-input:disabled + .toggle { opacity: .55; }
+@media (max-width: 600px) { .settings-page { width: min(100% - 24px, 760px); } }

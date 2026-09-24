@@ -218,6 +218,7 @@ export class LocalRepository extends PaperRepository {
   getPreferences() {
     return this.run(state => structuredClone({
       openArxivLinksInNewTab: state.settings.openArxivLinksInNewTab,
+      organizeFollowedAuthorsIntoCollections: state.settings.organizeFollowedAuthorsIntoCollections,
     }));
   }
 
@@ -227,6 +228,15 @@ export class LocalRepository extends PaperRepository {
       state.settings.openArxivLinksInNewTab = enabled;
       await this.storage.write(state);
       return structuredClone({ openArxivLinksInNewTab: enabled });
+    });
+  }
+
+  setOrganizeFollowedAuthorsIntoCollections(enabled) {
+    if (typeof enabled !== "boolean") return Promise.reject(new TypeError("The author collection preference must be true or false."));
+    return this.run(async state => {
+      state.settings.organizeFollowedAuthorsIntoCollections = enabled;
+      await this.storage.write(state);
+      return structuredClone({ organizeFollowedAuthorsIntoCollections: enabled });
     });
   }
 
@@ -373,6 +383,7 @@ function prepareState(stored, now) {
       lastUsedAuthorCollectionId: null,
       lastUsedPaperCollectionId: DEFAULT_PAPER_COLLECTION_ID,
       openArxivLinksInNewTab: false,
+      organizeFollowedAuthorsIntoCollections: false,
     },
   } : structuredClone(stored);
   if (!state || ![1, 2, 3, 4, 5].includes(state.schemaVersion) || !Array.isArray(state.favorites)) {
@@ -402,6 +413,8 @@ function prepareState(stored, now) {
   }
   if (state.settings.openArxivLinksInNewTab === undefined) state.settings.openArxivLinksInNewTab = false;
   if (typeof state.settings.openArxivLinksInNewTab !== "boolean") throw new Error("Invalid link preference.");
+  if (state.settings.organizeFollowedAuthorsIntoCollections === undefined) state.settings.organizeFollowedAuthorsIntoCollections = false;
+  if (typeof state.settings.organizeFollowedAuthorsIntoCollections !== "boolean") throw new Error("Invalid author collection preference.");
   const authorIds = new Set();
   for (const author of state.authors) {
     const validated = createAuthor(author, author.followedAt);

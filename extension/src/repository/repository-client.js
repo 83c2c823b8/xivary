@@ -38,4 +38,5 @@ export class RepositoryClient extends PaperRepository {
   putAuthorPaperCache(cache) { return this.request("putAuthorPaperCache", [cache]); }
   getPreferences() { return this.request("getPreferences"); }
   setOpenArxivLinksInNewTab(enabled) { return this.request("setOpenArxivLinksInNewTab", [enabled]); }
+  setOrganizeFollowedAuthorsIntoCollections(enabled) { return this.request("setOrganizeFollowedAuthorsIntoCollections", [enabled]); }
 }
