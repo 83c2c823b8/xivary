@@ -1,6 +1,6 @@
 # Privacy
 
-This document describes arXiv Research Library v0.1.0.
+This document describes Xivary v0.1.0.
 
 ## Data stored locally
 

@@ -42,7 +42,7 @@ async function init() {
     if (!author) throw new Error("This researcher is not in the local author library.");
     query = buildAuthorQuery(author);
     element("name").textContent = author.displayName;
-    document.title = `${author.displayName} — Researcher Papers`;
+    document.title = `${author.displayName} — Xivary`;
     openArxivLinksInNewTab = library.settings.openArxivLinksInNewTab;
     element("open-search").href = `https://arxiv.org/search/?query=${encodeURIComponent(author.displayName)}&searchtype=author`;
     configureArxivLink(element("open-search"), openArxivLinksInNewTab);

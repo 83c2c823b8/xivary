@@ -28,7 +28,7 @@ if (files.some(path => path.startsWith(".") || path.includes("/.") || developmen
 }
 
 await mkdir(outputDirectory, { recursive: true });
-const artifact = resolve(outputDirectory, `arxiv-research-library-${manifest.version}.zip`);
+const artifact = resolve(outputDirectory, `xivary-${manifest.version}.zip`);
 await rm(artifact, { force: true });
 run("zip", ["-X", "-q", artifact, ...files], extensionRoot);
 

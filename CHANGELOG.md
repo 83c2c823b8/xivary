@@ -2,7 +2,7 @@
 
 ## 0.1.0 — 2026-09-24
 
-Initial public-quality release of the Chromium extension.
+Initial public-quality release of Xivary for Chromium.
 
 ### Included
 

@@ -1,6 +1,8 @@
 {
   "name": "arxiv-tool",
   "version": "0.1.0",
+  "description": "Xivary, a local-first Chromium extension for saving arXiv papers and following authors.",
+  "license": "MIT",
   "private": true,
   "type": "module",
   "scripts": {

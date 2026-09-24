@@ -16,6 +16,8 @@ async function files(directory) {
 
 test("manifest uses MV3, narrow permissions and existing entry points", async () => {
   assert.equal(manifest.manifest_version, 3);
+  assert.equal(manifest.name, "Xivary");
+  assert.equal(manifest.action.default_title, "Xivary");
   assert.equal(manifest.version, "0.1.0");
   assert.equal(packageMetadata.version, manifest.version);
   assert.deepEqual(manifest.permissions, ["storage"]);
@@ -25,9 +27,36 @@ test("manifest uses MV3, narrow permissions and existing entry points", async ()
   assert.deepEqual(manifest.content_scripts[0].matches, ["https://arxiv.org/abs/*"]);
   assert.deepEqual(manifest.web_accessible_resources.map(group => group.matches), [["https://arxiv.org/*"]]);
   const paths = [manifest.background.service_worker, manifest.action.default_popup,
+    ...Object.values(manifest.icons), ...Object.values(manifest.action.default_icon),
     ...manifest.content_scripts.flatMap(script => [...script.js, ...script.css]),
     ...manifest.web_accessible_resources.flatMap(group => group.resources)];
   for (const path of paths) await access(resolve(root, path));
+});
+
+test("manifest icon set contains exact Chromium sizes", async () => {
+  assert.deepEqual(Object.keys(manifest.icons), ["16", "32", "48", "128"]);
+  assert.deepEqual(Object.keys(manifest.action.default_icon), ["16", "24", "32"]);
+  const expected = new Map([
+    [manifest.icons["16"], 16], [manifest.action.default_icon["24"], 24],
+    [manifest.icons["32"], 32], [manifest.icons["48"], 48], [manifest.icons["128"], 128]
+  ]);
+  for (const [path, size] of expected) {
+    const png = await readFile(resolve(root, path));
+    assert.deepEqual([...png.subarray(0, 8)], [137, 80, 78, 71, 13, 10, 26, 10], path);
+    assert.equal(png.readUInt32BE(16), size, path);
+    assert.equal(png.readUInt32BE(20), size, path);
+  }
+});
+
+test("visible extension identity is Xivary", async () => {
+  const formerName = new RegExp(["arXiv", "Research", "Library"].join(" "));
+  for (const path of await files(root)) {
+    if (!/\.(?:html|js|json)$/.test(path)) continue;
+    assert.doesNotMatch(await readFile(path, "utf8"), formerName, path);
+  }
+  const pages = [manifest.action.default_popup, "src/library/library.html", "src/authors/authors.html",
+    "src/author/author.html", "src/search/search.html", manifest.options_page];
+  for (const page of pages) assert.match(await readFile(resolve(root, page), "utf8"), /Xivary/, page);
 });
 
 test("full-tab extension pages and their local assets exist", async () => {

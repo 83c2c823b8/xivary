@@ -1,6 +1,6 @@
-# arXiv Research Library
+# Xivary
 
-A local-first Chromium extension for saving arXiv papers and following authors.
+Xivary is a local-first Chromium extension for saving arXiv papers and following authors.
 Version 0.1.0 stores its data in the browser profile and has no account, project-owned
 backend, or analytics.
 
@@ -45,7 +45,7 @@ npm run package
 ```
 
 The packaging command requires the standard `zip` utility and writes
-`dist/arxiv-research-library-0.1.0.zip`. The archive contains only extension runtime
+`dist/xivary-0.1.0.zip`. The archive contains only extension runtime
 files and the bundled font license, with `manifest.json` at its root.
 
 ## Architecture
@@ -69,5 +69,9 @@ See [docs/architecture.md](docs/architecture.md) and
 - Data remains in one Chromium profile. There is no account, backend sync, or built-in
   import/export workflow.
 - There is no mobile application. The implemented client targets Chromium desktop.
-- The repository does not currently declare a project-level software license. The
-  bundled IBM Plex font files retain their separate SIL Open Font License.
+
+## License
+
+Xivary is released under the [MIT License](LICENSE). The bundled IBM Plex font files
+retain their separate SIL Open Font License in
+[`extension/assets/fonts/LICENSE.txt`](extension/assets/fonts/LICENSE.txt).

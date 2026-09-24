@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "arXiv Research Library",
+  "name": "Xivary",
   "version": "0.1.0",
   "description": "Save arXiv papers, organize collections, and follow author feeds locally.",
   "minimum_chrome_version": "102",
@@ -10,8 +10,19 @@
     "service_worker": "src/background/service-worker.js",
     "type": "module"
   },
+  "icons": {
+    "16": "assets/icons/icon-16.png",
+    "32": "assets/icons/icon-32.png",
+    "48": "assets/icons/icon-48.png",
+    "128": "assets/icons/icon-128.png"
+  },
   "action": {
-    "default_title": "arXiv Research Library",
+    "default_title": "Xivary",
+    "default_icon": {
+      "16": "assets/icons/icon-16.png",
+      "24": "assets/icons/icon-24.png",
+      "32": "assets/icons/icon-32.png"
+    },
     "default_popup": "src/popup/popup.html"
   },
   "options_page": "src/settings/settings.html",
