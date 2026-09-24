@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 
 const root = fileURLToPath(new URL("../extension/", import.meta.url));
 const manifest = JSON.parse(await readFile(resolve(root, "manifest.json"), "utf8"));
+const packageMetadata = JSON.parse(await readFile(resolve(root, "../package.json"), "utf8"));
 
 async function files(directory) {
   const entries = await readdir(directory, { withFileTypes: true });
@@ -15,11 +16,14 @@ async function files(directory) {
 
 test("manifest uses MV3, narrow permissions and existing entry points", async () => {
   assert.equal(manifest.manifest_version, 3);
+  assert.equal(manifest.version, "0.1.0");
+  assert.equal(packageMetadata.version, manifest.version);
   assert.deepEqual(manifest.permissions, ["storage"]);
   assert.deepEqual(manifest.host_permissions, ["https://export.arxiv.org/*"]);
   assert.equal(manifest.background.type, "module");
   assert.equal(manifest.options_page, "src/settings/settings.html");
   assert.deepEqual(manifest.content_scripts[0].matches, ["https://arxiv.org/abs/*"]);
+  assert.deepEqual(manifest.web_accessible_resources.map(group => group.matches), [["https://arxiv.org/*"]]);
   const paths = [manifest.background.service_worker, manifest.action.default_popup,
     ...manifest.content_scripts.flatMap(script => [...script.js, ...script.css]),
     ...manifest.web_accessible_resources.flatMap(group => group.resources)];

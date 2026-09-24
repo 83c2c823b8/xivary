@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "arXiv Research Library",
-  "version": "0.4.1",
-  "description": "Save arXiv papers and follow author references in a private, local library.",
+  "version": "0.1.0",
+  "description": "Save arXiv papers, organize collections, and follow author feeds locally.",
   "minimum_chrome_version": "102",
   "permissions": ["storage"],
   "host_permissions": ["https://export.arxiv.org/*"],
