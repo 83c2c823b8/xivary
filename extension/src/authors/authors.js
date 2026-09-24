@@ -39,7 +39,7 @@ async function unfollowAuthor(author, button) {
   if (busy) return;
   busy = true;
   button.disabled = true;
-  try { await repository.unfollowAuthor(author.id); await load(); setStatus(`No longer following ${author.displayName}.`); }
+  try { await repository.unfollowAuthor(author.id); await load(); }
   catch (error) { button.disabled = false; setStatus(error.message, true); }
   finally { busy = false; }
 }

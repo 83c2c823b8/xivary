@@ -1,8 +1,8 @@
 .arxiv-collection-picker {
   position: fixed; z-index: 2147483647; width: 300px; max-width: calc(100vw - 16px);
   max-height: min(360px, calc(100vh - 16px)); overflow-y: auto; box-sizing: border-box;
-  padding: 14px; border: 1px solid #c9bfc1; border-radius: 8px; background: #fff;
-  box-shadow: 0 6px 25px #0003; color: #252529; font: 13px/1.5 system-ui, sans-serif;
+  padding: 14px; border: 1px solid #bfc2c5; border-radius: 6px; background: #fff;
+  box-shadow: 0 6px 22px #0002; color: #252529; font: 14px/1.5 system-ui, sans-serif;
 }
 .arxiv-collection-picker strong { display: block; overflow-wrap: anywhere; margin-bottom: 8px; }
 .arxiv-collection-picker .collection-picker-heading { display: flex; align-items: start; justify-content: space-between; gap: 10px; }
@@ -13,6 +13,6 @@
 .arxiv-collection-picker input[type=checkbox] { width: auto; flex: none; }
 .arxiv-collection-picker form { border-top: 1px solid #ddd; margin-top: 12px; padding-top: 12px; }
 .arxiv-collection-picker input[type=text] { width: 100%; box-sizing: border-box; margin-bottom: 8px; padding: 6px; }
-.arxiv-collection-picker button { padding: 4px 8px; background: #fff; color: #8b1d27; border: 1px solid #bda5a9; border-radius: 4px; cursor: pointer; }
+.arxiv-collection-picker button { min-height: 34px; padding: 5px 9px; background: #fff; color: #252529; border: 1px solid #b8bcc1; border-radius: 4px; cursor: pointer; }
 .arxiv-collection-picker :focus-visible { outline: 3px solid #1475bc; outline-offset: 2px; }
 .arxiv-collection-picker [disabled] { opacity: 0.6; cursor: wait; }

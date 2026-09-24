@@ -7,14 +7,21 @@ const element = id => document.getElementById(id);
 let library;
 let selected = "";
 let busy = false;
+let editingId = null;
+let deletingId = null;
 
 element("filter").addEventListener("input", render);
-element("show-create").addEventListener("click", () => togglePanel("create"));
-element("show-manage").addEventListener("click", () => togglePanel("manage"));
-element("cancel-create").addEventListener("click", () => closePanels("create"));
-element("close-manage").addEventListener("click", () => closePanels("manage"));
-for (const name of ["create", "manage"]) element(`${name}-form`).addEventListener("keydown", event => {
-  if (event.key === "Escape") { event.preventDefault(); closePanels(name); }
+element("show-create").addEventListener("click", () => {
+  editingId = null;
+  deletingId = null;
+  element("show-create").hidden = true;
+  element("create-form").hidden = false;
+  element("show-create").setAttribute("aria-expanded", "true");
+  element("collection-name").focus();
+});
+element("create-form").addEventListener("keydown", event => {
+  if (event.key === "Escape") { event.preventDefault(); closeCreate(true); }
+  if (event.key === "Enter") { event.preventDefault(); event.currentTarget.requestSubmit(); }
 });
 element("create-form").addEventListener("submit", event => {
   event.preventDefault();
@@ -22,18 +29,9 @@ element("create-form").addEventListener("submit", event => {
     const collection = await repository.createPaperCollection(element("collection-name").value);
     selected = collection.id;
     element("collection-name").value = "";
-    closePanels();
-  }, "Collection created.");
+    closeCreate();
+  });
 });
-element("manage-form").addEventListener("submit", event => {
-  event.preventDefault();
-  void mutate(() => repository.renamePaperCollection(selected, element("rename-name").value), "Collection renamed.");
-});
-element("delete").addEventListener("click", () => void mutate(async () => {
-  await repository.deletePaperCollection(selected);
-  selected = "";
-  closePanels();
-}, "Collection deleted."));
 window.addEventListener("focus", () => void load());
 void load();
 
@@ -49,9 +47,6 @@ async function load() {
 function render() {
   if (!library) return;
   renderCollections();
-  element("show-manage").hidden = !selected;
-  if (!selected) element("manage-form").hidden = true;
-  element("rename-name").value = library.collections.find(collection => collection.id === selected)?.name || "";
   const ids = selected ? new Set(library.memberships.filter(item => item.collectionId === selected).map(item => item.arxivId)) : null;
   const query = element("filter").value.trim().toLowerCase();
   const inCollection = library.papers.filter(paper => !ids || ids.has(paper.arxivId));
@@ -61,8 +56,10 @@ function render() {
     showAbstract: false,
     onToggle: button => managePaper(paper, button),
   })));
-  element("count").textContent = `${visible.length} of ${inCollection.length}`;
-  element("empty").textContent = library.papers.length ? "No papers in this view." : "No saved papers yet. Use the bookmark on an arXiv page or paper result.";
+  element("count").textContent = query && inCollection.length
+    ? `${visible.length} of ${inCollection.length} papers`
+    : `${inCollection.length} ${inCollection.length === 1 ? "paper" : "papers"}`;
+  element("empty").textContent = query ? "No matching papers." : selected ? "No papers in this collection." : "No saved papers.";
   element("empty").hidden = visible.length > 0;
 }
 
@@ -76,6 +73,17 @@ function renderCollections() {
   ];
   element("collection-list").replaceChildren(...entries.map(entry => {
     const item = document.createElement("li");
+    item.className = "collection-item";
+    if (editingId === entry.id) {
+      item.append(renameForm(entry));
+      return item;
+    }
+    if (deletingId === entry.id) {
+      item.append(deleteConfirmation(entry));
+      return item;
+    }
+    const row = document.createElement("div");
+    row.className = "collection-row";
     const button = document.createElement("button");
     button.type = "button";
     button.className = "collection-link";
@@ -89,12 +97,109 @@ function renderCollections() {
     button.append(name, count);
     button.addEventListener("click", () => {
       selected = entry.id;
-      closePanels();
+      editingId = null;
+      deletingId = null;
+      closeCreate();
       render();
     });
-    item.append(button);
+    row.append(button);
+    if (entry.id) row.append(collectionActions(entry));
+    item.append(row);
     return item;
   }));
+}
+
+function collectionActions(entry) {
+  const actions = document.createElement("div");
+  actions.className = "collection-actions";
+  actions.append(
+    iconButton("rename", `Rename ${entry.name}`, pencilIcon, () => {
+      editingId = entry.id;
+      deletingId = null;
+      closeCreate();
+      renderCollections();
+      document.querySelector(`[data-rename-id="${CSS.escape(entry.id)}"]`)?.select();
+    }),
+    iconButton("delete", `Delete ${entry.name}`, trashIcon, () => {
+      deletingId = entry.id;
+      editingId = null;
+      closeCreate();
+      renderCollections();
+      document.querySelector(`[data-confirm-id="${CSS.escape(entry.id)}"]`)?.focus();
+    }),
+  );
+  return actions;
+}
+
+function renameForm(entry) {
+  const form = document.createElement("form");
+  form.className = "collection-inline-form";
+  const input = document.createElement("input");
+  input.type = "text";
+  input.required = true;
+  input.maxLength = 80;
+  input.value = entry.name;
+  input.dataset.renameId = entry.id;
+  input.setAttribute("aria-label", `Rename ${entry.name}`);
+  form.append(input);
+  form.addEventListener("submit", event => {
+    event.preventDefault();
+    void mutate(() => repository.renamePaperCollection(entry.id, input.value), { focusAction: [entry.id, "rename"] });
+  });
+  form.addEventListener("keydown", event => {
+    if (event.key === "Enter") { event.preventDefault(); form.requestSubmit(); }
+    if (event.key === "Escape") {
+      event.preventDefault();
+      editingId = null;
+      renderCollections();
+      focusCollectionAction(entry.id, "rename");
+    }
+  });
+  return form;
+}
+
+function deleteConfirmation(entry) {
+  const panel = document.createElement("div");
+  panel.className = "delete-confirmation";
+  panel.setAttribute("role", "group");
+  panel.setAttribute("aria-label", `Delete ${entry.name}?`);
+  const prompt = document.createElement("span");
+  prompt.textContent = "Delete?";
+  const confirm = document.createElement("button");
+  confirm.type = "button";
+  confirm.textContent = "Yes";
+  confirm.dataset.confirmId = entry.id;
+  confirm.addEventListener("click", () => void mutate(async () => {
+    await repository.deletePaperCollection(entry.id);
+    if (selected === entry.id) selected = "";
+  }));
+  const cancel = document.createElement("button");
+  cancel.type = "button";
+  cancel.textContent = "Cancel";
+  cancel.addEventListener("click", () => {
+    deletingId = null;
+    renderCollections();
+    focusCollectionAction(entry.id, "delete");
+  });
+  panel.addEventListener("keydown", event => {
+    if (event.key !== "Escape") return;
+    event.preventDefault();
+    cancel.click();
+  });
+  panel.append(prompt, confirm, cancel);
+  return panel;
+}
+
+function iconButton(action, label, icon, onClick) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "icon-button";
+  button.dataset.action = action;
+  button.setAttribute("aria-label", label);
+  button.title = label;
+  button.innerHTML = icon;
+  button.addEventListener("click", onClick);
+  return button;
 }
 
 async function managePaper(paper, button) {
@@ -103,33 +208,35 @@ async function managePaper(paper, button) {
   await openPaperCollectionPicker({ repository, paper, anchor: button, onChange: load });
 }
 
-function togglePanel(name) {
-  const panel = element(name === "create" ? "create-form" : "manage-form");
-  const opening = panel.hidden;
-  closePanels();
-  if (!opening) return;
-  const trigger = element(name === "create" ? "show-create" : "show-manage");
-  panel.hidden = false;
-  trigger.setAttribute("aria-expanded", "true");
-  panel.querySelector("input")?.focus();
-}
-
-function closePanels(returnFocus) {
+function closeCreate(returnFocus = false) {
   element("create-form").hidden = true;
-  element("manage-form").hidden = true;
+  element("show-create").hidden = false;
   element("show-create").setAttribute("aria-expanded", "false");
-  element("show-manage").setAttribute("aria-expanded", "false");
-  if (returnFocus) element(returnFocus === "create" ? "show-create" : "show-manage").focus();
+  if (returnFocus) element("show-create").focus();
 }
 
-async function mutate(operation, message) {
+async function mutate(operation, { focusAction } = {}) {
   if (busy) return;
   busy = true;
   setDisabled(true);
-  try { await operation(); await load(); setStatus(message); }
+  try {
+    await operation();
+    editingId = null;
+    deletingId = null;
+    await load();
+    if (focusAction) focusCollectionAction(...focusAction);
+  }
   catch (error) { setStatus(error.message, true); }
   finally { busy = false; setDisabled(false); }
 }
 
 function setDisabled(value) { document.querySelectorAll("button,input").forEach(node => { node.disabled = value; }); }
 function setStatus(message, error = false) { element("status").textContent = message; element("status").classList.toggle("error", error); }
+
+function focusCollectionAction(id, action) {
+  document.querySelector(`[data-collection-id="${CSS.escape(id)}"]`)?.parentElement
+    ?.querySelector(`[data-action="${action}"]`)?.focus();
+}
+
+const pencilIcon = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 16-.75 4.75L8 20l10.4-10.4a2.1 2.1 0 0 0-3-3L5 17Z"/><path d="m14.5 7.5 3 3"/></svg>';
+const trashIcon = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 3h6l1 4H8l1-4Zm-3 4 1 14h10l1-14M10 11v6m4-6v6"/></svg>';

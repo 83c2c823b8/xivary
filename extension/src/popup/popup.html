@@ -10,13 +10,15 @@
 <body>
   <header><h1>arXiv Research Library</h1></header>
   <main>
-    <dl>
-      <div><dt>Saved papers</dt><dd id="saved-count">—</dd></div>
-      <div><dt>Following</dt><dd id="following-count">—</dd></div>
-    </dl>
     <nav aria-label="Open library pages">
-      <button data-page="library/library.html">Library</button>
-      <button data-page="authors/authors.html">Following</button>
+      <button data-page="library/library.html">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v16H6.5A2.5 2.5 0 0 0 4 21.5v-16Z"/><path d="M4 18.5A2.5 2.5 0 0 1 6.5 16H20"/></svg>
+        <span>Library</span><span id="saved-count" class="count">—</span>
+      </button>
+      <button data-page="authors/authors.html">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4.5 21a7.5 7.5 0 0 1 15 0"/></svg>
+        <span>Following</span><span id="following-count" class="count">—</span>
+      </button>
     </nav>
     <p id="status" role="status" aria-live="polite"></p>
   </main>

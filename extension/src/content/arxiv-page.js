@@ -127,7 +127,17 @@ function setBookmarkState(button, saved, name) {
 }
 
 function setPressed(button, pressed, off, on, name) {
-  button.textContent = pressed ? on : off;
+  button.replaceChildren();
+  if (pressed) {
+    const icon = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    icon.setAttribute("viewBox", "0 0 16 16");
+    icon.setAttribute("aria-hidden", "true");
+    icon.innerHTML = '<path d="m3 8 3 3 7-7"/>';
+    button.append(icon);
+  }
+  const label = document.createElement("span");
+  label.textContent = pressed ? on : off;
+  button.append(label);
   button.setAttribute("aria-pressed", String(pressed));
   button.setAttribute("aria-label", `${pressed ? "Unfollow" : "Follow"}: ${name}`);
   button.title = pressed ? `Unfollow ${name}` : `Follow ${name}`;

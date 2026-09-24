@@ -1,19 +1,25 @@
 .arxiv-library-button {
-  min-width: 78px;
-  min-height: 36px;
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  gap: 5px;
+  width: 96px;
+  min-height: 38px;
   margin: 0 0.35rem;
   padding: 7px 13px;
   border: 1px solid #454e57;
-  border-radius: 5px;
-  background: #454e57;
+  border-radius: 7px;
+  background: #191a1b;
   color: #fff;
-  font: 600 12px/1.35 system-ui, sans-serif;
+  box-shadow: 0 1px 1px #0003;
+  font: 600 13px/1.35 system-ui, sans-serif;
   cursor: pointer;
   vertical-align: middle;
 }
-.arxiv-library-button:hover { background: #343c44; border-color: #343c44; }
-.arxiv-library-button:active { background: #293038; transform: translateY(1px); }
-.arxiv-library-button[aria-pressed="true"] { color: #30353a; background: #e6e8ea; border-color: #aeb3b8; }
+.arxiv-library-button svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.arxiv-library-button:hover { background: #303234; border-color: #303234; }
+.arxiv-library-button:active { background: #111; transform: translateY(1px); box-shadow: none; }
+.arxiv-library-button[aria-pressed="true"] { color: #30353a; background: #e6e8ea; border-color: #aeb3b8; box-shadow: inset 0 1px 2px #0002; }
 .arxiv-library-button[aria-pressed="true"]:hover { background: #dadddf; border-color: #91979d; }
 .arxiv-library-button[aria-pressed="true"]:active { background: #cfd2d5; }
 .arxiv-library-button:focus-visible { outline: 3px solid #1475bc; outline-offset: 2px; }
@@ -25,8 +31,8 @@
   cursor: pointer; line-height: 0;
 }
 .arxiv-library-bookmark svg { width: 23px; height: 23px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linejoin: round; }
-.arxiv-library-bookmark.is-saved svg { fill: #8b1d27; stroke: #8b1d27; }
-.arxiv-library-bookmark:hover { background: #f4f4f3; border-color: #aeb2b7; color: #8b1d27; }
+.arxiv-library-bookmark.is-saved svg { fill: #202124; stroke: #202124; }
+.arxiv-library-bookmark:hover { background: #f4f4f3; border-color: #aeb2b7; color: #202124; }
 .arxiv-library-bookmark:focus-visible { outline: 3px solid #1475bc; outline-offset: 2px; }
 .arxiv-library-bookmark:disabled { opacity: 0.55; cursor: wait; }
 #arxiv-library-controls { min-height: 0.5rem; margin: 0.2rem 0; }

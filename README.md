@@ -23,6 +23,10 @@ The old UI word “Favorite” is now **Save**, **Saved**, and **Library**. The 
 repository methods and persisted `favorites` property retain their old names for
 backward compatibility. Existing saved papers are migrated losslessly.
 
+The interface uses a local system sans-serif stack in this pass. IBM Plex Sans is
+not bundled yet, avoiding a new font asset and license-distribution path; no font
+is loaded from the network at runtime.
+
 ## Paper collections
 
 The first one-click save uses the last-used paper collection, falling back to
