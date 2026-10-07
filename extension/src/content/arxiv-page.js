@@ -3,6 +3,8 @@ import { normalizeAuthorName } from "../domain/author.js";
 import { extractPaper } from "./extract-paper.js";
 import { openAuthorCollectionPicker } from "../ui/author-collection-picker.js";
 import { openPaperCollectionPicker } from "../ui/paper-collection-picker.js";
+import { getBrowserApi } from "../platform/browser-api.js";
+import { authorFromAbstractLink, shouldOpenAuthorInXivary } from "./author-link.js";
 
 export async function mountArxivPage() {
   const heading = document.querySelector("h1.title");
@@ -20,6 +22,17 @@ export async function mountArxivPage() {
   let paper;
   try { paper = extractPaper(document, location.href); }
   catch (error) { status.textContent = `Library: ${error.message}`; return; }
+
+  document.addEventListener("click", event => {
+    if (!shouldOpenAuthorInXivary(event)) return;
+    const link = event.target?.closest?.("a[href]");
+    const reference = authorFromAbstractLink(link, location.href);
+    if (!reference || link.hasAttribute("download") || (link.target && link.target !== "_self")) return;
+    event.preventDefault();
+    void getBrowserApi().runtime.sendMessage({ channel: "xivary.author-navigation", name: reference.name })
+      .then(result => { if (!result?.ok) location.assign(link.href); })
+      .catch(() => location.assign(link.href));
+  });
 
   const repository = new RepositoryClient();
   let organizeAuthorCollections = false;

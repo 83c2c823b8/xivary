@@ -4,7 +4,7 @@
   "version": "0.1.0",
   "description": "Save arXiv papers, organize collections, and follow author feeds locally.",
   "minimum_chrome_version": "102",
-  "permissions": ["storage"],
+  "permissions": ["storage", "alarms"],
   "host_permissions": ["https://export.arxiv.org/*"],
   "background": {
     "service_worker": "src/background/service-worker.js",
@@ -28,13 +28,15 @@
   "options_page": "src/settings/settings.html",
   "content_scripts": [{
     "matches": ["https://arxiv.org/abs/*"],
-    "js": ["src/content/arxiv.js"],
+    "js": ["src/platform/content-loader.js"],
     "css": ["src/content/arxiv.css", "src/ui/author-collection-picker.css"],
     "run_at": "document_idle"
   }],
   "web_accessible_resources": [{
     "resources": [
+      "src/platform/browser-api.js",
       "src/content/arxiv-page.js",
+      "src/content/author-link.js",
       "src/content/extract-paper.js",
       "src/ui/paper-collection-picker.js",
       "src/ui/author-collection-picker.js",

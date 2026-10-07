@@ -1,12 +1,14 @@
 import { RepositoryClient } from "../repository/repository-client.js";
+import { getBrowserApi } from "../platform/browser-api.js";
+const api = getBrowserApi();
 const repository = new RepositoryClient();
 const element = id => document.getElementById(id);
 element("open-settings").addEventListener("click", async () => {
-  await chrome.runtime.openOptionsPage();
+  await api.runtime.openOptionsPage();
   window.close();
 });
 document.querySelectorAll("[data-page]").forEach(button => button.addEventListener("click", async () => {
-  await chrome.tabs.create({ url: chrome.runtime.getURL(`src/${button.dataset.page}`) });
+  await api.tabs.create({ url: api.runtime.getURL(`src/${button.dataset.page}`) });
   window.close();
 }));
 try {

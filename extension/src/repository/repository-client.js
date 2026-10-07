@@ -1,10 +1,11 @@
 import { PaperRepository } from "./paper-repository.js";
+import { getBrowserApi } from "../platform/browser-api.js";
 
 export const REPOSITORY_CHANNEL = "arxiv-library:repository:v1";
 
 /** Transport adapter; UI never knows whether the worker uses local or HTTP data. */
 export class RepositoryClient extends PaperRepository {
-  constructor(runtime = globalThis.chrome.runtime) {
+  constructor(runtime = getBrowserApi().runtime) {
     super();
     this.runtime = runtime;
   }
@@ -39,4 +40,6 @@ export class RepositoryClient extends PaperRepository {
   getPreferences() { return this.request("getPreferences"); }
   setOpenArxivLinksInNewTab(enabled) { return this.request("setOpenArxivLinksInNewTab", [enabled]); }
   setOrganizeFollowedAuthorsIntoCollections(enabled) { return this.request("setOrganizeFollowedAuthorsIntoCollections", [enabled]); }
+  exportCategory(category, selection = { kind: "all" }) { return this.request("exportCategory", [category, selection]); }
+  importCategory(text, category) { return this.request("importCategory", [text, category]); }
 }

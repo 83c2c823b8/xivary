@@ -4,16 +4,17 @@ import { paperRow, setBookmarkState } from "../ui/paper-row.js";
 import { openPaperCollectionPicker } from "../ui/paper-collection-picker.js";
 import { configureArxivLink } from "../ui/arxiv-link.js";
 import { filterAuthorPapers } from "./filter-papers.js";
+import { resolveAuthorRoute } from "./author-route.js";
 
 const repository = new RepositoryClient();
 const element = id => document.getElementById(id);
-const authorId = new URL(location.href).searchParams.get("authorId");
 let author;
 let savedIds = new Set();
 let query;
 let openArxivLinksInNewTab = false;
 let loadedPapers = [];
 let loadedAt = "";
+let localStateRevision = 0;
 
 element("refresh").addEventListener("click", () => void refresh(true));
 element("show-filters").addEventListener("click", openFilters);
@@ -34,14 +35,29 @@ document.addEventListener("keydown", event => {
   }
 });
 void init();
+window.addEventListener("focus", () => void refreshLocalState());
+
+async function refreshLocalState() {
+  if (!author) return;
+  const revision = localStateRevision;
+  try {
+    const [papers, preferences] = await Promise.all([repository.listFavorites(), repository.getPreferences()]);
+    if (revision !== localStateRevision) return;
+    savedIds = new Set(papers.map(p => p.arxivId));
+    openArxivLinksInNewTab = preferences.openArxivLinksInNewTab;
+    configureArxivLink(element("open-search"), openArxivLinksInNewTab);
+    renderFiltered();
+  } catch (error) { setStatus(error.message, true); }
+}
 
 async function init() {
   try {
     const library = await repository.getAuthorLibrary();
-    author = library.authors.find(item => item.id === authorId);
-    if (!author) throw new Error("This researcher is not in the local author library.");
+    const route = resolveAuthorRoute(location.search, library);
+    author = route.author;
     query = buildAuthorQuery(author);
     element("name").textContent = author.displayName;
+    element("identity").textContent = "Matched by author name; namesakes may share results.";
     document.title = `${author.displayName} — Xivary`;
     openArxivLinksInNewTab = library.settings.openArxivLinksInNewTab;
     element("open-search").href = `https://arxiv.org/search/?query=${encodeURIComponent(author.displayName)}&searchtype=author`;
@@ -129,8 +145,10 @@ async function save(paper, button) {
     return;
   }
   button.disabled = true;
+  localStateRevision++;
   try {
     await repository.savePaper(paper);
+    localStateRevision++;
     savedIds.add(paper.arxivId);
     setBookmarkState(button, true, paper.title);
     setStatus("Paper saved.");
@@ -139,7 +157,9 @@ async function save(paper, button) {
 }
 
 async function syncBookmark(paper, button) {
+  localStateRevision++;
   savedIds = new Set((await repository.listFavorites()).map(item => item.arxivId));
+  localStateRevision++;
   setBookmarkState(button, savedIds.has(paper.arxivId), paper.title);
   setStatus(savedIds.has(paper.arxivId) ? "Paper collections updated." : "Paper removed from the library.");
 }

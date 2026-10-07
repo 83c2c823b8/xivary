@@ -1,14 +1,20 @@
 {
   "name": "arxiv-tool",
   "version": "0.1.0",
-  "description": "Xivary, a local-first Chromium extension for saving arXiv papers and following authors.",
+  "description": "Xivary, a local-first browser extension for saving arXiv papers and following authors.",
   "license": "MIT",
   "private": true,
   "type": "module",
   "scripts": {
     "test": "node --test",
     "test:browser": "node scripts/browser-smoke.mjs",
-    "package": "node scripts/package-extension.mjs"
+    "test:release": "node scripts/release-smoke.mjs",
+    "test:arxiv": "node scripts/live-arxiv-smoke.mjs",
+    "package": "node scripts/package-extension.mjs",
+    "package:firefox": "node scripts/package-extension.mjs firefox",
+    "test:firefox": "node scripts/firefox-smoke.mjs"
   },
-  "engines": { "node": ">=20" }
+  "engines": {
+    "node": ">=20"
+  }
 }

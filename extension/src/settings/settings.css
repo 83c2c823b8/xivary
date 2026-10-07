@@ -2,6 +2,16 @@
 .settings-page section { padding: 3px 0 24px; }
 .settings-page section + section { padding-top: 22px; border-top: 1px solid var(--border); }
 .settings-page h2 { margin: 0 0 8px; font-size: 16px; line-height: 1.4; font-weight: 600; }
+.section-description { max-width: 64ch; margin: 0 0 12px; color: var(--muted); font-size: 14px; }
+.data-rows { max-width: 440px; }
+.data-row { display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: 8px; min-height: 48px; border-top: 1px solid var(--border); }
+.data-row:last-child { border-bottom: 1px solid var(--border); }
+dialog { width: min(420px, calc(100% - 32px)); padding: 20px; border: 1px solid var(--border); border-radius: 4px; color: inherit; background: #fff; }
+dialog::backdrop { background: #0005; }
+dialog h2 { margin: 0 0 16px; font-size: 16px; }
+dialog label { display: block; margin-bottom: 6px; }
+dialog select { width: 100%; min-height: 36px; }
+.dialog-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 20px; }
 .setting-row { display: flex; align-items: center; justify-content: space-between; gap: 24px; min-height: 48px; cursor: pointer; }
 .toggle-input { position: absolute; opacity: 0; width: 1px; height: 1px; }
 .toggle { position: relative; flex: 0 0 auto; width: 38px; height: 22px; border: 1px solid #9ca1a6; border-radius: 9999px; background: #dfe1e3; transition: background-color 120ms ease, border-color 120ms ease; }

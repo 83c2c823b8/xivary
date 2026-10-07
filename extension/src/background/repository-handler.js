@@ -11,6 +11,7 @@ const methods = new Map([
   ["getAuthorPaperCache", 1], ["putAuthorPaperCache", 1],
   ["getPreferences", 0], ["setOpenArxivLinksInNewTab", 1],
   ["setOrganizeFollowedAuthorsIntoCollections", 1],
+  ["exportCategory", 2], ["importCategory", 2],
 ]);
 
 export function createRepositoryHandler(repository, extensionId) {

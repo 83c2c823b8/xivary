@@ -3,6 +3,7 @@ import { createPaper } from "../domain/paper.js";
 import { createAuthor } from "../domain/author.js";
 import { cleanText, normalizeArxivId } from "../domain/identifiers.js";
 import { normalizeCachedAuthorResults } from "../services/arxiv-paper-service.js";
+import { exportPortableCategory, mergePortableCategory, parsePortableCategory } from "./portable-library.js";
 
 const newest = field => (a, b) => b[field].localeCompare(a[field]);
 const DEFAULT_PAPER_COLLECTION_ID = "paper-collection:saved-papers";
@@ -17,11 +18,11 @@ export class LocalRepository extends PaperRepository {
   }
 
   // One worker instance serializes migrations, reads and writes across all UI contexts.
-  run(operation) {
+  run(operation, persistMigration = true) {
     const result = this.pending.then(async () => {
       const stored = await this.storage.read();
       const state = prepareState(stored, this.clock());
-      if (stored && stored.schemaVersion !== 5) await this.storage.write(state);
+      if (persistMigration && stored && stored.schemaVersion !== 5) await this.storage.write(state);
       return operation(state);
     });
     this.pending = result.catch(() => {});
@@ -240,6 +241,20 @@ export class LocalRepository extends PaperRepository {
     });
   }
 
+  exportCategory(category, selection) {
+    return this.run(state => structuredClone(exportPortableCategory(state, this.clock(), category, selection)));
+  }
+
+  async importCategory(text, category) {
+    const backup = parsePortableCategory(text, category);
+    return this.run(async state => {
+      const merged = mergePortableCategory(state, backup);
+      const proposed = prepareState(merged.state, this.clock());
+      await this.storage.write(proposed);
+      return structuredClone(merged.result);
+    }, false);
+  }
+
   newCollection(state, name) {
     const normalized = collectionName(state, name);
     const now = this.clock();
@@ -374,7 +389,7 @@ function paperCollectionName(state, value, exceptId) {
   return name;
 }
 
-function prepareState(stored, now) {
+export function prepareState(stored, now) {
   const state = stored === undefined ? {
     schemaVersion: 5, favorites: [],
     paperCollections: [{ id: DEFAULT_PAPER_COLLECTION_ID, name: "Saved Papers", createdAt: now, updatedAt: now }],

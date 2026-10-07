@@ -168,5 +168,34 @@ try{
 
   await send("Page.reload",{},arxiv);await until(arxiv,"document.querySelector('.arxiv-library-bookmark')?.getAttribute('aria-pressed')==='true' && document.querySelector('.authors .arxiv-library-button')?.getAttribute('aria-pressed')==='true'");
   const stored=await evaluate(library,"(async()=>{const {ChromeLocalStorage}=await import('../lib/storage.js');return new ChromeLocalStorage().read()})()");assert.equal(stored.schemaVersion,5);assert.equal(stored.authorPaperCaches.length,1);assert.equal(stored.favorites.length,2);assert.equal(stored.paperCollections.length,3);assert.equal(stored.paperMemberships.length,2);assert.equal(stored.memberships.length,2);assert.equal(stored.collections.length,2);assert.equal(stored.settings.openArxivLinksInNewTab,true);assert.equal(stored.settings.organizeFollowedAuthorsIntoCollections,false);assert.notEqual(stored.settings.lastUsedPaperCollectionId,stored.settings.lastUsedAuthorCollectionId);
+  const authorLinkTarget=await createdTarget(()=>nativeClick(arxiv,".authors a"),target=>target.url.startsWith(extensionUrl("author/author.html")));
+  const {sessionId:linkedAuthor}=await send("Target.attachToTarget",{targetId:authorLinkTarget.targetId,flatten:true});await send("Page.enable",{},linkedAuthor);await send("Runtime.enable",{},linkedAuthor);
+  await until(linkedAuthor,"document.querySelector('#name')?.textContent==='Alex Kim'&&document.querySelector('#open-search').href.includes('searchtype=author')");
+  assert.equal(await evaluate(linkedAuthor,"document.querySelector('#identity').textContent.includes('namesakes')"),true);
+  await send("Page.reload",{},linkedAuthor);await until(linkedAuthor,"document.querySelector('#name')?.textContent==='Alex Kim'&&document.querySelector('#open-search').href.includes('searchtype=author')");
+  await send("Target.closeTarget",{targetId:authorLinkTarget.targetId});
+  // A transient author uses the same repository cache and paper-row renderer.
+  // Seed a fresh fixture cache before navigation so this suite stays offline.
+  await evaluate(library,"(async()=>{const {RepositoryClient}=await import('../repository/repository-client.js');const {stableAuthorKey}=await import('../domain/author.js');return new RepositoryClient().putAuthorPaperCache({authorId:stableAuthorKey('Renée Smith'),queryUsed:'au:\"Renée Smith\"',fetchedAt:new Date().toISOString(),papers:[{arxivId:'2402.00002',title:'Transient author fixture',authors:['Renée Smith'],abstract:'Fixture result',categories:['math.AG'],publishedAt:'2026-09-20T00:00:00Z'}]})})()");
+  const transientTarget=await createdTarget(()=>nativeClick(arxiv,".authors a:nth-of-type(2)"),target=>target.url.startsWith(extensionUrl("author/author.html")));
+  const {sessionId:transientAuthor}=await send("Target.attachToTarget",{targetId:transientTarget.targetId,flatten:true});await send("Page.enable",{},transientAuthor);await send("Runtime.enable",{},transientAuthor);
+  await until(transientAuthor,"document.querySelector('#name')?.textContent==='Renée Smith'&&!document.querySelector('#refresh').disabled&&document.querySelectorAll('.paper-row').length===1");
+  assert.equal(await evaluate(transientAuthor,"document.querySelector('.paper-row h2').textContent"),"Transient author fixture");
+  assert.equal(await evaluate(transientAuthor,"document.querySelector('.paper-row .bookmark').getAttribute('aria-pressed')"),"false");
+  assert.equal(await evaluate(arxiv,"document.querySelectorAll('.authors .arxiv-library-button')[1].getAttribute('aria-pressed')"),"false");
+  await send("Target.closeTarget",{targetId:transientTarget.targetId});
+  const nativeAuthorTarget=await createdTarget(()=>nativeClick(arxiv,".authors a",2),target=>target.url.startsWith("https://arxiv.org/search/"));
+  await send("Target.closeTarget",{targetId:nativeAuthorTarget.targetId});
+  const middleAuthorTarget=await createdTarget(()=>nativeClick(arxiv,".authors a",0,"middle"),target=>target.url.startsWith("https://arxiv.org/search/"));
+  await send("Target.closeTarget",{targetId:middleAuthorTarget.targetId});
+  await evaluate(arxiv,"document.querySelector('.authors a').focus()");
+  const keyboardAuthorTarget=await createdTarget(async()=>{await send("Input.dispatchKeyEvent",{type:"keyDown",key:"Enter",code:"Enter",windowsVirtualKeyCode:13},arxiv);await send("Input.dispatchKeyEvent",{type:"keyUp",key:"Enter",code:"Enter",windowsVirtualKeyCode:13},arxiv)},target=>target.url.startsWith(extensionUrl("author/author.html")));
+  await send("Target.closeTarget",{targetId:keyboardAuthorTarget.targetId});
+  for(const session of [library,authors]){
+    assert.equal(await evaluate(session,"document.querySelector('.settings-link')?.getAttribute('aria-label')"),"Settings");
+    await nativeClick(session,".settings-link");
+    await until(session,"location.pathname.endsWith('/settings/settings.html')&&document.querySelector('#open-arxiv-new-tab')");
+  }
+
   assert.deepEqual(runtimeErrors,[]);assert.deepEqual(asyncErrors,[]);console.log("BROWSER SMOKE PASS: visible follow icons, navigation-only popup, settings, author filtering, Library hierarchy, and persisted compatible state");
 }finally{await send("Browser.close").catch(()=>{});chrome.kill();await new Promise(resolve=>setTimeout(resolve,300));await rm(profile,{recursive:true,force:true})}

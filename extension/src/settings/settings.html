@@ -11,6 +11,20 @@
   <section aria-labelledby="following-heading"><h2 id="following-heading">Following</h2>
     <label class="setting-row"><span>Organize followed authors into collections</span><input id="organize-author-collections" class="toggle-input" type="checkbox" role="switch"><span class="toggle" aria-hidden="true"></span></label>
   </section>
+  <section aria-labelledby="data-heading"><h2 id="data-heading">Data</h2>
+    <p class="section-description">Import merges into this browser. Export lets you choose all items or a collection.</p>
+    <div class="data-rows">
+      <div class="data-row"><span>Bookmarks</span><button data-import="bookmarks" type="button" aria-label="Import Bookmarks">Import</button><button data-export="bookmarks" type="button" aria-label="Export Bookmarks">Export</button></div>
+      <div class="data-row"><span>Following</span><button data-import="following" type="button" aria-label="Import Following">Import</button><button data-export="following" type="button" aria-label="Export Following">Export</button></div>
+    </div>
+    <input id="import-file" type="file" accept="application/json,.json" hidden>
+  </section>
   <p id="status" class="status" role="status" aria-live="polite"></p>
 </main>
+<dialog id="export-dialog" aria-labelledby="export-heading">
+  <h2 id="export-heading">Export Bookmarks</h2>
+  <label for="export-selection">Include</label>
+  <select id="export-selection"></select>
+  <div class="dialog-actions"><button id="cancel-export" type="button">Cancel</button><button id="confirm-export" type="button">Export</button></div>
+</dialog>
 </body></html>

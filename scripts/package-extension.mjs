@@ -1,41 +1,49 @@
 import { createHash } from "node:crypto";
-import { mkdir, readFile, readdir, rm, stat } from "node:fs/promises";
-import { relative, resolve } from "node:path";
+import { copyFile, mkdir, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
+import { dirname, relative, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { browserManifest } from "./browser-manifest.mjs";
 
 const repositoryRoot = fileURLToPath(new URL("../", import.meta.url));
 const extensionRoot = resolve(repositoryRoot, "extension");
-const outputDirectory = resolve(repositoryRoot, "dist");
-const manifest = JSON.parse(await readFile(resolve(extensionRoot, "manifest.json"), "utf8"));
-const packageMetadata = JSON.parse(await readFile(resolve(repositoryRoot, "package.json"), "utf8"));
+/** Stage identical runtime files with a generated manifest, then ZIP them. */
+export async function packageExtension(target = "chromium", outputDirectory = resolve(repositoryRoot, "dist")) {
+  const source = JSON.parse(await readFile(resolve(extensionRoot, "manifest.json"), "utf8"));
+  const manifest = browserManifest(source, target);
+  const packageMetadata = JSON.parse(await readFile(resolve(repositoryRoot, "package.json"), "utf8"));
+  if (manifest.version !== packageMetadata.version) throw new Error("Manifest/package version mismatch.");
 
-if (manifest.manifest_version !== 3) throw new Error("Release packaging requires Manifest V3.");
-if (manifest.version !== packageMetadata.version) {
-  throw new Error(`Version mismatch: manifest ${manifest.version}, package ${packageMetadata.version}.`);
+  const files = (await walk(extensionRoot))
+    .map(path => relative(extensionRoot, path).replaceAll("\\", "/"))
+    .filter(path => path !== "assets/fonts/README.md")
+    .sort();
+  const developmentOnly = /(^|\/)(?:tests?|scripts?|screenshots?|node_modules|coverage|dist)(?:\/|$)|\.map$/;
+  if (files.some(path => path.startsWith(".") || path.includes("/.") || developmentOnly.test(path))) {
+    throw new Error("The release archive contains a development-only file.");
+  }
+
+  const directory = resolve(outputDirectory, target);
+  await rm(directory, { recursive: true, force: true });
+  for (const path of files) {
+    const destination = resolve(directory, path);
+    await mkdir(dirname(destination), { recursive: true });
+    if (path === "manifest.json") await writeFile(destination, JSON.stringify(manifest, null, 2) + "\n");
+    else await copyFile(resolve(extensionRoot, path), destination);
+  }
+  const artifact = resolve(outputDirectory, `xivary-${manifest.version}-${target}.zip`);
+  await rm(artifact, { force: true });
+  run("zip", ["-X", "-q", artifact, ...files], directory);
+  return { directory, artifact, manifest, files };
 }
 
-const excluded = new Set(["assets/fonts/README.md"]);
-const files = (await walk(extensionRoot))
-  .map(path => relative(extensionRoot, path).replaceAll("\\", "/"))
-  .filter(path => !excluded.has(path))
-  .sort();
-
-if (!files.includes("manifest.json")) throw new Error("The release archive would not contain manifest.json.");
-const developmentOnly = /(^|\/)(?:tests?|scripts?|screenshots?|node_modules|coverage|dist)(?:\/|$)|\.map$/;
-if (files.some(path => path.startsWith(".") || path.includes("/.") || developmentOnly.test(path))) {
-  throw new Error("The release archive contains a development-only file.");
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  if (process.argv.length > 3) throw new Error("Usage: node scripts/package-extension.mjs [chromium|firefox]");
+  const { artifact, files } = await packageExtension(process.argv[2] || "chromium");
+  const bytes = await readFile(artifact);
+  console.log(`Packaged ${relative(repositoryRoot, artifact)} (${files.length} files, ${(await stat(artifact)).size} bytes)`);
+  console.log(`SHA-256 ${createHash("sha256").update(bytes).digest("hex")}`);
 }
-
-await mkdir(outputDirectory, { recursive: true });
-const artifact = resolve(outputDirectory, `xivary-${manifest.version}.zip`);
-await rm(artifact, { force: true });
-run("zip", ["-X", "-q", artifact, ...files], extensionRoot);
-
-const bytes = await readFile(artifact);
-const hash = createHash("sha256").update(bytes).digest("hex");
-console.log(`Packaged ${relative(repositoryRoot, artifact)} (${files.length} files, ${(await stat(artifact)).size} bytes)`);
-console.log(`SHA-256 ${hash}`);
 
 async function walk(directory) {
   const entries = await readdir(directory, { withFileTypes: true });

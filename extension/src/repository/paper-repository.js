@@ -28,4 +28,6 @@ export class PaperRepository {
   async getPreferences() { throw new Error("Not implemented"); }
   async setOpenArxivLinksInNewTab(enabled) { throw new Error("Not implemented"); }
   async setOrganizeFollowedAuthorsIntoCollections(enabled) { throw new Error("Not implemented"); }
+  async exportCategory(category, selection) { throw new Error("Not implemented"); }
+  async importCategory(text, category) { throw new Error("Not implemented"); }
 }

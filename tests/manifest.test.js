@@ -20,7 +20,7 @@ test("manifest uses MV3, narrow permissions and existing entry points", async ()
   assert.equal(manifest.action.default_title, "Xivary");
   assert.equal(manifest.version, "0.1.0");
   assert.equal(packageMetadata.version, manifest.version);
-  assert.deepEqual(manifest.permissions, ["storage"]);
+  assert.deepEqual(manifest.permissions, ["storage", "alarms"]);
   assert.deepEqual(manifest.host_permissions, ["https://export.arxiv.org/*"]);
   assert.equal(manifest.background.type, "module");
   assert.equal(manifest.options_page, "src/settings/settings.html");
@@ -89,5 +89,16 @@ test("Chrome storage access is confined to the persistence adapter", async () =>
   for (const path of await files(resolve(root, "src"))) {
     if (!path.endsWith(".js") || path === resolve(root, "src/lib/storage.js")) continue;
     assert.doesNotMatch(await readFile(path, "utf8"), /(?:chrome|browser)\s*\.\s*storage\b/, path);
+  }
+});
+
+test("native extension namespaces are confined to the platform boundary", async () => {
+  for (const path of await files(resolve(root, "src"))) {
+    if (!path.endsWith(".js") || relative(root, path).startsWith("src/platform/")) continue;
+    const source = await readFile(path, "utf8");
+    assert.doesNotMatch(source, /\b(?:chrome|browser)\s*\./, path);
+    if (path !== resolve(root, "src/lib/storage.js")) {
+      assert.doesNotMatch(source, /\.storage\s*\.\s*(?:local|sync|session)\b/, path);
+    }
   }
 });

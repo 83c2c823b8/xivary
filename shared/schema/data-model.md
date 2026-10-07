@@ -1,5 +1,14 @@
 # Shared data model (schema version 5)
 
+Portable import/export does not change local schema 5. Its two manual categories
+are Bookmarks (`favorites`, `paperCollections`, `paperMemberships`) and Following
+(`authors` currently followed, `collections`, `memberships`). Export selects All
+or one collection; collection exports carry only that collection's memberships.
+Preferences have no manual transfer and retain existing Chrome Sync behavior.
+`lastUsed*CollectionId`, caches, and Sync bookkeeping remain local or internal.
+Importing one category must never modify the other or preferences. Never serialize the raw local schema or Sync
+representation as a portable file.
+
 The extension stores JSON-compatible objects. Timestamps are UTC ISO 8601 strings
 generated on save, such as `2026-09-24T01:02:03.000Z`. The same record shapes can
 later cross a REST/JSON API; they have no Chrome or cloud-provider types.
@@ -134,7 +143,8 @@ The `(authorId, collectionId)` pair is unique. Adds are idempotent and do not
 reset timestamps on an existing membership. An author is followed if and only
 if at least one membership exists. Removing a membership or deleting a collection
 never deletes an Author entity. Removing all memberships globally unfollows the
-author. These are local hard deletes, not sync tombstones.
+author. These remain local hard deletes. The separate Chrome wire representation
+retains membership tombstones; it does not put tombstones in these arrays.
 
 Author collections are retained for stored-data and repository compatibility but
 are hidden from the default UI. The visible model is simply Follow/Following;
@@ -142,6 +152,13 @@ unfollowing removes all memberships. The opt-in author-organization preference
 exposes collection membership controls without changing this schema.
 
 ## Settings
+
+The two boolean preferences below synchronize through the existing Chrome Sync v1
+registers. Both last-used pointers remain browser-local convenience state. Unknown
+retained settings are excluded, as are runtime/derived/cache and replica fields.
+See [settings policy](../../docs/chrome-sync.md#settings-policy-and-compatibility)
+for existing-local/fresh/old-replica bootstrap and conflict behavior. Schema 5 and
+all migrations remain unchanged; Preferences have no portable-file actions.
 
 `lastUsedAuthorCollectionId` is an author collection ID or `null`. Creating a
 collection or explicitly adding membership updates it; unchecking does not.
@@ -170,7 +187,13 @@ Schema 5 records that omit it are treated as `false` without a write-on-read.
 
 ## Local persistence
 
-The `arxivResearchLibrary` key in `chrome.storage.local` holds:
+The `arxivResearchLibrary` key in the browser's extension-local `storage.local`
+area holds the same schema in Chromium and Firefox. Each browser/profile has an
+independent local view. Chrome installations with matching extension IDs and an
+enabled shared Chrome sync account additionally merge small durable intent through
+the separate sync representation below. Firefox remains independent and local-only.
+The platform boundary selects the native API, and `BrowserLocalStorage` performs
+the same single-key reads/writes in either browser:
 
 ```json
 {
@@ -203,6 +226,58 @@ through one serialized repository instance. Lists are returned as detached copie
 The collection is intentionally simple for this MVP; a larger local library may
 need indexed or per-record storage and a migration.
 
+### Portable library format v2 and legacy combined v1 (not schema 6 or sync v1)
+
+The user-selected `xivary-library` JSON export is a third, independent
+representation. Version 2 declares `category` and All/collection `selection`, and
+contains only Bookmarks or Following as selected, plus format/version/export-time metadata.
+The old combined version-1 file remains readable with a selected-category import.
+The representation can contain known full paper fields, paper/author collections
+and memberships, and currently followed author records according to its category.
+Preferences appear only in legacy combined v1 files, which are read without
+applying them. New files omit `schemaVersion`, caches, both
+last-used pointers, unknown envelope/record fields and all `_chromeSync` data.
+Import validates and normalizes it before merging through LocalRepository. See
+[import/export](../../docs/import-export.md) for the exact policy and evolution
+rules; never derive this format by serializing either storage representation.
+
+### Chrome sync representation v1 (not schema 6)
+
+The domain schema, migrations and PaperRepository methods above are unchanged.
+The Chrome adapter adds `_chromeSync` to the local envelope: `version: 1`, replica
+`id`, logical `counter`, `bootstrapped`, a map of retained winning `records`,
+`retryAt`, `lastError`, and `bootstrapSnapshot` (migrated user data, without feed
+caches). `_chromeSyncError` records a read/validation failure without resetting
+data. These fields remain local and commit with domain writes. Unknown existing
+fields on retained records remain preserved; cache normalization keeps its existing
+exceptions. Chrome bootstrap persists the validated/defaulted envelope on its first
+read; plain LocalRepository/Firefox retains its previous write-on-read behavior.
+
+Sync keys are `xivary.sync:` followed by a JSON array identifying one register:
+
+| Key tuple | Non-null value |
+| --- | --- |
+| `["p", arxivId]` | Complete title, ordered author-name strings, savedAt, updatedAt |
+| `["a", authorId]` | displayName, followedAt, updatedAt |
+| `["pc", collectionId]` / `["ac", collectionId]` | name, createdAt, updatedAt |
+| `["pm", arxivId, collectionId]` / `["am", authorId, collectionId]` | addedAt, updatedAt, generation |
+| `["s", preferenceName]` | Boolean, for either implemented boolean preference |
+
+Every value is wrapped as `{v:1, rev:[counter,replicaId], value, deleted}`.
+`deleted` is null or the maximum deletion revision observed for that register.
+Collections and memberships may have null `value` (tombstone). A membership's
+`generation` is the collection's deletion revision when that membership was added,
+or null before any deletion. It must match the live collection's deletion revision
+to materialize. Neither the revision nor generation enters domain membership arrays.
+
+Saved/followed intent remains derived from valid memberships. Remote paper rows
+are constructed with existing domain constructors and minimal display metadata;
+full existing local favorite metadata is never overwritten. Last-used collection
+IDs remain local (and are repaired only when a non-null reference becomes invalid).
+Both boolean settings synchronize. Local caches and ephemeral state never enter
+the wire model. Refer to [Chrome sync design](../../docs/chrome-sync.md) for bootstrap,
+ordering, observed-membership removals, collision names, quotas and recovery.
+
 ## AuthorPaperCache
 
 | Field | Type | Meaning |
@@ -224,7 +299,7 @@ explicitly creates a Paper through the repository.
 Previously, follows used
 `arxiv-author:v1:{sourceArxivId}:{sourceAuthorIndex}:{encodedNormalizedName}`.
 This caused one person's follow state to differ by paper. On the first repository
-operation after updating (including a list read), the sole worker repository:
+operation after updating (including a list read), the sole background repository:
 
 1. Validates the existing library and legacy author IDs/timestamps.
 2. Computes each follow's new key from its stored `displayName`, not its old ID.
@@ -287,6 +362,7 @@ new key format. No manual clearing or re-following is necessary.
 - Server-assigned change cursors and conflict-resolution metadata.
 - Paper-note editing, only if a demonstrated workflow need justifies the added UI.
 
-Current hard deletes and device-clock `updatedAt` values do not implement sync.
-Before enabling sync, define version ownership, conflict handling, migration,
-retention and deletion acknowledgment. Keep primary keys stable through that work.
+Domain hard deletes and device-clock `updatedAt` values are not the Sync conflict
+protocol. The implemented independent Sync v1 registers above supply logical
+ordering, deletion retention and collection generations. A future backend would
+need an explicit compatible contract; keep primary keys stable.
