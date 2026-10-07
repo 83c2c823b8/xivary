@@ -18,7 +18,7 @@ test("manifest uses MV3, narrow permissions and existing entry points", async ()
   assert.equal(manifest.manifest_version, 3);
   assert.equal(manifest.name, "Xivary");
   assert.equal(manifest.action.default_title, "Xivary");
-  assert.equal(manifest.version, "0.1.0");
+  assert.equal(manifest.version, "0.2.0");
   assert.equal(packageMetadata.version, manifest.version);
   assert.deepEqual(manifest.permissions, ["storage", "alarms"]);
   assert.deepEqual(manifest.host_permissions, ["https://export.arxiv.org/*"]);
