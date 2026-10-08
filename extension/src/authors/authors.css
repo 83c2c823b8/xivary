@@ -9,3 +9,10 @@
 .author-row h2 { overflow-wrap: anywhere; }
 .author-row .manage-collections { color: var(--text); }
 .delete-confirmation { flex-wrap: wrap; }
+
+.following-content .toolbar { margin-bottom: 8px; }
+.following-content .author-row { padding-top: 12px; padding-bottom: 12px; }
+.following-content .actions { gap: 8px; }
+@media (max-width: 480px) {
+  .following-content .author-row { grid-template-columns: minmax(0, 1fr); gap: 8px; }
+}

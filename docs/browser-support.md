@@ -4,7 +4,45 @@ One application tree produces Chromium and Firefox manifests. Chrome uses native
 extension Sync only for four designated user preferences; Firefox remains local-only. No Xivary
 account, OAuth, backend or external sync provider is implemented.
 
-## Latest UI/launcher evidence — 2026-10-09
+## Latest compact UI evidence — 2026-10-09
+
+Started clean on `master` at `ab389a36586c252ed52c9ae4d66dcfc2c5f90e2e`
+(three commits ahead of origin). Baseline Node: 156/156 pass. Original Chrome
+smoke passed and before screenshots were captured; its extended interaction phase
+initially timed out waiting for creation focus. The harness now waits for rendered
+collections and fonts. Native click targets scroll into view, and screenshots wait
+for foreground/font/paint readiness. Assertions were preserved and expanded.
+
+- **VERIFIED AUTOMATICALLY:** 158/158 Node tests, no failures/skips, including two
+  shared sidebar presentation regressions. Both 69-file packages match source,
+  remain version 0.2.0 and retain existing manifests/permissions. Diff check passes.
+- **VERIFIED IN REAL BROWSER, fixtures:** Chrome 154 full smoke/interaction suites;
+  actual action popup is 300 × 159px with stable 44px rows, correct local counts,
+  Settings gear, both routes/tab modes, keyboard and duplicate guards. Shared menu
+  checks cover stable counts, no selection on open, Up/Down/Home/End/Tab/Escape,
+  outside dismissal, unchanged-focus-refresh retention and rename/dialog focus
+  return. Library zero matches/Clear search/count alignment pass. Existing membership,
+  Unfollow/Bookmark Undo, content and author interactions remain covered.
+- **VERIFIED IN REAL BROWSER, fixtures:** Firefox 157 / geckodriver 0.37.1 smoke
+  and the shared Following menu/collection/Undo workflow pass. Library, Following,
+  menu, deletion dialog and popup-page screenshots were inspected. This is not
+  verification of Firefox's native toolbar widget.
+- **VISUAL REVIEW OF REAL BROWSER SCREENSHOTS:** Chrome before/after Library,
+  Following, sidebar/menu/dialog, actual popup and hover/focus states; 560px layouts
+  and 320px long-name/six-digit-count stress fixture. No clipping/overlap was found
+  in the modified controls. Stress text/counts are layout fixtures, not stored data.
+- **VERIFIED IN REAL BROWSER, unsigned-in test profiles:** native category transfers,
+  settings-only isolation, four test-authored preference events, pending real alarm/
+  worker recovery, reload and full profile restart pass. Account delivery is not
+  inferred from these checks.
+
+Two implemented design references: [Xivary UI](UI_DESIGN.md) and
+[reusable principles](DESIGN_PRINCIPLES.md). No collection identity, persistence,
+Sync/portable contract, launcher semantics, version or permission changed.
+Human assistive/touch/macOS checks, minimum versions, distribution and real-account
+checks below remain **NOT YET VERIFIED**. All automated commit gates pass.
+
+## Previous UI/launcher evidence — 2026-10-09
 
 156/156 Node tests and Chrome/Firefox fixture smoke suites pass. Chrome exercises
 the actual 408px toolbar popup, correct counts and Settings gear, both routes in
@@ -198,7 +236,7 @@ Use dedicated installations A/B with the same extension ID and browser sync enab
 on the same account, set up by the developer. Record versions, IDs and observations.
 Do not use two unsigned-in profiles as evidence of account transport.
 
-1. Change each of the three boolean preferences on A then B; refocus Settings/Following and
+1. Change each of the four boolean preferences on A then B; refocus Settings/Following and
    observe the desired value on the other installation.
 2. Save/follow/create/rename/move/delete locally; verify the other installation's
    Bookmarks/Following/collections/memberships stay unchanged after reload/restart.
@@ -221,3 +259,8 @@ Do not use two unsigned-in profiles as evidence of account transport.
 - Signed Firefox installation and installed add-on browser restart persistence;
   temporary add-on lifetime does not prove signed-installation lifetime.
 - Chosen minimum browser versions, store identity/signing, optional Edge/Brave.
+
+Set `ARXIV_SCREENSHOT_DIR=/tmp/xivary-ui` with either fixture smoke command to
+capture visual review artifacts. Firefox prefixes its extension-page images with
+`firefox-`; its popup-page screenshot is not a native toolbar-popup claim. Chrome
+captures its actual action popup. Screenshots are not packaged or committed.

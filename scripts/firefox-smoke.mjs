@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { followingWorkflow } from "./following-workflow.mjs";
 import { spawn, execFileSync } from "node:child_process";
-import { mkdir, mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { createServer as httpServer } from "node:http";
 import { createServer as httpsServer } from "node:https";
 import { tmpdir } from "node:os";
@@ -15,6 +15,7 @@ const root = fileURLToPath(new URL("../", import.meta.url));
 const temporary = await mkdtemp(join(tmpdir(), "xivary-firefox-"));
 const uuid = "59b6a7f8-6a1e-4ae3-947c-302e08e350f7";
 const extensionUrl = path => `moz-extension://${uuid}/src/${path}`;
+const screenshotDir = process.env.ARXIV_SCREENSHOT_DIR;
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 const sockets = new Set();
 let driver, proxy, secureServer, session, endpoint, log = "";
@@ -45,6 +46,13 @@ async function until(expression) {
     await delay(100);
   }
   throw new Error(`Condition not met: ${expression}\n${await evaluate("document.body.innerText")}`);
+}
+async function screenshot(name) {
+  if (!screenshotDir) return;
+  await evaluateAsync("document.fonts.ready.then(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))))");
+  await mkdir(screenshotDir, {recursive:true});
+  const data = await request('GET', `/session/${session}/screenshot`);
+  await writeFile(join(screenshotDir, `firefox-${name}`), Buffer.from(data, 'base64'));
 }
 async function navigate(url) { await command("/url", { url }); }
 // Firefox WebDriver rejects direct moz-extension navigation. Enter through the
@@ -147,11 +155,13 @@ try {
   await openAuthorFromArxiv();
   await navigateExtension("popup/popup.html");
   await until("document.querySelector('#saved-count')?.textContent === '1' && document.querySelector('#following-count')?.textContent === '1'");
+  await screenshot("popup-page.png");
   const previous = await request("GET", `/session/${session}/window/handles`);
   await evaluate("document.querySelector('[data-page=\"library/library.html\"]').click()");
   await switchToNewPage(previous);
   await until("document.querySelectorAll('#papers .paper-row').length === 1");
   assert.equal(await evaluate("location.href"), extensionUrl("library/library.html"));
+  await screenshot("library.png");
   const stored = await evaluateAsync("import('../lib/storage.js').then(async ({ BrowserLocalStorage }) => new BrowserLocalStorage().read())");
   assert.equal(stored.schemaVersion, 5);
   assert.equal(stored.favorites.length, 1);
@@ -206,6 +216,7 @@ try {
   await navigateExtension("authors/authors.html");
   await until("document.querySelectorAll('.author-row').length === 1");
   await followingWorkflow({
+    screenshot: name => screenshot(name || "following.png"),
     evaluate: evaluateAsync,
     until,
     reload: () => command("/refresh"),
@@ -217,8 +228,8 @@ try {
       await command(`/element/${element["element-6066-11e4-a52e-4f735466cecf"]}/click`);
     },
     key: key => command("/actions", { actions: [{ type: "key", id: "keyboard", actions: [
-      { type: "keyDown", value: key === "Enter" ? "\uE007" : "\uE00C" },
-      { type: "keyUp", value: key === "Enter" ? "\uE007" : "\uE00C" },
+      { type: "keyDown", value: {Enter:"\uE007",Escape:"\uE00C",ArrowDown:"\uE015",ArrowUp:"\uE013",Home:"\uE011",End:"\uE010",Tab:"\uE004"}[key] },
+      { type: "keyUp", value: {Enter:"\uE007",Escape:"\uE00C",ArrowDown:"\uE015",ArrowUp:"\uE013",Home:"\uE011",End:"\uE010",Tab:"\uE004"}[key] },
     ] }] }),
   });
 

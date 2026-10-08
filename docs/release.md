@@ -1,10 +1,10 @@
 # Xivary 0.2.0 release record
 
-The current implementation synchronizes only three designated user preferences.
+The current implementation synchronizes only four designated user preferences.
 Bookmarks, Following, collections and memberships stay local. The user reports the
 preceding version has been published. Earlier milestone sections below retain
 historical candidate evidence; current scope and results are in
-[Author navigation and interaction polish](#author-navigation-and-interaction-polish).
+[compact UI verification](#compact-ui-polish-and-design-guides).
 
 ## Scope and starting state
 
@@ -319,3 +319,32 @@ fourth-preference pending publication through alarm/worker and profile recovery.
 | --- | --- | --- |
 | Chromium | 211781 | `de60a1dbd0f57d014a64edbe893c6ec36bc46ceb6eab47f541be80629c6bcbdc` |
 | Firefox | 211847 | `6d188860df9d6215151942406f794c643c05c34ff252d2c6832285925d90c4c0` |
+
+## Compact UI polish and design guides
+
+Started clean at `ab389a3`; 156/156 baseline Node tests. Final 158/158, complete
+Chrome/Firefox fixture smoke, native transfer/Sync lifecycle, both packages and
+`git diff --check` pass. Shared sidebars now preserve counts and expose compact
+Rename/Delete menus; unchanged focus refresh retains menu/input focus. Library
+filter count/Clear search and density, Following spacing, and the actual Chrome
+300 × 159px popup were visually reviewed, including narrow/long-name/count fixtures.
+Firefox desktop extension-page/menu/dialog screenshots were inspected separately.
+Its native toolbar widget is still manual. See [evidence](browser-support.md) and
+[implemented UI design](UI_DESIGN.md); [general principles](DESIGN_PRINCIPLES.md)
+are reusable beyond the extension.
+
+The complete diff was reviewed. No schema, storage/collection rules, preferences,
+Sync/portable formats, arXiv behavior, launcher semantics, dependencies, permissions
+or version change. No data reset, push, signing or publishing. These same-version
+artifacts are development verification packages, not a store upload. External/
+manual release checks above remain required before distribution.
+
+Both 69-file ZIPs were inspected: runtime files match source byte-for-byte,
+non-manifest files match across browsers, generated manifests retain justified
+platform differences, and no development fixtures, credentials or repository
+metadata are included. Generated archives remain ignored.
+
+| Browser | Bytes | SHA-256 |
+| --- | --- | --- |
+| Chromium | 213806 | `1b39e014c0f927c0c1c61f15fd5b690f5112f27e6b36f1ff80e82d6db8429b6a` |
+| Firefox | 213872 | `0dc74423f145917380e83b80c4b9fda372810bcb97665cd6f7ce852e4f3eec8d` |

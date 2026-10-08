@@ -41,10 +41,12 @@ local-only; collection exports/imports keep their current independent contract.
 Enable Settings → Following → Organize followed authors into collections. The
 Following sidebar offers All Following and each collection with an author count.
 Choose a collection to browse its members; empty collections remain selectable.
-`+ New collection` opens inline entry (Enter saves, Escape cancels). Hover or focus
-a collection to reveal Rename/Delete. Rename uses the same Enter/Escape pattern;
-Delete offers Yes/Cancel and states how many solely assigned authors would become
-unfollowed. Collection names retain the existing unique-name validation.
+`+ New collection` opens inline entry (Enter saves, Escape cancels). Use the
+always-accessible three-dot menu for Rename/Delete collection.
+Rename uses the same Enter/Escape pattern; Delete opens a Cancel/Delete dialog
+explaining sole-membership unfollows. Escape/outside dismiss the menu; keyboard
+arrows navigate its actions and focus returns to the trigger after cancellation.
+Collection names retain the existing unique-name validation.
 
 Each author's Collections button opens the shared membership picker. Multiple
 checked collections are allowed. For a move, check the destination before clearing

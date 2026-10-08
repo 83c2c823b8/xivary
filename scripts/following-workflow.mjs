@@ -7,7 +7,10 @@ export async function followingWorkflow({ evaluate, click, until, reload, key, s
   const bookmarks = () => evaluate("(async()=>{const {RepositoryClient}=await import('../repository/repository-client.js');const {exportedAt,...data}=await new RepositoryClient().exportCategory('bookmarks');return data})()");
   const fill = (selector, value) => evaluate(`document.querySelector(${JSON.stringify(selector)}).value=${JSON.stringify(value)}`);
   const collectionSelector = id => `[data-collection-id=${JSON.stringify(id)}]`;
-  const action = (id, name) => `${collectionSelector(id)} + .collection-actions [data-action=${name}]`;
+  const action = async (id, name) => {
+    await click(`${collectionSelector(id)} + .collection-actions .collection-menu-trigger`);
+    await click(`.collection-menu [data-action=${name}]`);
+  };
   const checkbox = id => `.arxiv-collection-picker input[type=checkbox][value=${JSON.stringify(id)}]`;
   const settled = () => until("!document.querySelector('#show-create').disabled && !document.querySelector('#status').textContent");
   const original = await snapshot();
@@ -28,6 +31,7 @@ export async function followingWorkflow({ evaluate, click, until, reload, key, s
     await until(`document.querySelector('#collection-sidebar')?.hidden === ${!enabled} && document.querySelectorAll('.author-row').length === 1`);
   }
   await preference(true);
+  await collectionMenuWorkflow({ evaluate, click, key, screenshot });
   assert.equal(await evaluate("document.querySelector('.collection-link .collection-count').textContent"), "1");
   assert.equal(await evaluate("document.documentElement.scrollWidth === document.documentElement.clientWidth"), true);
   assert.equal(await evaluate("document.querySelector('[data-collection-id=\"\"] span').textContent"), "All Following");
@@ -56,16 +60,17 @@ export async function followingWorkflow({ evaluate, click, until, reload, key, s
   const first = await create("Workflow A");
   const second = await create("Workflow B");
   // Rename uses the same inline keyboard pattern as Library and retains its ID.
-  await click(action(second.id, "rename"));
+  await action(second.id, "rename");
   await key("Escape");
-  assert.equal(await evaluate("document.activeElement.dataset.action"), "rename");
-  await click(action(second.id, "rename"));
+  assert.equal(await evaluate("document.activeElement.dataset.action"), "menu");
+  await action(second.id, "rename");
   await fill("[data-rename-id]", "Workflow Renamed");
   await key("Enter");
   await until("!document.querySelector('[data-rename-id]') && !document.querySelector('#show-create').disabled");
   assert.equal((await snapshot()).collections.find(item => item.id === second.id).name, "Workflow Renamed");
+  assert.equal(await evaluate("document.activeElement.dataset.action"), "menu", 'successful rename restores trigger focus');
   // Duplicate names reject without losing assignments or leaving controls busy.
-  await click(action(second.id, "rename"));
+  await action(second.id, "rename");
   await fill("[data-rename-id]", "Workflow A");
   await key("Enter");
   await until("document.querySelector('#status').classList.contains('error') && !document.querySelector('#show-create').disabled");
@@ -112,12 +117,13 @@ export async function followingWorkflow({ evaluate, click, until, reload, key, s
   await preference(true);
   await click(collectionSelector(second.id));
   const beforeEscape = await snapshot();
-  await click(action(second.id, "delete"));
+  await action(second.id, "delete");
   assert.equal(await evaluate("document.activeElement.textContent==='Cancel' && getComputedStyle(document.querySelector('.collection-delete-dialog')).borderRadius==='14px' && document.querySelector('[data-confirm-id]').classList.contains('button-danger')"), true);
+  await screenshot("collection-delete-dialog.png");
   await key("Escape");
-  assert.equal(await evaluate("!document.querySelector('.collection-delete-dialog') && document.activeElement.dataset.action==='delete'"), true);
+  assert.equal(await evaluate("!document.querySelector('.collection-delete-dialog') && document.activeElement.dataset.action==='menu'"), true);
   assert.deepEqual(await snapshot(), beforeEscape);
-  await click(action(second.id, "delete"));
+  await action(second.id, "delete");
   assert.equal(await evaluate("document.querySelector('.collection-delete-dialog').open && document.querySelector('.collection-delete-dialog').textContent.includes('become unfollowed')"), true);
   await key("Escape");
   assert.equal((await snapshot()).memberships.length, 1, "cancel preserves sole membership");
@@ -133,13 +139,13 @@ export async function followingWorkflow({ evaluate, click, until, reload, key, s
   await until("document.querySelector('.arxiv-collection-picker input[type=checkbox]')");
   for (const id of previous) await membership(id, true);
   await click(".collection-picker-heading button");
-  await click(action(second.id, "delete"));
+  await action(second.id, "delete");
   assert.equal(await evaluate("document.querySelector('.collection-delete-dialog').textContent.includes('other collections remain followed')"), true);
   await click("[data-confirm-id]");
   await settled();
   assert.equal(await evaluate("document.querySelectorAll('.author-row').length"), 1, "deleting group retains author followed in another");
   await click(collectionSelector(first.id));
-  await click(action(first.id, "delete"));
+  await action(first.id, "delete");
   await click("[data-confirm-id]");
   await settled();
   await preference(false);
@@ -154,4 +160,36 @@ export async function followingWorkflow({ evaluate, click, until, reload, key, s
   await until("document.querySelectorAll('.author-row').length===1");
   assert.deepEqual((await snapshot()).memberships, final.memberships);
   console.log("Following workflow PASS: toggle, defaults, create/rename/errors/cancel/delete, assign/move, counts/filter, reload, metadata and Bookmark isolation");
+}
+
+// Shared native-browser interaction checks: no repository writes occur here.
+export async function collectionMenuWorkflow({ evaluate, click, key, screenshot = async () => {} }) {
+  const trigger = '.collection-menu-trigger';
+  const original = await evaluate("document.querySelector('.collection-link[aria-current]').dataset.collectionId");
+  const geometry = () => evaluate("(()=>{const row=document.querySelector('.collection-menu-trigger').closest('.collection-row'),count=row.querySelector('.collection-count'),r=count.getBoundingClientRect();return [count.textContent,r.x,r.y,r.width,r.height]})()");
+  const before = await geometry();
+  const savedCount = await evaluate("document.querySelector('.collection-menu-trigger').closest('.collection-row').querySelector('.collection-count').textContent");
+  await evaluate("document.querySelector('.collection-menu-trigger').closest('.collection-row').querySelector('.collection-count').textContent='123456'");
+  assert.equal(await evaluate("(()=>{const row=document.querySelector('.collection-menu-trigger').closest('.collection-row'),name=row.querySelector('.collection-name').getBoundingClientRect(),count=row.querySelector('.collection-count').getBoundingClientRect(),trigger=row.querySelector('.collection-menu-trigger').getBoundingClientRect();return name.right<=count.left&&count.right<=trigger.left&&document.documentElement.scrollWidth===document.documentElement.clientWidth})()"),true);
+  await evaluate(`document.querySelector('.collection-menu-trigger').closest('.collection-row').querySelector('.collection-count').textContent=${JSON.stringify(savedCount)}`);
+  await evaluate("document.querySelector('.collection-menu-trigger').focus()");
+  await key('ArrowDown');
+  assert.equal(await evaluate("document.activeElement.dataset.action==='rename' && document.querySelector('.collection-menu-trigger').getAttribute('aria-expanded')==='true'"), true);
+  assert.deepEqual(await geometry(), before, 'opening menu keeps count text and position');
+  assert.equal(await evaluate("(async()=>{window.dispatchEvent(new Event('focus'));const {RepositoryClient}=await import('../repository/repository-client.js');await new RepositoryClient().getPreferences();await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));return document.activeElement.dataset.action==='rename'&&Boolean(document.querySelector('.collection-menu'))})()"),true, 'unchanged focus refresh retains the open menu and keyboard focus');
+  assert.equal(await evaluate("document.querySelector('.collection-link[aria-current]').dataset.collectionId"), original, 'menu activation does not select its collection');
+  await key('ArrowDown');
+  assert.equal(await evaluate("document.activeElement.dataset.action"), 'delete');
+  await key('Home'); assert.equal(await evaluate("document.activeElement.dataset.action"), 'rename');
+  await key('End'); assert.equal(await evaluate("document.activeElement.dataset.action"), 'delete');
+  assert.equal(await evaluate("(()=>{const r=document.querySelector('.collection-menu').getBoundingClientRect();return r.left>=0&&r.right<=innerWidth&&r.top>=0&&r.bottom<=innerHeight})()"), true);
+  await screenshot('collection-menu.png');
+  await key('Escape');
+  assert.equal(await evaluate("!document.querySelector('.collection-menu')&&document.activeElement.classList.contains('collection-menu-trigger')"), true);
+  await key('ArrowUp'); assert.equal(await evaluate("document.activeElement.dataset.action"), 'delete');
+  await key('Tab');
+  assert.equal(await evaluate("!document.querySelector('.collection-menu')&&!document.activeElement.closest('.collection-menu')"), true);
+  await click(trigger); await click('h1');
+  assert.equal(await evaluate("!document.querySelector('.collection-menu')&&document.querySelector('.collection-menu-trigger').getAttribute('aria-expanded')==='false'"), true);
+  assert.deepEqual(await geometry(), before);
 }

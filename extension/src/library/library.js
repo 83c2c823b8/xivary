@@ -1,3 +1,4 @@
+import { collectionSidebarRow, closeCollectionMenu } from "../ui/collection-sidebar.js";
 import { bindCollectionCreate } from "../ui/collection-create.js";
 import { confirmCollectionDeletion } from "../ui/confirm-collection.js";
 import { RepositoryClient } from "../repository/repository-client.js";
@@ -11,8 +12,12 @@ let selected = "";
 let busy = false;
 let editingId = null;
 let loadRevision = 0;
+let renderedCollections;
 
 element("filter").addEventListener("input", render);
+element("clear-filter").addEventListener("click", () => {
+  element("filter").value = ""; render(); element("filter").focus();
+});
 const closeCreate = bindCollectionCreate({
   trigger: element("show-create"), form: element("create-form"), input: element("collection-name"),
   onOpen: () => { editingId = null; renderCollections(); },
@@ -51,6 +56,7 @@ function render() {
     : `${inCollection.length} ${inCollection.length === 1 ? "paper" : "papers"}`;
   element("empty").textContent = query ? "No matching papers." : selected ? "No papers in this collection." : "No saved papers.";
   element("empty").hidden = visible.length > 0;
+  element("clear-filter").hidden = !query || visible.length > 0;
   setDisabled(busy);
 }
 
@@ -62,6 +68,11 @@ function renderCollections() {
       count: library.memberships.filter(item => item.collectionId === collection.id).length,
     })),
   ];
+  const signature = JSON.stringify([selected, editingId, entries]);
+  if (signature === renderedCollections) return;
+  // A focus refresh with unchanged data must not discard menu/input focus.
+  closeCollectionMenu();
+  renderedCollections = signature;
   element("collection-list").replaceChildren(...entries.map(entry => {
     const item = document.createElement("li");
     item.className = "collection-item";
@@ -69,52 +80,30 @@ function renderCollections() {
       item.append(renameForm(entry));
       return item;
     }
-    const row = document.createElement("div");
-    row.className = "collection-row";
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = "collection-link";
-    button.dataset.collectionId = entry.id;
-    if (entry.id === selected) button.setAttribute("aria-current", "page");
-    const name = document.createElement("span");
-    name.textContent = entry.name;
-    const count = document.createElement("span");
-    count.className = "collection-count";
-    count.textContent = entry.count;
-    button.append(name, count);
-    button.addEventListener("click", () => {
-      selected = entry.id;
-      editingId = null;
-      closeCreate();
-      render();
+    const row = collectionSidebarRow(entry, {
+      selected, aggregateIcon: "papers",
+      select: () => { selected = entry.id; editingId = null; closeCreate(); render(); },
+      rename: () => renameCollection(entry), remove: () => deleteCollection(entry),
     });
-    row.append(button);
-    if (entry.id) row.append(collectionActions(entry));
     item.append(row);
     return item;
   }));
 }
 
-function collectionActions(entry) {
-  const actions = document.createElement("div");
-  actions.className = "collection-actions";
-  actions.append(
-    iconButton("rename", `Rename ${entry.name}`, pencilIcon, () => {
-      editingId = entry.id;
-      closeCreate();
-      renderCollections();
-      document.querySelector(`[data-rename-id="${CSS.escape(entry.id)}"]`)?.select();
-    }),
-    iconButton("delete", `Delete ${entry.name}`, trashIcon, () => {
-      editingId = null;
-      closeCreate();
-      confirmCollectionDeletion(entry, "Deleting removes this collection and its memberships. Papers saved only here are removed from Bookmarks; papers in other collections remain saved.", () => mutate(async () => {
-        await repository.deletePaperCollection(entry.id);
-        if (selected === entry.id) selected = "";
-      }, { propagateError: true }), () => focusCollectionAction(entry.id, "delete"));
-    }),
-  );
-  return actions;
+function renameCollection(entry) {
+  editingId = entry.id;
+  closeCreate();
+  renderCollections();
+  document.querySelector(`[data-rename-id="${CSS.escape(entry.id)}"]`)?.select();
+}
+
+function deleteCollection(entry) {
+  editingId = null;
+  closeCreate();
+  confirmCollectionDeletion(entry, "Deleting removes this collection and its memberships. Papers saved only here are removed from Bookmarks; papers in other collections remain saved.", () => mutate(async () => {
+    await repository.deletePaperCollection(entry.id);
+    if (selected === entry.id) selected = "";
+  }, { propagateError: true }), () => focusCollectionAction(entry.id));
 }
 
 function renameForm(entry) {
@@ -130,7 +119,7 @@ function renameForm(entry) {
   form.append(input);
   form.addEventListener("submit", event => {
     event.preventDefault();
-    void mutate(() => repository.renamePaperCollection(entry.id, input.value), { focusAction: [entry.id, "rename"] });
+    void mutate(() => repository.renamePaperCollection(entry.id, input.value), { focusCollectionId: entry.id });
   });
   form.addEventListener("keydown", event => {
     if (event.key === "Enter") { event.preventDefault(); form.requestSubmit(); }
@@ -138,22 +127,10 @@ function renameForm(entry) {
       event.preventDefault();
       editingId = null;
       renderCollections();
-      focusCollectionAction(entry.id, "rename");
+      focusCollectionAction(entry.id);
     }
   });
   return form;
-}
-
-function iconButton(action, label, icon, onClick) {
-  const button = document.createElement("button");
-  button.type = "button";
-  button.className = "icon-button";
-  button.dataset.action = action;
-  button.setAttribute("aria-label", label);
-  button.title = label;
-  button.innerHTML = icon;
-  button.addEventListener("click", onClick);
-  return button;
 }
 
 async function managePaper(paper, button) {
@@ -162,7 +139,7 @@ async function managePaper(paper, button) {
   await openPaperCollectionPicker({ repository, paper, anchor: button, onChange: load });
 }
 
-async function mutate(operation, { focusAction, propagateError = false } = {}) {
+async function mutate(operation, { focusCollectionId, propagateError = false } = {}) {
   if (busy) return;
   busy = true;
   setDisabled(true);
@@ -170,7 +147,8 @@ async function mutate(operation, { focusAction, propagateError = false } = {}) {
     await operation();
     editingId = null;
     await load();
-    if (focusAction) focusCollectionAction(...focusAction);
+    setDisabled(false);
+    if (focusCollectionId) focusCollectionAction(focusCollectionId);
   }
   catch (error) { setStatus(error.message, true); if (propagateError) throw error; }
   finally { busy = false; setDisabled(false); }
@@ -179,10 +157,7 @@ async function mutate(operation, { focusAction, propagateError = false } = {}) {
 function setDisabled(value) { document.querySelectorAll("button,input").forEach(node => { node.disabled = value; }); }
 function setStatus(message, error = false) { element("status").textContent = message; element("status").classList.toggle("error", error); }
 
-function focusCollectionAction(id, action) {
+function focusCollectionAction(id) {
   document.querySelector(`[data-collection-id="${CSS.escape(id)}"]`)?.parentElement
-    ?.querySelector(`[data-action="${action}"]`)?.focus();
+    ?.querySelector('.collection-menu-trigger')?.focus();
 }
-
-const pencilIcon = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 16-.75 4.75L8 20l10.4-10.4a2.1 2.1 0 0 0-3-3L5 17Z"/><path d="m14.5 7.5 3 3"/></svg>';
-const trashIcon = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 3h6l1 4H8l1-4Zm-3 4 1 14h10l1-14M10 11v6m4-6v6"/></svg>';

@@ -30,8 +30,8 @@ account, project-owned backend, or analytics.
 - Compact **Follow** and **Following** controls beside authors on arXiv abstract pages.
 - A Following list and per-author paper feeds retrieved from arXiv's public Atom API.
 - Paper saving from arXiv pages and author feeds.
-- Named paper collections with inline create, rename, delete, and membership controls.
-- Optional Following collections with the same inline management and collection
+- Named paper collections with inline creation, overflow-menu rename/delete, and membership controls.
+- Optional Following collections with the same sidebar management and collection
   browsing. Enable **Settings → Following → Organize followed authors into
   collections**; use each author's **Collections** picker to assign memberships.
   To move, select the destination before clearing the source. Disabling organization
@@ -169,3 +169,7 @@ retain their separate SIL Open Font License in
 
 See [author navigation and interaction polish](docs/author-interaction-polish.md)
 for current verification, additive preference compatibility and the bounded API investigation.
+
+See [Xivary UI design](docs/UI_DESIGN.md) for implemented compact sidebars,
+collection menus, the 300px popup and keyboard conventions, and
+[reusable design principles](docs/DESIGN_PRINCIPLES.md) for guidance across projects.

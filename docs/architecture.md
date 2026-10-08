@@ -243,3 +243,12 @@ navigation. The default-true fourth preference controls these rows only; Setting
 and inbound/outbound arXiv choices are separate. A missing/known restricted source
 uses one new tab; rejected updates surface errors without another navigation.
 See [scope and verification](ui-launcher-polish.md).
+
+## Shared collection navigation presentation
+
+Library and optional Following organization use `ui/collection-sidebar.js` and
+its shared CSS for rows/icons/counts and the small Rename/Delete menu. Each page
+keeps independent repository methods, membership rules, selection and inline rename.
+The helper owns only ephemeral DOM/menu focus and dismissal; no storage access or
+new collection model is introduced. Library filter clearing is view state only.
+See [implemented UI conventions](UI_DESIGN.md).

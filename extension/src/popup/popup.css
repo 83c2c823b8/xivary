@@ -20,11 +20,11 @@
   background: #fff;
 }
 * { box-sizing: border-box; }
-html, body { width: 408px; min-width: 408px; max-width: 408px; overflow: hidden; }
+html, body { width: 300px; min-width: 300px; max-width: 300px; overflow: hidden; }
 body { margin: 0; }
-header { display: flex; align-items: center; padding: 12px var(--popup-padding); background: #fff; border-bottom: 1px solid #d7d9dc; }
+header { display: flex; align-items: center; padding: 7px var(--popup-padding); background: #fff; border-bottom: 1px solid #d7d9dc; }
 h1 { margin: 0; font-size: 17px; line-height: 1.4; font-weight: 600; }
-main { padding: 8px var(--popup-padding) 12px; }
+main { padding: 8px 12px 10px; }
 nav { display: grid; gap: 2px; width: 100%; }
 button {
   display: grid;
@@ -35,7 +35,7 @@ button {
   height: 44px;
   padding: 7px 10px;
   border: 1px solid transparent;
-  border-radius: 7px;
+  border-radius: 8px;
   background: #fff;
   color: #202124;
   font: 600 15px/1.3 "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -44,7 +44,7 @@ button {
 }
 button:hover { background: #f1f2f2; }
 button:focus-visible { background: #f1f2f2; outline: 2px solid #1769aa; outline-offset: 1px; }
-button svg { width: 21px; height: 21px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+button svg { width: 21px; height: 21px; fill: none; stroke: #60656b; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
 .header-action { display: inline-grid; grid-template-columns: 1fr; place-items: center; width: 36px; height: 36px; margin-left: auto; padding: 6px; }
 .count { color: #60656b; font-weight: 500; font-variant-numeric: tabular-nums; text-align: right; }
 #status { margin: 10px 0 0; color: #a01b27; font-size: 12px; }

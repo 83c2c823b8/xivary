@@ -1,6 +1,15 @@
 # Release notes
 
-## Unreleased — Author Navigation and Interaction Polish
+## Unreleased — UI and Interaction Polish
+
+- Unify Library/Following sidebar icons, selected/hover surfaces and stable counts;
+  replace hover pencil/trash controls with accessible Rename/Delete overflow menus.
+- Reduce header/list spacing, right-align filtered Library counts and provide Clear
+  search for no matches. Lighten the Library saved-bookmark surface.
+- Compact the existing toolbar popup to 300 × 159px while retaining counts, routes,
+  Settings gear and launcher preference behavior.
+- Document actual UI conventions and reusable design principles. Collection IDs,
+  data semantics, schema, settings-only Sync, portable formats and 0.2.0 are unchanged.
 
 - Refine shared control/dialog rounding, neutral pickers and destructive confirmation
   styling. Following rows reuse ✓ Following and folder/chevron Collections triggers.

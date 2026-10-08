@@ -1,12 +1,16 @@
 @import url("../ui/collection-sidebar.css");
-
-body { background: var(--surface); }
 .library-content { min-width: 0; }
-.library-toolbar { display: grid; grid-template-columns: minmax(220px, 340px) auto; align-items: end; gap: 8px 14px; margin-bottom: 12px; }
+.library-toolbar { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 4px 14px; margin-bottom: 12px; }
 .library-toolbar label { grid-column: 1; font-size: 13px; font-weight: 600; }
-.library-toolbar .search-field { grid-column: 1; width: 100%; }
-.library-toolbar .metadata { grid-column: 2; grid-row: 1 / span 2; align-self: end; padding-bottom: 6px; font-variant-numeric: tabular-nums; }
-
+.library-toolbar .search-field { grid-column: 1; width: min(100%, 340px); }
+.library-toolbar .metadata { grid-column: 2; grid-row: 1 / span 2; justify-self: end; align-self: end; padding-bottom: 10px; font-variant-numeric: tabular-nums; }
+.library-content .paper-row { padding-top: 13px; padding-bottom: 13px; }
+.library-content .actions { margin-top: 6px; }
+.library-content .bookmark[aria-pressed="true"] { color: #4b5157; background: #f1f3f4; border-color: #c9cdd1; }
+.library-content .bookmark:hover { background: #e8eaed; border-color: var(--border-strong); }
+.library-content .empty { padding: 16px 2px 4px; }
+.clear-filter { margin-bottom: 16px; }
 @media (max-width: 480px) {
-  .library-toolbar { grid-template-columns: 1fr auto; }
+  .library-toolbar .search-field { grid-column: 1 / -1; width: 100%; }
+  .library-toolbar .metadata { grid-column: 1 / -1; grid-row: 3; padding-bottom: 0; }
 }

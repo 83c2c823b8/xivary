@@ -116,3 +116,11 @@ rows use default-true `openXivaryFromToolbarInNewTab`; keep that fourth designat
 Sync preference separate from inbound author and outbound arXiv navigation.
 Use shared restrained control/dialog tokens; Following rows reuse Follow
 presentation and the existing collection picker. Do not change deletion/Undo data rules.
+
+Follow `docs/UI_DESIGN.md` for implemented compact UI conventions and
+`docs/DESIGN_PRINCIPLES.md` for reusable principles. Library/Following share the
+sidebar presentation helper: retain aggregate vs folder icons, stable counts and
+always-accessible overflow triggers. Collection menus do not select rows; retain
+keyboard/outside dismissal, focus return and existing deletion confirmation.
+The actual toolbar popup is 300px wide; retain native geometry coverage and
+launcher semantics. Inspect rendered screenshots alongside behavior tests.

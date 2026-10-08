@@ -133,7 +133,8 @@ export async function polishSmoke() {
     const following = await page(url("authors/authors.html"));
     for (const [session, category] of [[library, "Paper"], [following, "Author"]]) {
       await chrome.send("Page.bringToFront", {}, session);
-      await chrome.until(session, "document.querySelector('#show-create') && !document.querySelector('#show-create').disabled");
+      await chrome.until(session, "document.querySelector('.collection-link') && !document.querySelector('#show-create').disabled");
+      await chrome.evaluate(session, "document.fonts.ready.then(()=>true)");
       const snapshot = () => rpc(session, `repo.get${category}Library()`);
       const before = await snapshot();
       await chrome.click(session, "#show-create");
@@ -151,15 +152,18 @@ export async function polishSmoke() {
       await chrome.evaluate(session, "document.querySelector('#collection-name').value='Polish collection';document.querySelector('#create-form').requestSubmit();document.querySelector('#create-form').requestSubmit()");
       await chrome.until(session, "document.querySelector('#create-form').hidden && !document.querySelector('#show-create').disabled");
       const created = (await snapshot()).collections.filter(item => item.name === "Polish collection"); assert.equal(created.length, 1);
-      const action = `[data-collection-id=${JSON.stringify(created[0].id)}] + .collection-actions [data-action=delete]`;
-      await chrome.click(session, action);
+      const action = async () => {
+        await chrome.click(session, `[data-collection-id=${JSON.stringify(created[0].id)}] + .collection-actions .collection-menu-trigger`);
+        await chrome.click(session, '.collection-menu [data-action=delete]');
+      };
+      await action();
       await chrome.until(session, "document.querySelector('.collection-delete-dialog')?.open");
       const image=await chrome.send('Page.captureScreenshot',{format:'png'},session);
       await writeFile(`/tmp/xivary-design-${category.toLowerCase()}-dialog.png`,Buffer.from(image.data,'base64'));
       assert.equal(await chrome.evaluate(session, "getComputedStyle(document.querySelector('.collection-delete-dialog')).borderRadius==='14px' && getComputedStyle(document.querySelector('[data-confirm-id]')).backgroundColor==='rgb(165, 42, 37)' && document.activeElement.textContent==='Cancel'"),true);
       await chrome.click(session, ".collection-delete-dialog button");
       assert.deepEqual((await snapshot()).collections.length, before.collections.length + 1);
-      await chrome.click(session, action);
+      await action();
       await chrome.evaluate(session, "document.querySelector('[data-confirm-id]').click();document.querySelector('[data-confirm-id]').click()");
       await chrome.until(session, "!document.querySelector('.collection-delete-dialog')");
       assert.deepEqual((await snapshot()).collections, before.collections);

@@ -1,3 +1,4 @@
+import { collectionSidebarRow, closeCollectionMenu } from "../ui/collection-sidebar.js";
 import { setFollowButton } from "../ui/follow-button.js";
 import { setCollectionButton } from "../ui/collection-button.js";
 import { bindCollectionCreate } from "../ui/collection-create.js";
@@ -13,6 +14,7 @@ let selected = "";
 let busy = false;
 let editingId = null;
 let loadRevision = 0;
+let renderedCollections;
 const rows = new Map();
 let renderedOrganization;
 
@@ -54,7 +56,7 @@ function render() {
   element("collection-toolbar").hidden = !organized();
   if (renderedOrganization !== organized()) { rows.clear(); renderedOrganization = organized(); }
   if (organized()) renderCollections();
-  else element("collection-list").replaceChildren();
+  else { closeCollectionMenu(); renderedCollections = undefined; element("collection-list").replaceChildren(); }
   const ids = selected ? new Set(library.memberships.filter(item => item.collectionId === selected).map(item => item.authorId)) : null;
   const authors = followedAuthors().filter(author => !ids || ids.has(author.id));
   // Keep each visible row/anchor connected while the membership picker updates.
@@ -125,6 +127,11 @@ function renderCollections() {
       count: library.memberships.filter(item => item.collectionId === collection.id).length,
     })),
   ];
+  const signature = JSON.stringify([selected, editingId, entries]);
+  if (signature === renderedCollections) return;
+  // A focus refresh with unchanged data must not discard menu/input focus.
+  closeCollectionMenu();
+  renderedCollections = signature;
   element("collection-list").replaceChildren(...entries.map(entry => {
     const item = document.createElement("li");
     item.className = "collection-item";
@@ -132,52 +139,30 @@ function renderCollections() {
       item.append(renameForm(entry));
       return item;
     }
-    const row = document.createElement("div");
-    row.className = "collection-row";
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = "collection-link";
-    button.dataset.collectionId = entry.id;
-    if (entry.id === selected) button.setAttribute("aria-current", "page");
-    const name = document.createElement("span");
-    name.textContent = entry.name;
-    const count = document.createElement("span");
-    count.className = "collection-count";
-    count.textContent = entry.count;
-    button.append(name, count);
-    button.addEventListener("click", () => {
-      selected = entry.id;
-      editingId = null;
-      closeCreate();
-      render();
+    const row = collectionSidebarRow(entry, {
+      selected, aggregateIcon: "authors",
+      select: () => { selected = entry.id; editingId = null; closeCreate(); render(); },
+      rename: () => renameCollection(entry), remove: () => deleteCollection(entry),
     });
-    row.append(button);
-    if (entry.id) row.append(collectionActions(entry));
     item.append(row);
     return item;
   }));
 }
 
-function collectionActions(entry) {
-  const actions = document.createElement("div");
-  actions.className = "collection-actions";
-  actions.append(
-    iconButton("rename", `Rename ${entry.name}`, pencilIcon, () => {
-      editingId = entry.id;
-      closeCreate();
-      renderCollections();
-      document.querySelector(`[data-rename-id="${CSS.escape(entry.id)}"]`)?.select();
-    }),
-    iconButton("delete", `Delete ${entry.name}`, trashIcon, () => {
-      editingId = null;
-      closeCreate();
-      confirmCollectionDeletion(entry, "Deleting removes this collection and its memberships. Authors followed only here become unfollowed; authors in other collections remain followed.", () => mutate(async () => {
-        await repository.deleteAuthorCollection(entry.id);
-        if (selected === entry.id) selected = "";
-      }, { propagateError: true }), () => focusCollectionAction(entry.id, "delete"));
-    }),
-  );
-  return actions;
+function renameCollection(entry) {
+  editingId = entry.id;
+  closeCreate();
+  renderCollections();
+  document.querySelector(`[data-rename-id="${CSS.escape(entry.id)}"]`)?.select();
+}
+
+function deleteCollection(entry) {
+  editingId = null;
+  closeCreate();
+  confirmCollectionDeletion(entry, "Deleting removes this collection and its memberships. Authors followed only here become unfollowed; authors in other collections remain followed.", () => mutate(async () => {
+    await repository.deleteAuthorCollection(entry.id);
+    if (selected === entry.id) selected = "";
+  }, { propagateError: true }), () => focusCollectionAction(entry.id));
 }
 
 function renameForm(entry) {
@@ -193,7 +178,7 @@ function renameForm(entry) {
   form.append(input);
   form.addEventListener("submit", event => {
     event.preventDefault();
-    void mutate(() => repository.renameAuthorCollection(entry.id, input.value), { focusAction: [entry.id, "rename"] });
+    void mutate(() => repository.renameAuthorCollection(entry.id, input.value), { focusCollectionId: entry.id });
   });
   form.addEventListener("keydown", event => {
     if (event.key === "Enter") { event.preventDefault(); form.requestSubmit(); }
@@ -201,25 +186,13 @@ function renameForm(entry) {
       event.preventDefault();
       editingId = null;
       renderCollections();
-      focusCollectionAction(entry.id, "rename");
+      focusCollectionAction(entry.id);
     }
   });
   return form;
 }
 
-function iconButton(action, label, icon, onClick) {
-  const button = document.createElement("button");
-  button.type = "button";
-  button.className = "icon-button";
-  button.dataset.action = action;
-  button.setAttribute("aria-label", label);
-  button.title = label;
-  button.innerHTML = icon;
-  button.addEventListener("click", onClick);
-  return button;
-}
-
-async function mutate(operation, { focusAction, propagateError = false } = {}) {
+async function mutate(operation, { focusCollectionId, propagateError = false } = {}) {
   if (busy) return;
   busy = true;
   setDisabled(true);
@@ -228,7 +201,7 @@ async function mutate(operation, { focusAction, propagateError = false } = {}) {
     editingId = null;
     await load();
     setDisabled(false);
-    if (focusAction) focusCollectionAction(...focusAction);
+    if (focusCollectionId) focusCollectionAction(focusCollectionId);
     else focusSelection();
   }
   catch (error) { setStatus(error.message, true); if (propagateError) throw error; }
@@ -238,10 +211,7 @@ async function mutate(operation, { focusAction, propagateError = false } = {}) {
 function setDisabled(value) { document.querySelectorAll("main button,main input").forEach(node => { node.disabled = value; }); }
 function setStatus(message, error = false) { element("status").textContent = message; element("status").classList.toggle("error", error); }
 
-function focusCollectionAction(id, action) {
+function focusCollectionAction(id) {
   document.querySelector(`[data-collection-id="${CSS.escape(id)}"]`)?.parentElement
-    ?.querySelector(`[data-action="${action}"]`)?.focus();
+    ?.querySelector('.collection-menu-trigger')?.focus();
 }
-
-const pencilIcon = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 16-.75 4.75L8 20l10.4-10.4a2.1 2.1 0 0 0-3-3L5 17Z"/><path d="m14.5 7.5 3 3"/></svg>';
-const trashIcon = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 3h6l1 4H8l1-4Zm-3 4 1 14h10l1-14M10 11v6m4-6v6"/></svg>';
