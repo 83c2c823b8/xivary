@@ -1,3 +1,4 @@
+import { libraryDateWorkflow } from './library-date-workflow.mjs';
 import { authorFilterWorkflow, authorHeaderWorkflow } from './author-filter-workflow.mjs';
 import assert from "node:assert/strict";
 import { followingWorkflow, pickerVisualWorkflow, pickerPositionWorkflow, authorPositionRowsWorkflow, renameOutsideWorkflow } from "./following-workflow.mjs";
@@ -181,6 +182,7 @@ try {
   await until("document.querySelectorAll('#papers .paper-row').length === 1");
   assert.equal(await evaluate("location.href"), extensionUrl("library/library.html"));
   await screenshot("library.png");
+  await libraryDateWorkflow({evaluate:evaluateAsync,click:pickerClick,key:pickerKey,until,reload:()=>command('/refresh'),resize:(width,height)=>command('/window/rect',{width,height:height+100}),screenshot});
   await renameOutsideWorkflow({evaluate:evaluateAsync, click:pickerClick, until, key:pickerKey});
   await pickerClick('.paper-row .bookmark');await until("document.querySelector('.arxiv-collection-picker input[type=checkbox]')");
   await pickerVisualWorkflow({evaluate:evaluateAsync,key:pickerKey,screenshot:name=>screenshot(`library-${name}`)});

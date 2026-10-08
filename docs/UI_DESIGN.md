@@ -234,10 +234,43 @@ filter state, permissions or version changes are implied.
 ## Library filtering
 
 Keep the rounded 44px search field and its icon left aligned, maximum 340px width.
-The actual filtered result count sits at the content's right edge, not beside the
-field. A zero-match query shows No matching papers and Clear search. Clearing
-restores results and focuses the search input. Filtering does not write data;
-collection navigation/refresh does not silently clear the query.
+The shared 38px publication-time trigger sits alongside it, vertically centered;
+the actual filtered count remains at the content's right edge. At narrow widths,
+search spans its own row, with time and count below. Custom years wrap below the
+toolbar. Library uses the same menu, input, validation, Apply/Clear and focus
+behavior as Author Results (`ui/publication-time-filter.js` and its shared CSS).
+
+`domain/publication-date.js` supplies both pages' date calculations. Only
+`publishedAt` is filtered: rolling local-calendar one/three-year presets and
+inclusive custom years 1000–9999 with optional blank bounds. Any time includes
+missing/invalid dates; bounded ranges exclude them. Invalid drafts preserve the
+last applied filter. No saved-date fallback is used.
+
+Collection selection, existing title/author/category substring matching and time
+filtering intersect without changing order or memberships. Abstracts are neither
+searched nor displayed inline; Abstract/PDF links remain unchanged. Sidebar counts
+remain unfiltered membership totals. A filtered zero-match view shows No matching
+papers; Clear search clears only text and focuses its input. Clear range clears
+only time filtering. Collection navigation and saved-paper updates preserve both
+filters; page reload starts with Any time. Filters never write persistent state.
+
+### Library publication-filter verification
+
+170/170 Node tests, Chromium 154 and Firefox 157 smoke/interaction suites,
+release-transfer/Chrome Sync lifecycle checks and both 76-file packages pass.
+The shared browser workflow covers preset selection, keyboard/outside dismissal,
+focus return, valid/open-ended/reversed/partial years, independent clear actions,
+Collection/text/date composition, unchanged sidebar totals, removal/Undo refresh
+and unfiltered reload. Fixture cleanup compares the original portable Bookmarks
+snapshot to verify record and membership preservation.
+
+Inspected rendered screenshots include `library.png`, `library-date-menu-focus.png`,
+`library-date-custom.png`, `library-date-invalid.png` and `library-date-narrow.png`,
+plus Firefox equivalents; capture them with `ARXIV_SCREENSHOT_DIR`. Chromium covers
+360px layout; Firefox uses its wider native minimum window width. The comparison
+with `author-custom-years.png` confirms shared presentation. Screen readers, physical
+touch, minimum browser versions and store-installed rendering remain manual checks;
+these fixture profiles do not demonstrate account-mediated Sync delivery.
 
 ## Toolbar popup
 

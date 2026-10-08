@@ -1,3 +1,4 @@
+import { libraryDateWorkflow } from './library-date-workflow.mjs';
 import { authorFilterWorkflow, authorHeaderWorkflow } from './author-filter-workflow.mjs';
 import assert from "node:assert/strict";
 import { followingWorkflow, collectionMenuWorkflow, pickerVisualWorkflow, pickerPositionWorkflow, authorPositionRowsWorkflow } from "./following-workflow.mjs";
@@ -149,6 +150,9 @@ try{
   assert.equal(await evaluate(library,"[...document.querySelectorAll('.app-nav a')].some(link=>link.textContent==='Search')"),false);
   assert.deepEqual(await evaluate(library,"[...document.querySelectorAll('.app-nav a')].map(link=>link.textContent)"),["Library","Following"]);
   assert.deepEqual(await evaluate(library,"[...document.querySelectorAll('#collection-list .collection-link')].map(button=>[button.firstElementChild.textContent,button.lastElementChild.textContent,button.getAttribute('aria-current')])"),[["All Saved","1","page"],["Saved Papers","1",null],["Important","1",null]]);
+  await libraryDateWorkflow({evaluate:expression=>evaluate(library,expression),click:selector=>sidebarClick(library,selector),key:key=>sidebarKey(library,key),until:expression=>until(library,expression),reload:()=>send('Page.reload',{},library),resize:(width,height)=>send('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile:false},library),screenshot:name=>screenshot(library,name)});
+  await send("Emulation.clearDeviceMetricsOverride", {}, library);
+  await evaluate(library, "window.scrollTo(0, 0)");
   await collectionMenuWorkflow({ evaluate: expression => evaluate(library, expression), click: (selector,options)=>sidebarClick(library,selector,options), key: key=>sidebarKey(library,key), screenshot: name=>screenshot(library,`library-${name}`) });
   assert.equal(await evaluate(library,"Boolean(document.querySelector('aside nav')) && !document.querySelector('select')"),true);
   assert.equal(await evaluate(library,"!document.querySelector('#show-manage')&&!document.querySelector('#manage-form')"),true);

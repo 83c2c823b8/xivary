@@ -2,6 +2,10 @@
 
 ## Unreleased — UI and Interaction Polish
 
+- Add Library publication-date filtering using Author Results’ shared neutral menu
+  and inclusive year editor. Compose date, text and Collection filters without
+  persistence or membership changes; retain compact rows and Abstract/PDF links.
+
 - Polish Author Results with a query-preserving search toggle, neutral keyboard
   time menu, explicit inclusive year-range Apply/Clear controls, compact header
   Collection icon and responsive toolbar. Rolling presets and data contracts stay

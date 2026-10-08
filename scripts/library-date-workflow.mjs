@@ -1,0 +1,45 @@
+import assert from 'node:assert/strict';
+
+export async function libraryDateWorkflow({evaluate,click,key,until,reload,resize,screenshot=async()=>{}}) {
+  const run=code=>evaluate(`(()=>{${code}})()`);
+  const rpc=code=>evaluate(`(async()=>{const {RepositoryClient}=await import('../repository/repository-client.js');const repository=new RepositoryClient();${code}})()`);
+  const snapshot=()=>rpc("const {exportedAt,...data}=await repository.exportCategory('bookmarks');return data");
+  const original=await snapshot();
+  const fixture=await rpc(`const now=new Date(),year=now.getFullYear();const papers=[];for(const [arxivId,title,publishedAt] of [['2601.99991','Date fixture recent',new Date(now.getTime()-86400000).toISOString()],['2401.99992','Date fixture middle',new Date(year-2,0,1).toISOString()],['2001.99993','Date fixture old',new Date(2020,11,31,23,59,59).toISOString()],['1901.99994','Date fixture undated',null]])papers.push(await repository.savePaper({arxivId,title,publishedAt,authors:['Date Researcher'],categories:['math.AG'],abstract:'Hidden abstract marker'}));const collection=await repository.createPaperCollection('Date fixtures');for(const paper of papers)await repository.addPaperToCollection(paper,collection.id);return {ids:papers.map(p=>p.arxivId),collectionId:collection.id,to:String(year-2)}`);
+  const count=()=>evaluate("document.querySelectorAll('#papers .paper-row').length");
+  const choose=async range=>{await click('#date-range');await click(`.time-menu [data-range="${range}"]`);};
+  const text=async value=>run(`document.querySelector('#filter').value=${JSON.stringify(value)};document.querySelector('#filter').dispatchEvent(new Event('input',{bubbles:true}))`);
+  const years=async(from,to)=>run(`document.querySelector('#year-from').value=${JSON.stringify(from)};document.querySelector('#year-to').value=${JSON.stringify(to)};for(const id of ['year-from','year-to'])document.getElementById(id).dispatchEvent(new Event('input',{bubbles:true}))`);
+  await run("window.dispatchEvent(new Event('focus'))");await until("document.querySelectorAll('#papers .paper-row').length===5");
+  assert.equal(await evaluate("document.querySelector('#range-label').textContent==='Any time' && document.querySelector('#count').textContent==='5 papers' && !document.querySelector('#papers .abstract') && !document.querySelector('input[type=date]')"),true);
+  const sidebar=()=>evaluate("[...document.querySelectorAll('.collection-link')].map(b=>[b.dataset.collectionId,b.querySelector('.collection-count').textContent])");const totals=await sidebar();
+  await screenshot('library-date-default.png');await click('#date-range');
+  assert.deepEqual(await evaluate("[...document.querySelectorAll('.time-menu button')].map(b=>b.dataset.range)"),['any','year','three-years','custom']);
+  await key('ArrowDown');await screenshot('library-date-menu-focus.png');await key('Enter');
+  assert.equal(await evaluate("document.querySelector('#range-label').textContent==='Past year'&&document.activeElement.id==='date-range'"),true);
+  await click(`.collection-link[data-collection-id="${fixture.collectionId}"]`);assert.equal(await count(),1);
+  assert.equal(await evaluate("document.querySelector('#papers h2 a').textContent==='Date fixture recent' && document.querySelector('#count').textContent==='1 of 4 papers'"),true);await screenshot('library-date-preset.png');assert.deepEqual(await sidebar(),totals);
+  await click('#date-range');await key('ArrowDown');await key(' ');assert.equal(await count(),2);assert.equal(await evaluate("document.querySelector('#range-label').textContent==='Past 3 years'"),true);
+  await click('#date-range');await key('ArrowUp');await key('Escape');assert.equal(await evaluate("!document.querySelector('.time-menu')&&document.activeElement.id==='date-range'&&document.querySelector('#range-label').textContent==='Past 3 years'"),true);
+  await click('#date-range');await click('h1');assert.equal(await evaluate("!document.querySelector('.time-menu')"),true);
+  await choose('custom');await years('2020',fixture.to);await click('#custom-years button[type=submit]');assert.equal(await count(),2);await screenshot('library-date-custom.png');
+  await years('202',fixture.to);assert.equal(await count(),2);await click('#custom-years button[type=submit]');
+  assert.equal(await evaluate("document.querySelector('#year-feedback').textContent.includes('four-digit')"),true);assert.equal(await count(),2);await screenshot('library-date-invalid.png');
+  await years('9999','2020');await click('#custom-years button[type=submit]');assert.equal(await evaluate("document.querySelector('#year-feedback').textContent.includes('later')"),true);assert.equal(await count(),2);
+  await choose('year');await choose('custom');assert.equal(await evaluate(`document.querySelector('#year-from').value==='2020'&&document.querySelector('#year-to').value===${JSON.stringify(fixture.to)}&&document.querySelector('#range-label').textContent==='Past year'`),true);await click('#custom-years button[type=submit]');
+  await text('middle');assert.equal(await count(),1);assert.equal(await evaluate("document.querySelector('#count').textContent==='1 of 4 papers'"),true);await screenshot('library-date-combined.png');
+  await click('.collection-link[data-collection-id=""]');assert.equal(await count(),1);assert.equal(await evaluate(`document.querySelector('#range-label').textContent==='2020–${fixture.to}'`),true);
+  await click(`.collection-link[data-collection-id="${fixture.collectionId}"]`);await text('recent');assert.equal(await count(),0);assert.equal(await evaluate("document.querySelector('#empty').textContent==='No matching papers.'&&!document.querySelector('#clear-filter').hidden"),true);await screenshot('library-date-empty.png');
+  await click('#clear-filter');assert.equal(await count(),2);assert.equal(await evaluate(`document.querySelector('#range-label').textContent==='2020–${fixture.to}'&&document.activeElement.id==='filter'`),true);
+  await text('recent');await click('#clear-years');assert.equal(await count(),1);assert.equal(await evaluate("document.querySelector('#filter').value==='recent'&&document.querySelector('#range-label').textContent==='Any time'"),true);
+  await text('Hidden abstract marker');assert.equal(await count(),0,'Library still excludes abstracts from text matching');await text('');
+  await choose('custom');await years('',fixture.to);await click('#custom-years button[type=submit]');assert.equal(await count(),2);
+  await years('2020','');await click('#custom-years button[type=submit]');assert.equal(await count(),3,'missing publication date is excluded by an open-ended bounded range');
+  const size=await evaluate('[innerWidth,innerHeight]');await resize(360,650);
+  assert.equal(await evaluate("document.documentElement.scrollWidth===document.documentElement.clientWidth&&[...document.querySelectorAll('#filter,#date-range,#count,.custom-years input')].every(n=>{const r=n.getBoundingClientRect();return r.left>=0&&r.right<=document.documentElement.clientWidth})"),true);await screenshot('library-date-narrow.png');await resize(...size);
+  await choose('year');assert.equal(await count(),1);
+  const receipt=await rpc(`return await repository.removeFavorite(${JSON.stringify(fixture.ids[0])})`);await run("window.dispatchEvent(new Event('focus'))");await until("document.querySelectorAll('#papers .paper-row').length===0 && document.querySelector('#range-label').textContent==='Past year'");
+  await rpc(`await repository.undoRemoval(${JSON.stringify(receipt.undoToken)})`);await run("window.dispatchEvent(new Event('focus'))");await until("document.querySelectorAll('#papers .paper-row').length===1");assert.equal(await evaluate("document.querySelector('#range-label').textContent==='Past year'"),true);
+  await reload();await until("document.querySelectorAll('#papers .paper-row').length===5 && document.querySelector('#range-label').textContent==='Any time'");assert.equal(await evaluate("document.querySelector('#custom-years').hidden"),true);
+  await rpc(`for(const id of ${JSON.stringify(fixture.ids)})await repository.removeFavorite(id);await repository.deletePaperCollection(${JSON.stringify(fixture.collectionId)})`);await run("window.dispatchEvent(new Event('focus'))");await until("document.querySelectorAll('#papers .paper-row').length===1");assert.deepEqual(await snapshot(),original,'all pre-existing paper records and collection memberships are preserved');
+}

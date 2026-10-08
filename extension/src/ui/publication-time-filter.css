@@ -1,0 +1,11 @@
+#date-range { display: inline-flex; align-items: center; gap: 12px; min-height: 38px; font: var(--control-font); }
+#date-range svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.8; }
+.custom-years { display: flex; flex-wrap: wrap; align-items: end; gap: 8px; margin: 0 0 8px; }
+.custom-years label { display: grid; gap: 3px; color: var(--muted); font-size: 12px; }
+.custom-years input { min-width: 0; width: 96px; height: 38px; padding: 6px 9px; border: 1px solid var(--border-strong); border-radius: 8px; color: var(--text); background: var(--surface); font: var(--control-font); }
+#year-feedback { flex-basis: 100%; font-size: 12px; }
+#year-feedback:empty { display: none; }
+.time-menu { position: fixed; z-index: 30; width: 180px; overflow-y: auto; padding: 4px; border: 1px solid var(--border); border-radius: 9px; background: var(--surface); box-shadow: 0 2px 8px #0002; font: 400 14px/1.4 "IBM Plex Sans", system-ui, sans-serif; }
+.time-menu button { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 36px; border: 0; background: transparent; text-align: left; }
+.time-menu button span { width: 16px; flex: none; }
+.time-menu button:hover, .time-menu button[aria-checked="true"] { background: #f1f3f4; }
