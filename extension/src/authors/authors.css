@@ -7,7 +7,12 @@
 
 .following-content { min-width: 0; }
 .author-row h2 { overflow-wrap: anywhere; }
-.author-row .manage-collections { color: var(--text); }
+.author-row .manage-collections.collection-trigger-icon {
+  width: 34px; height: 34px; min-height: 34px; padding: 7px;
+  border-color: transparent; background: transparent; color: var(--muted);
+}
+.author-row .manage-collections.collection-trigger-icon svg { width: 16px; height: 16px; }
+.author-row .manage-collections.collection-trigger-icon:hover { background: #f1f3f4; color: var(--text); }
 .delete-confirmation { flex-wrap: wrap; }
 
 .following-content .toolbar { margin-bottom: 8px; }

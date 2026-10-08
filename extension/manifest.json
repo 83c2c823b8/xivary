@@ -36,6 +36,7 @@
     "resources": [
       "src/platform/browser-api.js",
       "src/content/arxiv-page.js",
+      "src/content/extension-context.js",
       "src/content/author-link.js",
       "src/content/extract-paper.js",
       "src/ui/paper-collection-picker.js",

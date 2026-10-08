@@ -3,13 +3,24 @@ import { showUndo } from "../ui/undo.js";
 import { RepositoryClient } from "../repository/repository-client.js";
 import { normalizeAuthorName } from "../domain/author.js";
 import { extractPaper } from "./extract-paper.js";
-import { openAuthorCollectionPicker } from "../ui/author-collection-picker.js";
-import { openPaperCollectionPicker } from "../ui/paper-collection-picker.js";
+import { openAuthorCollectionPicker, closeAuthorCollectionPicker } from "../ui/author-collection-picker.js";
+import { openPaperCollectionPicker, closePaperCollectionPicker } from "../ui/paper-collection-picker.js";
 import { getBrowserApi } from "../platform/browser-api.js";
 import { authorFromArxivLink, shouldOpenAuthorInXivary } from "./author-link.js";
+import { contentConnection, RECONNECT_HINT } from "./extension-context.js";
 
 export async function mountArxivPage() {
-  mountAuthorNavigation();
+  const connection = contentConnection(getBrowserApi().runtime, () => {
+    closeAuthorCollectionPicker();
+    closePaperCollectionPicker();
+    document.querySelectorAll(".arxiv-library-bookmark, .arxiv-library-button, .xivary-undo button").forEach(button => {
+      button.disabled = true;
+      button.title = RECONNECT_HINT;
+    });
+    const status = document.querySelector(".arxiv-library-status");
+    if (status) status.textContent = RECONNECT_HINT;
+  });
+  mountAuthorNavigation(connection);
   const heading = document.querySelector("h1.title");
   if (!heading || document.getElementById("arxiv-library-controls")) return;
 
@@ -27,7 +38,7 @@ export async function mountArxivPage() {
   catch (error) { status.textContent = `Library: ${error.message}`; return; }
 
 
-  const repository = new RepositoryClient();
+  const repository = new RepositoryClient(connection);
   let organizeAuthorCollections = false;
   const favorite = makeBookmarkButton(paper.title);
   heading.append(favorite);
@@ -43,7 +54,7 @@ export async function mountArxivPage() {
     link.after(button);
     followingButtons.push({ author, button });
     button.addEventListener("click", () => {
-      if (busy || refreshing) return;
+      if (!connection.available || busy || refreshing) return;
       if (button.getAttribute("aria-pressed") === "true" && organizeAuthorCollections) {
         void openAuthorCollectionPicker({ repository, author, anchor: button, onChange: refresh });
         return;
@@ -62,7 +73,7 @@ export async function mountArxivPage() {
   favorite.setAttribute("aria-haspopup", "dialog");
   favorite.setAttribute("aria-expanded", "false");
   favorite.addEventListener("click", () => {
-    if (busy || refreshing) return;
+    if (!connection.available || busy || refreshing) return;
     if (favorite.getAttribute("aria-pressed") === "true") {
       void openPaperCollectionPicker({ repository, paper, anchor: favorite, onChange: refresh });
       return;
@@ -77,20 +88,20 @@ export async function mountArxivPage() {
   let busy = false;
   let refreshing = false;
   const buttons = [favorite, ...followingButtons.map(item => item.button)];
-  const disable = value => buttons.forEach(button => { button.disabled = value; });
+  const disable = value => buttons.forEach(button => { button.disabled = value || !connection.available; });
 
   async function act(button, operation) {
-    if (busy || refreshing) return;
+    if (!connection.available || busy || refreshing) return;
     busy = true;
     disable(true);
     status.textContent = "Saving…";
     try { status.textContent = await operation(); }
-    catch (error) { status.textContent = `Could not update the library: ${error.message}`; }
+    catch (error) { status.textContent = connection.available ? `Could not update the library: ${error.message}` : RECONNECT_HINT; }
     finally { busy = false; disable(false); button.focus(); }
   }
 
   async function refresh() {
-    if (busy || refreshing) return;
+    if (!connection.available || busy || refreshing) return;
     refreshing = true;
     disable(true);
     try {
@@ -103,14 +114,15 @@ export async function mountArxivPage() {
         setFollowButton(button, ids.has(author.id), author.displayName, organizeAuthorCollections);
       });
       status.textContent = "";
-    } catch (error) { status.textContent = `Library unavailable: ${error.message}`; }
+    } catch (error) { status.textContent = connection.available ? `Library unavailable: ${error.message}` : RECONNECT_HINT; }
     try {
+      if (!connection.available) return;
       const preferences = await repository.getPreferences();
       organizeAuthorCollections = preferences.organizeFollowedAuthorsIntoCollections === true;
       followingButtons.forEach(({ author, button }) => {
         setFollowButton(button, button.getAttribute("aria-pressed") === "true", author.displayName, organizeAuthorCollections);
       });
-    } catch (error) { status.textContent = `Could not load collection preference: ${error.message}`; }
+    } catch (error) { status.textContent = connection.available ? `Could not load collection preference: ${error.message}` : RECONNECT_HINT; }
     finally { refreshing = false; disable(false); }
   }
 
@@ -147,16 +159,16 @@ function setBookmarkState(button, saved, name) {
 
 
 let navigationMounted = false;
-function mountAuthorNavigation() {
+function mountAuthorNavigation(connection) {
   if (navigationMounted) return;
   navigationMounted = true;
   document.addEventListener("click", event => {
-    if (!shouldOpenAuthorInXivary(event)) return;
+    if (!connection.available || !shouldOpenAuthorInXivary(event)) return;
     const link = event.target?.closest?.("a[href]");
     const reference = authorFromArxivLink(link, location.href);
     if (!reference || link.hasAttribute("download") || (link.target && link.target !== "_self")) return;
     event.preventDefault();
-    void getBrowserApi().runtime.sendMessage({ channel: "xivary.author-navigation", name: reference.name })
+    void connection.sendMessage({ channel: "xivary.author-navigation", name: reference.name })
       .then(result => { if (!result?.ok) location.assign(link.href); })
       .catch(() => location.assign(link.href));
   });

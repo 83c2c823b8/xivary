@@ -10,6 +10,8 @@ export class RepositoryClient extends PaperRepository {
     this.runtime = runtime;
   }
 
+  get available() { return this.runtime.available !== false; }
+
   async request(method, args = []) {
     const response = await this.runtime.sendMessage({ channel: REPOSITORY_CHANNEL, method, args });
     if (!response?.ok) throw new Error(response?.error || "The library is unavailable. Reload this page and try again.");

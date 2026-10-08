@@ -1,6 +1,8 @@
 import { showUndo } from "./undo.js";
 let closeCurrent = () => {};
 
+export function closePaperCollectionPicker() { closeCurrent(); }
+
 /** Shared paper-membership editor. Persistence stays behind PaperRepository. */
 export async function openPaperCollectionPicker({ repository, paper, anchor, onChange }) {
   closeCurrent();
@@ -46,6 +48,7 @@ export async function openPaperCollectionPicker({ repository, paper, anchor, onC
   let closed = false;
 
   function close() {
+    if (closed) return;
     closed = true;
     panel.remove();
     anchor.setAttribute("aria-expanded", "false");

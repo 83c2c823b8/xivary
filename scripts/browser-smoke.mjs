@@ -29,6 +29,16 @@ try{
   const loaded=await send("Extensions.loadUnpacked",{path:join(root,"extension")});const extensionId=loaded.id;const extensionUrl=path=>`chrome-extension://${extensionId}/src/${path}`;
   const {sessionId:arxiv}=await page();await intercept(arxiv);await send("Page.navigate",{url:"https://arxiv.org/abs/2401.00001"},arxiv);
   await until(arxiv,"document.querySelector('.arxiv-library-bookmark') && document.querySelectorAll('.authors .arxiv-library-button').length===2 && !document.querySelector('.arxiv-library-bookmark').disabled");
+  assert.equal(await evaluate(arxiv,"document.querySelectorAll('.arxiv-library-bookmark').length===1 && document.querySelector('h1.title').lastElementChild.classList.contains('arxiv-library-bookmark') && document.querySelector('h1.title').textContent==='Title:A sample paper' && getComputedStyle(document.querySelector('.arxiv-library-bookmark')).float==='none'"),true);
+  await screenshot(arxiv,"arxiv-title-unsaved.png");
+  for (const width of [1280,360]) {
+    await send("Emulation.setDeviceMetricsOverride",{width,height:700,deviceScaleFactor:1,mobile:false},arxiv);
+    await evaluate(arxiv,"(()=>{const heading=document.querySelector('h1.title');heading.childNodes[1].textContent='A long paper title with nested scientific terminology and several lines of contextual information';})()");
+    assert.equal(await evaluate(arxiv,"(()=>{const button=document.querySelector('.arxiv-library-bookmark'),rect=button.getBoundingClientRect(),range=document.createRange();range.selectNodeContents(document.querySelector('h1.title').childNodes[1]);const last=[...range.getClientRects()].at(-1);return rect.right<=innerWidth && rect.left>=0 && document.documentElement.scrollWidth===document.documentElement.clientWidth && (rect.left>=last.right || rect.top>=last.bottom)})()"),true);
+    await screenshot(arxiv,`arxiv-title-long-${width}.png`);
+  }
+  await evaluate(arxiv,"document.querySelector('h1.title').childNodes[1].textContent='A sample paper'");
+  await send("Emulation.clearDeviceMetricsOverride",{},arxiv);
   assert.equal(await evaluate(arxiv,"document.querySelector('.arxiv-library-bookmark').getBoundingClientRect().width>=36 && document.querySelector('.arxiv-library-bookmark svg').getBoundingClientRect().width>=20"),true);
   assert.equal(await evaluate(arxiv,"(()=>{const buttons=[...document.querySelectorAll('.authors .arxiv-library-button')],button=buttons[0],icon=button.querySelector('svg'),rect=button.getBoundingClientRect(),iconRect=icon.getBoundingClientRect(),style=getComputedStyle(icon);return button.textContent==='Follow'&&button.getAttribute('aria-label')==='Follow: Alex Kim'&&button.getAttribute('aria-pressed')==='false'&&!button.hasAttribute('aria-haspopup')&&buttons.every(item=>item.getBoundingClientRect().height===rect.height)&&rect.height>=30&&rect.height<=32&&rect.width>=70&&iconRect.width>=12&&iconRect.height>=12&&style.stroke!=='none'&&style.stroke!=='rgba(0, 0, 0, 0)'})()"),true);
   assert.equal(await evaluate(arxiv,"(()=>{const links=[...document.querySelectorAll('.authors a')],buttons=[...document.querySelectorAll('.authors .arxiv-library-button')];return links.length===2&&buttons.length===2&&links.every((link,index)=>{const linkRect=link.getBoundingClientRect(),buttonRect=buttons[index].getBoundingClientRect();return buttonRect.left>linkRect.right&&Math.abs((linkRect.top+linkRect.height/2)-(buttonRect.top+buttonRect.height/2))<10})&&document.querySelector('.authors').textContent.includes(',')})()"),true);
@@ -293,6 +303,24 @@ try{
     await until(session,"location.pathname.endsWith('/settings/settings.html')&&document.querySelector('#open-arxiv-new-tab')");
   }
 
+  // Actual extension reload invalidates this document's old content-script context.
+  await send("Page.reload",{},arxiv);
+  await until(arxiv,"document.querySelector('.arxiv-library-bookmark') && !document.querySelector('.arxiv-library-bookmark').disabled");
+  await evaluate(arxiv,"document.querySelector('.arxiv-library-bookmark').click()");
+  await until(arxiv,"document.querySelector('.arxiv-collection-picker')");
+  await send("Runtime.evaluate",{expression:"chrome.runtime.reload()"},library);
+  for(let i=0;i<80;i++) {if ((await send("Extensions.getExtensions")).extensions.some(item=>item.id===extensionId&&!item.enabled)) break; await new Promise(resolve=>setTimeout(resolve,100));}
+  await evaluate(arxiv,"window.dispatchEvent(new Event('focus'))");
+  await until(arxiv,"document.querySelector('.arxiv-library-bookmark').disabled && document.querySelector('.arxiv-library-status').textContent==='Reload this page to reconnect Xivary.'");
+  assert.equal(await evaluate(arxiv,"!document.querySelector('.arxiv-collection-picker') && [...document.querySelectorAll('.arxiv-library-button')].every(button=>button.disabled) && !document.body.textContent.includes('Extension context invalidated')"),true);
+  for(let i=0;i<3;i++) await evaluate(arxiv,"window.dispatchEvent(new Event('focus'));document.dispatchEvent(new Event('visibilitychange'))");
+  assert.equal(await evaluate(arxiv,"(()=>{let native=false;const check=event=>{native=!event.defaultPrevented;event.preventDefault()};document.addEventListener('click',check);document.querySelector('.authors a').dispatchEvent(new MouseEvent('click',{bubbles:true,cancelable:true,button:0}));document.removeEventListener('click',check);return native})()"),true);
+
+  await screenshot(arxiv,"arxiv-context-unavailable.png");
+  const {sessionId:manager}=await page();await send("Page.navigate",{url:"chrome://extensions/"},manager);await until(manager,"!!chrome.management");
+  assert.equal(await evaluate(manager,`new Promise(resolve=>chrome.management.setEnabled(${JSON.stringify(extensionId)},true,()=>resolve(chrome.runtime.lastError?.message??'enabled')))`),'enabled');
+  await send("Page.reload",{},arxiv);await until(arxiv,"document.querySelector('.arxiv-library-bookmark')?.getAttribute('aria-pressed')==='true' && !document.querySelector('.arxiv-library-bookmark').disabled");
+  console.log("CONTEXTUAL CONTROLS PASS: inline title/long/narrow fixtures and real extension reload/recovery");
   assert.deepEqual(runtimeErrors,[]);assert.deepEqual(asyncErrors,[]);console.log("BROWSER SMOKE PASS: visible follow icons, navigation-only popup, settings, author filtering, Library hierarchy, and persisted compatible state");
 }finally{await send("Browser.close").catch(()=>{});chrome.kill();await new Promise(resolve=>setTimeout(resolve,300));await rm(profile,{recursive:true,force:true})}
 await (await import("./polish-smoke.mjs")).polishSmoke();

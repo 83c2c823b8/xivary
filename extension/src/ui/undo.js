@@ -29,7 +29,7 @@ export function showUndo(repository, result, message, onChange = async () => {})
     } catch (error) {
       label.textContent = error.message;
       if (restored) button.remove(); // A refresh failure must not repeat a committed Undo.
-      else { busy = false; button.disabled = false; }
+      else { busy = false; button.disabled = repository.available === false; }
     }
   });
 }

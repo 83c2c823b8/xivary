@@ -79,10 +79,13 @@ Shared tokens in `ui/page.css`: 7px control corners, 38px standard minimum heigh
 14px dialog corners, blue visible focus and neutral borders. Use primary blue for
 committing transfer actions, subtle secondary Cancel, restrained red Delete for
 whole-collection confirmation. Busy controls disable without changing geometry.
-Compact repeated row actions deliberately use 30px height: Following and Collections
-share padding/alignment. Collections uses folder + label + chevron. The shared Follow
-presentation remains dark + Follow or gray checkmark Following, with an Unfollow
-accessible action name and tooltip. Never communicate an important action by hover
+Compact repeated Following controls retain their 30px height and text label.
+Following rows use an always-visible 34px square, muted folder-only membership
+trigger with 7px corners, a neutral hover surface and visible keyboard focus. Its
+accessible name is Manage collections for [author], with a Manage collections
+tooltip. Author-heading collection triggers retain folder + label + chevron.
+The shared Follow presentation remains dark + Follow or gray checkmark Following,
+with an Unfollow accessible action name and tooltip. Never communicate an important action by hover
 alone. Keep arXiv and author-heading Follow styling consistent.
 
 Library bookmarks remain 34px square. Saved uses a filled icon on a lighter neutral
@@ -169,3 +172,33 @@ fixtures were inspected; only Chrome's native toolbar popup was captured. The
 320px stress screenshot uses deliberately long text and six-digit counts without
 changing storage. Physical touch, screen readers and store-installed/minimum
 browser surfaces remain manual checks.
+
+## Contextual arXiv controls and lifecycle
+
+Abstract-page Bookmarks sit immediately after the existing title contents in
+inline document flow: 36px hit area, 23px icon, 7px corners and a small left gap.
+They wrap naturally after long titles instead of floating to the column edge.
+The original title text and nested markup stay intact; saved state remains filled.
+
+An invalidated content-script context is terminal until page reload. Close its
+pickers, disable Xivary controls and show “Reload this page to reconnect Xivary.”
+Do not expose the raw lifecycle exception or retry the dead runtime. Author links
+then retain native navigation. Ordinary runtime failures retain diagnostics and
+retry behavior. Developer lifecycle diagnostics remain in the console.
+
+### Verification and limits
+
+This refinement passed 161/161 Node tests, Chromium smoke plus interaction tests,
+Firefox 157 smoke, release transfer/Sync lifecycle checks, both 70-file packages
+and `git diff --check`. Chrome 154 exercised actual extension reload, disabled old
+controls, picker dismissal, native author-link fallback and page-reload recovery.
+Firefox covered Save/Follow persistence and the existing membership workflow;
+extension-context invalidation after an add-on update remains unverified there.
+
+Rendered fixture screenshots were inspected for short/long/multiline titles,
+360px title wrapping, Following controls, keyboard focus and open pickers. Generate
+them with `ARXIV_SCREENSHOT_DIR` and the browser suites; representative images are
+`arxiv-title-long-360.png`, `arxiv-context-unavailable.png`,
+`following-folder-trigger.png` and `firefox-folder-picker.png`. These checks do not
+prove every live arXiv layout, physical touch, screen-reader behavior or a
+store-installed update. Existing manual release checks remain applicable.

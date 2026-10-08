@@ -145,6 +145,8 @@ try {
 
   await navigate("https://arxiv.org/abs/2401.00001");
   await until("document.querySelectorAll('.authors .arxiv-library-button').length === 2 && !document.querySelector('.arxiv-library-bookmark').disabled");
+  assert.equal(await evaluate("document.querySelectorAll('.arxiv-library-bookmark').length===1 && document.querySelector('h1.title').lastElementChild.classList.contains('arxiv-library-bookmark') && document.querySelector('h1.title').textContent==='Title:A sample paper' && getComputedStyle(document.querySelector('.arxiv-library-bookmark')).float==='none'"),true);
+  await screenshot("arxiv-title-unsaved.png");
   await evaluate("document.querySelector('.arxiv-library-bookmark').click()");
   await until("document.querySelector('.arxiv-library-bookmark').getAttribute('aria-pressed') === 'true' && !document.querySelector('.arxiv-library-bookmark').disabled");
   await evaluate("document.querySelector('.authors .arxiv-library-button').click()");
@@ -152,6 +154,7 @@ try {
   await command("/refresh");
   await until("document.querySelector('.arxiv-library-bookmark')?.getAttribute('aria-pressed') === 'true' && document.querySelector('.authors .arxiv-library-button')?.getAttribute('aria-pressed') === 'true'");
 
+  await screenshot("arxiv-title-saved.png");
   await openAuthorFromArxiv();
   await navigateExtension("popup/popup.html");
   await until("document.querySelector('#saved-count')?.textContent === '1' && document.querySelector('#following-count')?.textContent === '1'");

@@ -78,7 +78,12 @@ export async function followingWorkflow({ evaluate, click, until, reload, key, s
   await key("Escape");
   await click(collectionSelector(""));
 
-  assert.equal(await evaluate("document.querySelector('.manage-collections').querySelectorAll('svg').length===2 && document.querySelector('.author-row .xivary-follow-button').textContent==='Following' && document.querySelector('.author-row .xivary-follow-button').getAttribute('aria-label').startsWith('Unfollow:')"), true);
+  assert.equal(await evaluate("document.querySelector('.manage-collections').querySelectorAll('svg').length===1 && document.querySelector('.manage-collections').textContent==='' && document.querySelector('.manage-collections').getAttribute('aria-label').startsWith('Manage collections for ') && document.querySelector('.manage-collections').title==='Manage collections' && document.querySelector('.author-row .xivary-follow-button').textContent==='Following' && document.querySelector('.author-row .xivary-follow-button').getAttribute('aria-label').startsWith('Unfollow:')"), true);
+  await evaluate("document.querySelector('.author-row h2 a').focus()");
+  await key("Tab");
+  assert.equal(await evaluate("document.activeElement.classList.contains('manage-collections') && document.activeElement.matches(':focus-visible')"), true);
+  assert.equal(await evaluate("(()=>{const button=document.querySelector('.manage-collections'),r=button.getBoundingClientRect();return r.width===34&&r.height===34&&getComputedStyle(button).borderRadius==='7px'})()"),true);
+  await screenshot("folder-trigger.png");
   await click(".manage-collections");
   await until("document.querySelector('.arxiv-collection-picker input[type=checkbox]')");
   assert.equal(await evaluate("document.querySelector('.collection-picker-subtitle').textContent.includes('last collection')"), true);
@@ -86,6 +91,7 @@ export async function followingWorkflow({ evaluate, click, until, reload, key, s
     await click(checkbox(id));
     await until(`document.querySelector(${JSON.stringify(checkbox(id))})?.checked === ${enabled} && !document.querySelector(${JSON.stringify(checkbox(id))})?.disabled && document.querySelector('.collection-picker-status').textContent === ''`);
   }
+  await screenshot("folder-picker.png");
   await membership(first.id, true);
   for (const id of previous) await membership(id, false);
   assert.deepEqual((await snapshot()).memberships.filter(item => item.authorId === author.id).map(item => item.collectionId), [first.id]);

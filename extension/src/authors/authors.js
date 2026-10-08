@@ -95,8 +95,7 @@ function authorRow(author) {
   const collections = document.createElement("button");
   collections.type = "button";
   collections.className = "manage-collections";
-  setCollectionButton(collections, author.displayName);
-  collections.setAttribute("aria-label", `Collections for ${author.displayName}`);
+  setCollectionButton(collections, author.displayName, { iconOnly: true });
   collections.setAttribute("aria-haspopup", "dialog");
   collections.setAttribute("aria-expanded", "false");
   collections.addEventListener("click", () => void openAuthorCollectionPicker({

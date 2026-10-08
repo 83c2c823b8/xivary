@@ -14,16 +14,15 @@
 }
 .arxiv-library-button { margin: 0 0.3rem; }
 .arxiv-library-bookmark {
-  float: right; display: inline-grid; place-items: center; width: 36px; height: 36px;
-  margin: -0.15rem 0 0.15rem 0.75rem; padding: 6px;
-  border: 1px solid transparent; border-radius: 4px; background: transparent; color: #4f555b;
+  display: inline-grid; place-items: center; width: 36px; height: 36px;
+  vertical-align: middle; margin: 0 0 0 0.4rem; padding: 6px;
+  border: 1px solid transparent; border-radius: 7px; background: transparent; color: #4f555b;
   cursor: pointer; line-height: 0;
 }
 .arxiv-library-bookmark svg { width: 23px; height: 23px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linejoin: round; }
 .arxiv-library-bookmark.is-saved svg { fill: #202124; stroke: #202124; }
 .arxiv-library-bookmark:hover { background: #f4f4f3; border-color: #aeb2b7; color: #202124; }
 .arxiv-library-bookmark:focus-visible { outline: 3px solid #1475bc; outline-offset: 2px; }
-.arxiv-library-bookmark:disabled { opacity: 0.55; cursor: wait; }
+.arxiv-library-bookmark:disabled { opacity: 0.55; cursor: not-allowed; }
 #arxiv-library-controls { min-height: 0.5rem; margin: 0.2rem 0; }
 .arxiv-library-status { font: 400 13px/1.5 "IBM Plex Sans", system-ui, sans-serif; }
-@media (max-width: 520px) { .arxiv-library-bookmark { float: none; display: inline-flex; margin-left: 0.5rem; } }
