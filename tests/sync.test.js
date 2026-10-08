@@ -72,6 +72,37 @@ function network(initial = {}) {
   return { device, server, wire, deliver, settle, advance: () => { time += 600001; } };
 }
 
+test("Following organization workflow converges across independent replicas without touching Bookmarks", async () => {
+  const n = network();
+  const a = n.device("a"), b = n.device("b");
+  await a.repo.savePaper(paper);
+  const followed = await a.repo.followAuthor(author);
+  await n.settle();
+  const original = await a.repo.getAuthorLibrary();
+  const paperSnapshot = async () => { const { exportedAt, ...data } = await a.repo.exportCategory("bookmarks"); return data; };
+  const bookmarks = await paperSnapshot();
+  await a.repo.setOrganizeFollowedAuthorsIntoCollections(true);
+  const destination = await a.repo.createAuthorCollection("Move here");
+  await a.repo.addAuthorToCollection(followed, destination.id);
+  await a.repo.removeAuthorFromCollection(followed.id, original.collections[0].id);
+  await n.settle();
+  assert.equal((await b.repo.getPreferences()).organizeFollowedAuthorsIntoCollections, true);
+  assert.deepEqual((await b.repo.getAuthorLibrary()).memberships, (await a.repo.getAuthorLibrary()).memberships);
+  await b.repo.renameAuthorCollection(destination.id, "Renamed remotely");
+  await b.repo.setOrganizeFollowedAuthorsIntoCollections(false);
+  await n.settle();
+  a.restart();
+  const reloaded = await a.repo.getAuthorLibrary();
+  assert.equal(reloaded.collections.find(item => item.id === destination.id).name, "Renamed remotely");
+  assert.equal(reloaded.settings.organizeFollowedAuthorsIntoCollections, false);
+  assert.equal((await a.repo.listFollowing()).length, 1);
+  assert.deepEqual(await paperSnapshot(), bookmarks);
+  await b.repo.deleteAuthorCollection(destination.id);
+  await n.settle();
+  assert.deepEqual(await a.repo.listFollowing(), []);
+  assert.deepEqual(await paperSnapshot(), bookmarks);
+});
+
 test("first device migrates schema 1 before seeding sync; full original metadata is retained", async () => {
   const net = network();
   const original = { schemaVersion: 1, favorites: [{ ...createPaper(paper, date), note: "private", future: 42 }], following: [], future: "retained" };

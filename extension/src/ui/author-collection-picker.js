@@ -1,7 +1,9 @@
 let closeCurrent = () => {};
 
+export function closeAuthorCollectionPicker() { closeCurrent(); }
+
 /** Optional author-collection UI. Persistence stays behind RepositoryClient. */
-export async function openAuthorCollectionPicker({ repository, author, anchor, onChange }) {
+export async function openAuthorCollectionPicker({ repository, author, anchor, onChange, onClose = () => {} }) {
   closeCurrent();
   const panel = document.createElement("div");
   panel.className = "arxiv-collection-picker";
@@ -31,7 +33,10 @@ export async function openAuthorCollectionPicker({ repository, author, anchor, o
   create.type = "submit";
   create.textContent = "+ New collection";
   form.append(name, create);
-  panel.append(heading, status, choices, form);
+  const hint = document.createElement("p");
+  hint.className = "collection-picker-subtitle";
+  hint.textContent = "Removing the last collection unfollows this author. To move, select the destination first.";
+  panel.append(heading, hint, status, choices, form);
   document.body.append(panel);
   anchor.setAttribute("aria-expanded", "true");
   const rect = anchor.getBoundingClientRect();
@@ -49,6 +54,7 @@ export async function openAuthorCollectionPicker({ repository, author, anchor, o
     document.removeEventListener("pointerdown", outside);
     document.removeEventListener("keydown", escape);
     if (anchor.isConnected) anchor.focus();
+    onClose();
   }
   function outside(event) { if (!panel.contains(event.target) && !anchor.contains(event.target)) close(); }
   function escape(event) { if (event.key === "Escape") { event.preventDefault(); close(); } }

@@ -2,6 +2,10 @@
 
 ## 0.2.0 — 2026-10-08 (release candidate)
 
+- Fix incomplete Following collection organization: honor the opt-in setting on
+  Following, expose inline create/rename/delete and collection browsing, and reuse
+  the author membership picker for assigning/moving. Preserve assignments when
+  disabled; disclose final-membership unfollow consequences. No data migration.
 - Add a native browser API boundary and generate Firefox's module event-page
   manifest from the shared Chromium source. Application files remain identical.
 - Synchronize small saved/followed intent, collections/memberships and the two
@@ -21,9 +25,9 @@
 - Repair the Firefox test harness's unsupported direct extension navigation by
   entering through the extension's own author action and origin. Add focused
   preference simulations and native Chrome transfer/Sync lifecycle tests.
-- Verification: 131 Node tests; Chrome and Firefox fixture suites; actual Chrome
+- Verification: 135 Node tests; Chrome and Firefox fixture suites; actual Chrome
   transfers, events/alarm/worker/reload/profile recovery; three live arXiv abstracts;
-  both 59-file packages. Account delivery and remaining manual distribution checks
+  both 60-file packages. Account delivery and remaining manual distribution checks
   are **not verified**. This candidate is not store-published or signed. See
   [release assessment](docs/release.md#release-assessment).
 

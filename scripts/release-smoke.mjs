@@ -128,6 +128,8 @@ try {
   // This is real Chrome storage/event integration, with a test-authored peer
   // record in ONE unsigned-in profile. It does not test account propagation.
   await chrome.evaluate(session, "(() => { window.releaseSyncEvents = 0; window.releaseAlarmEvents = 0; chrome.storage.onChanged.addListener((changes, area) => { if (area === 'sync') window.releaseSyncEvents++; }); chrome.alarms.onAlarm.addListener(alarm => { if (alarm.name === 'xivary-sync-pending') window.releaseAlarmEvents++; }); })()");
+  const following = await chrome.page(`chrome-extension://${extensionId}/src/authors/authors.html`);
+  await chrome.until(following.sessionId, "document.querySelector('#collection-sidebar')?.hidden === false && document.querySelectorAll('.author-row').length === 1");
   const beforeRemote = await chrome.evaluate(session, localState);
   const remote = Object.fromEntries(preferenceNames.map(name => [syncKey(name), { v: 1, rev: [beforeRemote._chromeSync.counter + 10, "release-peer"], value: false, deleted: null }]));
   await chrome.evaluate(session, `chrome.storage.sync.set(${JSON.stringify(remote)})`);
@@ -140,6 +142,9 @@ try {
   await chrome.send("Page.bringToFront", {}, otherPage.sessionId);
   await chrome.send("Page.bringToFront", {}, session);
   await chrome.until(session, "!document.querySelector('#open-arxiv-new-tab').checked && !document.querySelector('#organize-author-collections').checked");
+  await chrome.send("Page.bringToFront", {}, following.sessionId);
+  await chrome.until(following.sessionId, "document.querySelector('#collection-sidebar').hidden && document.querySelectorAll('.author-row').length === 1 && !document.querySelector('.manage-collections')");
+  await chrome.send("Page.bringToFront", {}, session);
   console.log("Chrome Sync PASS: actual sync area, onChanged reconciliation and Settings focus refresh (single-profile test peer)");
 
   const versions = new Map();
@@ -202,6 +207,19 @@ try {
   for (const field of ["favorites", "authors", "paperCollections", "collections", "paperMemberships", "memberships", "authorPaperCaches", "settings"]) assert.deepEqual(restarted[field], beforeRestart[0][field], `restart: ${field}`);
   assert.deepEqual(await chrome.evaluate(settings.sessionId, client("repository.getPreferences()")), { openArxivLinksInNewTab: false, organizeFollowedAuthorsIntoCollections: false });
   await chrome.until(settings.sessionId, `chrome.storage.sync.get(${JSON.stringify(pendingKey)}).then(values => JSON.stringify(values[${JSON.stringify(pendingKey)}]) === ${JSON.stringify(JSON.stringify(beforeRestart[0]._chromeSync.records[pendingKey]))})`);
+  const followingRestarted = await chrome.page(`chrome-extension://${extensionId}/src/authors/authors.html`);
+  await chrome.until(followingRestarted.sessionId, "document.querySelector('#collection-sidebar')?.hidden && document.querySelectorAll('.author-row').length === 1");
+  await chrome.click(followingRestarted.sessionId, ".settings-link");
+  await chrome.send("Page.bringToFront", {}, followingRestarted.sessionId);
+  await chrome.evaluate(followingRestarted.sessionId, "document.fonts.ready.then(()=>true)");
+  await chrome.until(followingRestarted.sessionId, "document.readyState === 'complete' && document.querySelector('#organize-author-collections') && !document.querySelector('#organize-author-collections').disabled");
+  await chrome.click(followingRestarted.sessionId, "#organize-author-collections + .toggle");
+  await chrome.until(followingRestarted.sessionId, "document.querySelector('#organize-author-collections').checked && !document.querySelector('#organize-author-collections').disabled");
+  await chrome.click(followingRestarted.sessionId, ".app-nav a[href*=authors]");
+  await chrome.until(followingRestarted.sessionId, "document.querySelector('#collection-sidebar')?.hidden === false && document.querySelectorAll('.author-row').length === 1");
+  await chrome.click(followingRestarted.sessionId, `[data-collection-id=${JSON.stringify(authorCollection.id)}]`);
+  assert.equal(await chrome.evaluate(followingRestarted.sessionId, "document.querySelectorAll('.author-row').length"), 1);
+  console.log("Following PASS: remote preference focus refresh and restored collection browsing after full Chrome profile restart");
   console.log("RELEASE SMOKE PASS: native transfer flows and Chrome Sync events, alarm, worker, reload and browser-profile restart; no account propagation claimed");
 } finally {
   await chrome.close();

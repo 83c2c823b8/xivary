@@ -26,6 +26,11 @@ account, project-owned backend, or analytics.
 - A Following list and per-author paper feeds retrieved from arXiv's public Atom API.
 - Paper saving from arXiv pages and author feeds.
 - Named paper collections with inline create, rename, delete, and membership controls.
+- Optional Following collections with the same inline management and collection
+  browsing. Enable **Settings → Following → Organize followed authors into
+  collections**; use each author's **Collections** picker to assign memberships.
+  To move, select the destination before clearing the source. Disabling organization
+  preserves assignments. [Workflow and data rules](docs/following-collections.md).
 - Local text filtering of saved papers and author feeds, with preset and custom date ranges on author feeds.
 - A compact popup for opening Library and Following and viewing their counts.
 - Settings for opening arXiv links in a new tab and optionally organizing followed

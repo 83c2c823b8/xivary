@@ -178,3 +178,74 @@ test("collection operations work across the repository message contract", async 
   await client.deleteAuthorCollection(collection.id);
   assert.deepEqual(await client.listFollowing(), []);
 });
+
+test("Following organization workflow preserves metadata and independent Bookmarks across toggles and restart", async () => {
+  const { repository, storage } = fixture();
+  const author = await repository.followAuthor(alex); // No explicit category: default Following.
+  const original = await repository.getAuthorLibrary();
+  await repository.savePaper({ arxivId: "2401.00001", title: "Keep", authors: ["Alex Kim"] });
+  const papers = await repository.exportCategory("bookmarks");
+  await repository.setOrganizeFollowedAuthorsIntoCollections(true);
+  const a = await repository.createAuthorCollection("A");
+  const b = await repository.createAuthorCollection("B");
+  await repository.addAuthorToCollection(author, a.id);
+  await repository.removeAuthorFromCollection(author.id, original.collections[0].id);
+  await repository.addAuthorToCollection(author, b.id);
+  await repository.removeAuthorFromCollection(author.id, a.id);
+  await repository.renameAuthorCollection(b.id, "Renamed");
+  await repository.deleteAuthorCollection(a.id);
+  const assigned = await repository.getAuthorLibrary();
+  await repository.setOrganizeFollowedAuthorsIntoCollections(false);
+  const restarted = new LocalRepository(storage, () => now);
+  assert.deepEqual((await restarted.getAuthorLibrary()).memberships, assigned.memberships);
+  assert.deepEqual(await restarted.listFollowing(), [author]);
+  await restarted.setOrganizeFollowedAuthorsIntoCollections(true);
+  assert.deepEqual((await restarted.getAuthorLibrary()).authors, original.authors);
+  assert.deepEqual(await restarted.exportCategory("bookmarks"), papers);
+  await restarted.deleteAuthorCollection(b.id);
+  assert.deepEqual(await restarted.listFollowing(), []);
+  assert.deepEqual((await restarted.getAuthorLibrary()).authors, original.authors, "sole-collection deletion retains metadata");
+});
+
+test("legacy unclassified follows remain accessible after enabling organization and portable round-trip", async () => {
+  const authors = [createAuthor(alex, now), createAuthor(renee, now)];
+  const { repository, storage, writes } = fixture({ schemaVersion: 2, favorites: [], following: authors });
+  const before = await repository.getAuthorLibrary();
+  assert.equal(writes(), 1);
+  assert.equal(before.collections[0].name, "Following");
+  await repository.setOrganizeFollowedAuthorsIntoCollections(true);
+  assert.deepEqual(await repository.listFollowing(), authors);
+  const group = await repository.createAuthorCollection("Imported classification", alex);
+  const file = await repository.exportCategory("following", { kind: "collection", collectionId: group.id });
+  assert.equal(Object.hasOwn(file, "preferences"), false);
+  const target = new LocalRepository(fixture().storage, () => now, () => "target");
+  await target.setOrganizeFollowedAuthorsIntoCollections(true);
+  await target.followAuthor(renee);
+  const unrelated = await target.getAuthorLibrary();
+  await target.importCategory(JSON.stringify(file), "following");
+  await target.importCategory(JSON.stringify(file), "following");
+  const restored = await target.getAuthorLibrary();
+  assert.deepEqual(restored.collections.find(item => item.id === group.id), group);
+  assert.deepEqual(restored.memberships.filter(item => item.collectionId === group.id), file.authorMemberships);
+  assert.ok(restored.memberships.some(item => item.authorId === authors[1].id));
+  assert.equal(restored.settings.organizeFollowedAuthorsIntoCollections, unrelated.settings.organizeFollowedAuthorsIntoCollections);
+  assert.equal((await new LocalRepository(storage).getAuthorLibrary()).collections.length, 2);
+});
+
+test("missing legacy organization preference defaults safely; malformed collection metadata never resets users", async () => {
+  const { repository, storage } = fixture();
+  await repository.followAuthor(alex);
+  const state = await storage.read();
+  delete state.settings.organizeFollowedAuthorsIntoCollections;
+  await storage.write(state);
+  const upgraded = new LocalRepository(storage);
+  assert.equal((await upgraded.getAuthorLibrary()).settings.organizeFollowedAuthorsIntoCollections, false);
+  assert.equal((await upgraded.listFollowing()).length, 1);
+  const corrupt = await storage.read();
+  corrupt.memberships[0].collectionId = "collection:missing";
+  await storage.write(corrupt);
+  const invalid = new LocalRepository(storage);
+  await assert.rejects(invalid.getAuthorLibrary());
+  await assert.rejects(invalid.setOrganizeFollowedAuthorsIntoCollections(true));
+  assert.deepEqual(await storage.read(), corrupt);
+});

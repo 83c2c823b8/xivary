@@ -1,4 +1,11 @@
+@import url("../ui/collection-sidebar.css");
+
 .author-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 16px; }
 .author-row h2 { margin: 0; }
 .author-row h2 a { text-decoration-thickness: 1px; }
 .author-row .actions { margin: 0; }
+
+.following-content { min-width: 0; }
+.author-row h2 { overflow-wrap: anywhere; }
+.author-row .manage-collections { color: var(--muted); border-color: transparent; }
+.delete-confirmation { flex-wrap: wrap; }

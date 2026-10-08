@@ -33,7 +33,9 @@ try {
     await chrome.until(sessionId, `document.querySelector('#name')?.textContent === ${JSON.stringify(name)}`);
     assert.ok(await chrome.evaluate(sessionId, "document.querySelector('#identity').textContent.includes('namesakes')"));
     assert.deepEqual(await chrome.evaluate(sessionId, "import('../repository/repository-client.js').then(({RepositoryClient})=>new RepositoryClient().listFollowing())"), []);
-    await chrome.until(sessionId, "!document.querySelector('#refresh').disabled", 30000);
+    // The button is initially enabled while boot still awaits repository RPC.
+    // Wait for rendered retrieval metadata (even an empty feed), or a real error.
+    await chrome.until(sessionId, "!document.querySelector('#refresh').disabled && (document.querySelector('#updated').textContent || document.querySelector('#status').classList.contains('error'))", 30000);
     const result = await chrome.evaluate(sessionId, "({rows:document.querySelectorAll('.paper-row').length,status:document.querySelector('#status').textContent})");
     feeds.push({ name, ...result });
     await chrome.send("Target.closeTarget", { targetId: target.targetId });

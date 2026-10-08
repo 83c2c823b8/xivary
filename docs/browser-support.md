@@ -8,13 +8,13 @@ account, OAuth, backend or external sync provider is implemented.
 
 | Check | Evidence | Status |
 | --- | --- | --- |
-| Node regression | 131 tests, including 39 Sync simulations, 15 portable-file tests and 6 author-navigation tests | VERIFIED AUTOMATICALLY |
-| Chromium packages | 59 files; manifest and every runtime byte checked against source | VERIFIED AUTOMATICALLY |
-| Firefox packages | 59 files; non-manifest runtime files identical to Chromium | VERIFIED AUTOMATICALLY |
-| Chrome 154.0.8037.57 | Original geometry/UI suite plus both Settings gears and author entry; fresh disposable profile | VERIFIED IN REAL BROWSER, fixtures |
-| Firefox 157.0 / geckodriver 0.37.1 | Generated temporary add-on, content Save/Follow/unfollow, reloads, RPC, Library, Following, author feeds, popup-page navigation, preferences and both gears | VERIFIED IN REAL BROWSER, fixtures |
+| Node regression | 135 tests, including 40 Sync simulations, 15 portable-file tests and 6 author-navigation tests | VERIFIED AUTOMATICALLY |
+| Chromium packages | 60 files; manifest and every runtime byte checked against source | VERIFIED AUTOMATICALLY |
+| Firefox packages | 60 files; non-manifest runtime files identical to Chromium | VERIFIED AUTOMATICALLY |
+| Chrome 154.0.8037.57 | Original geometry/UI suite plus both Settings gears, author entry and full Following collection workflow; fresh disposable profile | VERIFIED IN REAL BROWSER, fixtures |
+| Firefox 157.0 / geckodriver 0.37.1 | Generated temporary add-on, content Save/Follow/unfollow, reloads, RPC, Library, Following, author feeds, popup-page navigation, preferences, both gears and full Following collection workflow | VERIFIED IN REAL BROWSER, fixtures |
 | Chrome transfer UI | All and collection exports for both categories, actual downloads/native file input, collection restoration, repeat import, other-category preservation, Cancel, malformed feedback, no Preferences transfer UI | VERIFIED IN REAL BROWSER |
-| Chrome Sync integration | Actual sync area, onChanged reconciliation, Settings focus refresh, durable pending publication, real alarm delivery after worker stop/recreation, extension reload and full test-profile restart | VERIFIED IN REAL BROWSER, one unsigned-in profile with test-authored peer records |
+| Chrome Sync integration | Actual sync area, onChanged reconciliation, Settings focus refresh, durable pending publication, real alarm delivery after worker stop/recreation, extension reload, full test-profile restart and restored Following collection browsing | VERIFIED IN REAL BROWSER, one unsigned-in profile with test-authored peer records |
 | Live arXiv | Three real abstracts; five author views with current name-matched paper rows, ordinary/Enter/Ctrl/middle and unrelated navigation | VERIFIED IN REAL BROWSER, network |
 | Independent device conflicts/failures | Separate repositories/disks and shared fake transport, replay/delay/restart/quota/failures | SIMULATED |
 | Earlier combined transfer UI | User reported successful Chrome file selection/download before the collection selector refactor | VERIFIED MANUALLY, historical flow only |
@@ -105,8 +105,10 @@ Live pages exercised (no fixture responses):
 - [1706.03762](https://arxiv.org/abs/1706.03762): eight authors and `/search/cs`
   queries, including `Gomez,+A+N`; Ashish Vaswani and Illia Polosukhin opened.
 
-Live results rendered 3, 2, 39, 25 and 7 matching rows respectively in this run;
-these counts are observations, not permanent expectations. Unicode/accented names
+The original candidate run rendered 3, 2, 39, 25 and 7 matching rows respectively.
+The Following repair rerun rendered 3, 2, 39, 26 and 7, after tightening harness
+readiness to wait for retrieval metadata/error. These counts are observations,
+not permanent expectations. Unicode/accented names
 and encoded apostrophes are fixture/unit coverage, not claimed as live-page tests.
 No new stable unsupported pattern was discovered; support was not broadened.
 

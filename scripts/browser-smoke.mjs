@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { followingWorkflow } from "./following-workflow.mjs";
 import { spawn } from "node:child_process";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -191,6 +192,32 @@ try{
   await evaluate(arxiv,"document.querySelector('.authors a').focus()");
   const keyboardAuthorTarget=await createdTarget(async()=>{await send("Input.dispatchKeyEvent",{type:"keyDown",key:"Enter",code:"Enter",windowsVirtualKeyCode:13},arxiv);await send("Input.dispatchKeyEvent",{type:"keyUp",key:"Enter",code:"Enter",windowsVirtualKeyCode:13},arxiv)},target=>target.url.startsWith(extensionUrl("author/author.html")));
   await send("Target.closeTarget",{targetId:keyboardAuthorTarget.targetId});
+  await send("Emulation.setDeviceMetricsOverride",{width:1280,height:900,deviceScaleFactor:1,mobile:false},authors);
+  await followingWorkflow({
+    evaluate: expression => evaluate(authors, expression),
+    click: async selector => {
+      await send("Page.bringToFront", {}, authors);
+      await evaluate(authors, "document.fonts.ready.then(()=>true)");
+      await until(authors, `document.readyState==='complete' && document.querySelector(${JSON.stringify(selector)}) && !document.querySelector(${JSON.stringify(selector)}).disabled`);
+      const point = await evaluate(authors, `(()=>{const node=document.querySelector(${JSON.stringify(selector)});node.scrollIntoView({block:'center'});const rect=node.getBoundingClientRect();return{x:rect.left+rect.width/2,y:rect.top+rect.height/2}})()`);
+      await send("Input.dispatchMouseEvent", {type:"mouseMoved", ...point}, authors);
+      await nativeClick(authors, selector);
+    },
+    until: expression => until(authors, expression),
+    reload: () => send("Page.reload", {}, authors),
+    screenshot: async () => {
+      await screenshot(authors,"following-collections.png");
+      await send("Emulation.setDeviceMetricsOverride",{width:560,height:800,deviceScaleFactor:1,mobile:false},authors);
+      assert.equal(await evaluate(authors,"document.documentElement.scrollWidth===document.documentElement.clientWidth"),true);
+      await screenshot(authors,"following-collections-narrow.png");
+      await send("Emulation.setDeviceMetricsOverride",{width:1280,height:900,deviceScaleFactor:1,mobile:false},authors);
+    },
+    key: async key => {
+      const code = key === "Enter" ? 13 : 27;
+      await send("Input.dispatchKeyEvent", { type: "keyDown", key, code: key, windowsVirtualKeyCode: code }, authors);
+      await send("Input.dispatchKeyEvent", { type: "keyUp", key, code: key, windowsVirtualKeyCode: code }, authors);
+    },
+  });
   for(const session of [library,authors]){
     assert.equal(await evaluate(session,"document.querySelector('.settings-link')?.getAttribute('aria-label')"),"Settings");
     await nativeClick(session,".settings-link");

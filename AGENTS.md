@@ -22,7 +22,13 @@ author collections are separate many-to-many models with separate last-used
 settings. Preserve stable IDs, lossless/idempotent migrations, JSON-compatible
 records for a future backend, and the documented same-name author limitation.
 Paper collections are user-facing; author collections remain compatible in
-storage but are hidden from the default Follow/Following UI. Search is hidden from
+storage but are hidden from the default Follow/Following UI. When organization is
+enabled, Following uses Library's sidebar interactions and the existing author
+membership picker. Disabling it hides controls without changing assignments.
+All Following is a membership aggregate; default/migrated follows remain accessible.
+Disclose final-membership unfollow and sole-collection deletion consequences.
+See `docs/following-collections.md` for the workflow and regression evidence.
+Search is hidden from
 primary navigation. Paper notes are deferred and must not be exposed without a
 separate, demonstrated product need.
 

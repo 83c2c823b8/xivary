@@ -57,7 +57,7 @@ Malformed/unsupported remote records pause Sync rather than reset state. Unavail
 Sync leaves local editing/pending intent intact. Firefox stays local-only.
 See [Sync compatibility table](chrome-sync.md#settings-policy-and-compatibility).
 
-## Evidence
+## Original candidate evidence
 
 | Verification | Result / kind |
 | --- | --- |
@@ -134,7 +134,7 @@ repository metadata, source maps or generated junk are packaged. Firefox differs
 only by generated manifest requirements. All directories/ZIPs remain ignored;
 archives are unsigned and no store submission occurred.
 
-Final inspected candidate artifacts:
+Original candidate artifacts before the Following repair:
 
 | Browser | Files | Bytes | SHA-256 |
 | --- | --- | --- | --- |
@@ -143,6 +143,43 @@ Final inspected candidate artifacts:
 
 Packaging prints SHA-256;
 report the hashes of the final artifacts because ZIP timestamps can change hashes.
+
+## Following collection repair
+
+The clean candidate HEAD `124f5e7994a391258e81f4192f7af9287fb139e4` was the
+starting point (master, two local commits ahead). Baseline 131/131 passed. The
+Following page did not read its organization setting or collection snapshot;
+Settings, storage, Sync and portable files already supported collections. The
+repair adds the missing opt-in sidebar workflow and reuses the author picker and
+Library's shared sidebar CSS. Disabled mode keeps assignments and the simple list.
+See [investigation, workflow and regression record](following-collections.md).
+
+Current verification: **135/135 Node tests**, including four new workflow/legacy/
+malformed/portable/independent-replica regressions (40 Sync simulations total).
+Chrome 154 and Firefox 157 both exercise the full Following workflow with native
+clicks/Enter/Escape; Chrome checks desktop/narrow geometry. The existing release
+suite passes native Bookmarks/Following transfer, Sync lifecycle, remote preference
+focus refresh and restored collection browsing after full Chrome profile restart.
+This is automated real-browser evidence, not human review or account propagation.
+The optional live-network harness now waits for completed feed metadata/error rather
+than the initially enabled Refresh button before sampling retrieval results.
+
+Schema 5, migrations, Sync v1, portable v2, permissions, dependencies and candidate
+version 0.2.0 are unchanged. Package/source and cross-browser byte comparisons
+pass; the new shared sidebar stylesheet is the only additional runtime file.
+Both rebuilt packages contain **60 files**. Generated archives remain ignored.
+The original evidence and hashes above are historical, not the repaired archives.
+Live-network rerun passed on the same three real abstracts: five author views
+rendered 3, 2, 39, 26 and 7 matching rows, with native primary/Enter/Ctrl/middle and
+unrelated navigation retained. These counts are observations, not guarantees.
+All manual distribution checks in the release assessment remain required; no signing, push, publishing or credential automation occurred.
+
+Repaired candidate artifacts (unsigned, ignored):
+
+| Browser | Files | Bytes | SHA-256 |
+| --- | --- | --- | --- |
+| Chromium | 60 | 205530 | `6da3099740bceeb3f31c1b3ec29c6fd83034b399050c264bfc13848cb2331881` |
+| Firefox | 60 | 205600 | `169ae7108272bf952615843aacb94a1c80bb6b8fd6ff6176828e65bd3c20b296` |
 
 ## Git integration policy
 

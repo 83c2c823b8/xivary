@@ -47,8 +47,17 @@ enabled, preserving native modifier-click behavior.
 
 The default author interaction is deliberately binary: Follow and Following.
 Following removes all memberships on unfollow. Author-collection data and
-repository methods remain intact and their picker is exposed only by an opt-in
-preference; disabling it never mutates collection data. Paper collections remain user-facing through the Library sidebar, with
+repository methods remain intact. An opt-in preference exposes the existing picker
+and Following's collection sidebar with Library's inline create/rename/delete and
+selection patterns. Both pages share sidebar CSS, while keeping separate domain
+operations. All Following derives live authors from memberships; default/legacy
+collections remain accessible and retained unfollowed metadata is excluded.
+Disabling organization never mutates collection data. Refocusing rereads preferences
+and memberships through RepositoryClient. The picker retains its anchor while rows
+remain visible and restores collection focus when a moved author leaves the view.
+Final-membership removal unfollows; deletion discloses sole-member consequences.
+See [Following investigation and verification](following-collections.md).
+Paper collections remain user-facing through the Library sidebar, with
 progressive disclosure for creation and management. Search exists but is absent
 from primary navigation.
 

@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { followingWorkflow } from "./following-workflow.mjs";
 import { spawn, execFileSync } from "node:child_process";
 import { mkdir, mkdtemp, readFile, rm } from "node:fs/promises";
 import { createServer as httpServer } from "node:http";
@@ -188,6 +189,25 @@ try {
   await until("document.querySelector('#open-arxiv-new-tab').checked && !document.querySelector('#open-arxiv-new-tab').disabled");
   await command("/refresh");
   await until("document.querySelector('#open-arxiv-new-tab')?.checked && !document.querySelector('#open-arxiv-new-tab').disabled");
+
+  await navigateExtension("authors/authors.html");
+  await until("document.querySelectorAll('.author-row').length === 1");
+  await followingWorkflow({
+    evaluate: evaluateAsync,
+    until,
+    reload: () => command("/refresh"),
+    click: async selector => {
+      const element = await command("/element", { using: "css selector", value: selector });
+      await command("/actions", { actions: [{ type: "pointer", id: "mouse", parameters: { pointerType: "mouse" }, actions: [
+        { type: "pointerMove", origin: element, x: 0, y: 0, duration: 0 },
+      ] }] });
+      await command(`/element/${element["element-6066-11e4-a52e-4f735466cecf"]}/click`);
+    },
+    key: key => command("/actions", { actions: [{ type: "key", id: "keyboard", actions: [
+      { type: "keyDown", value: key === "Enter" ? "\uE007" : "\uE00C" },
+      { type: "keyUp", value: key === "Enter" ? "\uE007" : "\uE00C" },
+    ] }] }),
+  });
 
   await navigate("https://arxiv.org/abs/2401.00001");
   await until("document.querySelector('.authors .arxiv-library-button')?.getAttribute('aria-pressed') === 'true'");
