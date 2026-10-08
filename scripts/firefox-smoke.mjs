@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { followingWorkflow } from "./following-workflow.mjs";
+import { followingWorkflow, pickerVisualWorkflow, renameOutsideWorkflow } from "./following-workflow.mjs";
 import { spawn, execFileSync } from "node:child_process";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { createServer as httpServer } from "node:http";
@@ -53,6 +53,15 @@ async function screenshot(name) {
   await mkdir(screenshotDir, {recursive:true});
   const data = await request('GET', `/session/${session}/screenshot`);
   await writeFile(join(screenshotDir, `firefox-${name}`), Buffer.from(data, 'base64'));
+}
+async function pickerClick(selector) {
+  const element = await command('/element', {using:'css selector', value:selector});
+  await command('/actions',{actions:[{type:'pointer',id:'mouse',parameters:{pointerType:'mouse'},actions:[{type:'pointerMove',origin:element,x:0,y:0,duration:0}]}]});
+  await command(`/element/${element['element-6066-11e4-a52e-4f735466cecf']}/click`);
+}
+async function pickerKey(key) {
+  const value={Tab:'\uE004',Escape:'\uE00C',Enter:'\uE007'}[key];
+  await command('/actions',{actions:[{type:'key',id:'keyboard',actions:[{type:'keyDown',value},{type:'keyUp',value}]}]});
 }
 async function navigate(url) { await command("/url", { url }); }
 // Firefox WebDriver rejects direct moz-extension navigation. Enter through the
@@ -166,6 +175,10 @@ try {
   await until("document.querySelectorAll('#papers .paper-row').length === 1");
   assert.equal(await evaluate("location.href"), extensionUrl("library/library.html"));
   await screenshot("library.png");
+  await renameOutsideWorkflow({evaluate:evaluateAsync, click:pickerClick, until, key:pickerKey});
+  await pickerClick('.paper-row .bookmark');await until("document.querySelector('.arxiv-collection-picker input[type=checkbox]')");
+  await pickerVisualWorkflow({evaluate:evaluateAsync,key:pickerKey,screenshot:name=>screenshot(`library-${name}`)});
+  await pickerClick('.collection-picker-heading button');
   const stored = await evaluateAsync("import('../lib/storage.js').then(async ({ BrowserLocalStorage }) => new BrowserLocalStorage().read())");
   assert.equal(stored.schemaVersion, 5);
   assert.equal(stored.favorites.length, 1);
@@ -232,8 +245,8 @@ try {
       await command(`/element/${element["element-6066-11e4-a52e-4f735466cecf"]}/click`);
     },
     key: key => command("/actions", { actions: [{ type: "key", id: "keyboard", actions: [
-      { type: "keyDown", value: {Enter:"\uE007",Escape:"\uE00C",ArrowDown:"\uE015",ArrowUp:"\uE013",Home:"\uE011",End:"\uE010",Tab:"\uE004"}[key] },
-      { type: "keyUp", value: {Enter:"\uE007",Escape:"\uE00C",ArrowDown:"\uE015",ArrowUp:"\uE013",Home:"\uE011",End:"\uE010",Tab:"\uE004"}[key] },
+      { type: "keyDown", value: {Enter:"\uE007",Escape:"\uE00C",ArrowDown:"\uE015",ArrowUp:"\uE013",Home:"\uE011",End:"\uE010",Tab:"\uE004"," ":" "}[key] },
+      { type: "keyUp", value: {Enter:"\uE007",Escape:"\uE00C",ArrowDown:"\uE015",ArrowUp:"\uE013",Home:"\uE011",End:"\uE010",Tab:"\uE004"," ":" "}[key] },
     ] }] }),
   });
 

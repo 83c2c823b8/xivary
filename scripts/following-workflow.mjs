@@ -91,8 +91,11 @@ export async function followingWorkflow({ evaluate, click, until, reload, key, s
     await click(checkbox(id));
     await until(`document.querySelector(${JSON.stringify(checkbox(id))})?.checked === ${enabled} && !document.querySelector(${JSON.stringify(checkbox(id))})?.disabled && document.querySelector('.collection-picker-status').textContent === ''`);
   }
+  await pickerVisualWorkflow({evaluate, key, screenshot});
   await screenshot("folder-picker.png");
-  await membership(first.id, true);
+  await evaluate(`document.querySelector(${JSON.stringify(checkbox(first.id))}).focus()`);
+  await key(' ');
+  await until(`document.querySelector(${JSON.stringify(checkbox(first.id))})?.checked && !document.querySelector(${JSON.stringify(checkbox(first.id))})?.disabled && document.querySelector('.collection-picker-status').textContent === ''`);
   for (const id of previous) await membership(id, false);
   assert.deepEqual((await snapshot()).memberships.filter(item => item.authorId === author.id).map(item => item.collectionId), [first.id]);
   await click(".collection-picker-heading button");
@@ -198,4 +201,54 @@ export async function collectionMenuWorkflow({ evaluate, click, key, screenshot 
   await click(trigger); await click('h1');
   assert.equal(await evaluate("!document.querySelector('.collection-menu')&&document.querySelector('.collection-menu-trigger').getAttribute('aria-expanded')==='false'"), true);
   assert.deepEqual(await geometry(), before);
+  await renameOutsideWorkflow({evaluate, click, until: async expression => { for(let i=0;i<100;i++){if(await evaluate(expression))return;await new Promise(resolve=>setTimeout(resolve,100));}throw new Error(expression); }, key});
+}
+
+export async function pickerVisualWorkflow({ evaluate, key, screenshot = async () => {} }) {
+  const shape = "(()=>{const panel=document.querySelector('.arxiv-collection-picker');return [...panel.querySelectorAll('input,button')].map(node=>{const r=node.getBoundingClientRect();return [r.x,r.y,r.width,r.height]})})()";
+  const before = await evaluate(shape);
+  assert.equal(await evaluate("(()=>{const panel=document.querySelector('.arxiv-collection-picker'),boxes=[...panel.querySelectorAll('input[type=checkbox]')];return boxes.length>0&&boxes.every(box=>{const s=getComputedStyle(box),r=box.getBoundingClientRect();return box.type==='checkbox'&&s.borderRadius==='4px'&&r.width===17&&r.height===17&&s.backgroundColor===(box.checked?'rgb(85, 91, 99)':'rgb(255, 255, 255)')})&&getComputedStyle(panel.querySelector('input[type=text]')).borderRadius==='8px'&&getComputedStyle(panel.querySelector('button[type=submit]')).borderRadius==='8px'&&panel.scrollWidth===panel.clientWidth})()"),true);
+  await evaluate("document.querySelector('.arxiv-collection-picker').focus()");
+  await key('Tab'); await key('Tab');
+  assert.equal(await evaluate("document.activeElement.matches('input[type=checkbox]:focus-visible') && getComputedStyle(document.activeElement).outlineStyle==='solid'"),true);
+  await screenshot('picker-checkbox-focus.png');
+  await evaluate("[...document.querySelectorAll('.arxiv-collection-picker input[type=checkbox]')].at(-1).focus()");
+  await key('Tab');
+  assert.equal(await evaluate("document.activeElement.matches('input[type=text]:focus-visible')"),true);
+  await screenshot('picker-input-focus.png');
+  await key('Tab');
+  assert.equal(await evaluate("document.activeElement.matches('button[type=submit]:focus-visible')"),true);
+  await screenshot('picker-create-focus.png');
+  assert.deepEqual(await evaluate(shape),before,'focus does not change control geometry');
+}
+
+export async function renameOutsideWorkflow({ evaluate, click, until, key }) {
+  const entry = await evaluate("(()=>{const button=document.querySelector('.collection-menu-trigger'),row=button.closest('.collection-row');return {id:row.querySelector('.collection-link').dataset.collectionId,name:row.querySelector('.collection-label').textContent,selected:document.querySelector('.collection-link[aria-current]').dataset.collectionId,path:location.pathname,kind:location.pathname.includes('/library/')?'bookmarks':'following'}})()");
+  const trigger = `.collection-link[data-collection-id=${JSON.stringify(entry.id)}] + .collection-actions .collection-menu-trigger`;
+  const state = () => evaluate(`(async()=>{const {RepositoryClient}=await import('../repository/repository-client.js');const {exportedAt,...data}=await new RepositoryClient().exportCategory(${JSON.stringify(entry.kind)});return data})()`);
+  const original = await state();
+  async function edit() { await click(trigger); await click('.collection-menu [data-action=rename]'); await evaluate("document.querySelector('[data-rename-id]').value='Discard this rename'"); }
+  await edit(); await click('[data-rename-id]');
+  assert.equal(await evaluate("Boolean(document.querySelector('[data-rename-id]'))"),true,'inside click retains editing');
+  await click('h1');
+  assert.equal(await evaluate("!document.querySelector('[data-rename-id]')"),true);
+  assert.deepEqual(await state(),original,'outside cancellation never writes');
+  await edit(); await key('Escape');
+  assert.equal(await evaluate("!document.querySelector('[data-rename-id]') && document.activeElement.classList.contains('collection-menu-trigger')"),true);
+  await edit(); await click('.collection-link[data-collection-id=""]');
+  assert.equal(await evaluate("!document.querySelector('[data-rename-id]') && document.querySelector('.collection-link[aria-current]').dataset.collectionId===''"),true,'one click cancels and selects aggregate');
+  assert.deepEqual(await state(),original);
+  const other = await evaluate(`([...document.querySelectorAll('.collection-link')].find(button=>button.dataset.collectionId&&button.dataset.collectionId!==${JSON.stringify(entry.id)})?.dataset.collectionId)`);
+  if (other) {
+    await edit(); await click(`.collection-link[data-collection-id=${JSON.stringify(other)}]`);
+    assert.equal(await evaluate(`!document.querySelector('[data-rename-id]') && document.querySelector('.collection-link[aria-current]').dataset.collectionId===${JSON.stringify(other)}`),true,'one click selects another named collection');
+    assert.deepEqual(await state(),original);
+  }
+  await edit(); await click('.settings-link');
+  await until("document.querySelector('#open-arxiv-new-tab') && !document.querySelector('#open-arxiv-new-tab').disabled");
+  await click(`.app-nav a[href*=${JSON.stringify(entry.kind==='bookmarks'?'library':'authors')}]`);
+  await until("document.querySelector('.collection-menu-trigger') && !document.querySelector('.collection-menu-trigger').disabled");
+  assert.equal(await evaluate("!document.querySelector('[data-rename-id]')"),true,'navigation completes on its first click');
+  assert.deepEqual(await state(),original,'navigation does not save rename');
+  if (entry.selected) await click(`.collection-link[data-collection-id=${JSON.stringify(entry.selected)}]`);
 }

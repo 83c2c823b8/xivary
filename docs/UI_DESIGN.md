@@ -70,8 +70,11 @@ trigger. Removed triggers fall back to existing collection/navigation focus rule
 
 New collection opens focused inline entry. Enter submits a nonempty valid name;
 whitespace-only Enter cancels. Escape and outside click cancel, including typed
-text; outside click never creates. Async submissions are guarded. Rename retains
-its existing Enter/Escape and unique-name validation.
+text; outside click never creates. Async submissions are guarded. Rename saves on
+Enter with existing validation; Escape cancels and restores trigger focus. Outside
+pointer activation cancels without saving or stealing focus. Only the edited row
+is restored, leaving the outside target connected: selecting another collection
+or navigating still takes one click. Inside clicks continue editing; blur never saves.
 
 ## Buttons, pickers and forgiving actions
 
@@ -102,6 +105,25 @@ when not busy. Confirmation is guarded, errors stay visible, and focus returns.
 No persistent history, deletion semantics or Undo duration changes are implied.
 Membership pickers retain their viewport-clamped dialog surfaces, native checkboxes,
 Done/Escape/outside dismissal and focus restoration.
+Both paper and author pickers share `ui/author-collection-picker.css`. The semantic
+checkbox inputs use a small CSS appearance treatment: 17px squares, 4px corners,
+white unchecked surfaces with neutral borders, and `#555b63` checked surfaces with
+white ticks. Native accent-color alone left corners too square in Chromium.
+Forced-colors mode restores native checkbox painting. Existing blue keyboard
+focus rings remain distinct from the neutral checked state. New collection inputs
+and submit buttons use 8px corners without changing padding, control heights or
+the picker layout; Done retains the standard button radius.
+
+Picker/rename refinement evidence: 162/162 Node tests, Chromium 154 and Firefox
+157 fixture workflows, release checks and both 71-file packages passed. Inspected
+screenshots cover checked/unchecked boxes, input/button focus and Chromium hover;
+keyboard Space changes membership through the existing picker. Sidebar checks
+retain Enter saving and Escape cancellation, and exercise outside/inside clicks,
+one-click selection and navigation without rename writes. Reproduce images with
+`ARXIV_SCREENSHOT_DIR`; look for `library-picker-input-focus.png`,
+`following-picker-checkbox-focus.png` and Firefox-prefixed equivalents. Physical
+touch, screen readers, platform high-contrast themes and store-installed rendering
+remain manual checks; fixture screenshots do not verify every browser environment.
 
 ## Library filtering
 

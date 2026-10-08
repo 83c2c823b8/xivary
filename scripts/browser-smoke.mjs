@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { followingWorkflow, collectionMenuWorkflow } from "./following-workflow.mjs";
+import { followingWorkflow, collectionMenuWorkflow, pickerVisualWorkflow } from "./following-workflow.mjs";
 import { spawn } from "node:child_process";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -138,7 +138,7 @@ try{
   assert.deepEqual(await evaluate(library,"[...document.querySelectorAll('.app-nav a')].map(link=>link.textContent)"),["Library","Following"]);
   assert.deepEqual(await evaluate(library,"[...document.querySelectorAll('#collection-list .collection-link')].map(button=>[button.firstElementChild.textContent,button.lastElementChild.textContent,button.getAttribute('aria-current')])"),[["All Saved","1","page"],["Saved Papers","1",null],["Important","1",null]]);
   await collectionMenuWorkflow({ evaluate: expression => evaluate(library, expression), click: selector => nativeClick(library, selector), key: async key => {
-    const code = {Enter:13,Escape:27,ArrowDown:40,ArrowUp:38,Home:36,End:35,Tab:9}[key];
+    const code = {Enter:13,Escape:27,ArrowDown:40,ArrowUp:38,Home:36,End:35,Tab:9,' ':32}[key];
     await send('Input.dispatchKeyEvent',{type:'keyDown',key,windowsVirtualKeyCode:code},library);
     await send('Input.dispatchKeyEvent',{type:'keyUp',key,windowsVirtualKeyCode:code},library);
   }, screenshot: name => screenshot(library, `library-${name}`) });
@@ -171,6 +171,11 @@ try{
   assert.equal(await evaluate(library,"document.activeElement.id==='filter'&&document.querySelector('#filter').value===''&&document.querySelector('#count').textContent==='1 paper'&&document.querySelector('#clear-filter').hidden"),true);
   assert.equal(await evaluate(library,"(()=>{const count=document.querySelector('#count').getBoundingClientRect(),content=document.querySelector('.library-content').getBoundingClientRect();return Math.abs(count.right-content.right)<1})()"),true);
   for(const name of ["Saved Papers","Important"]){await evaluate(library,`[...document.querySelectorAll('#collection-list .collection-link')].find(button=>button.firstElementChild.textContent===${JSON.stringify(name)}).click()`);assert.equal(await evaluate(library,"document.querySelectorAll('#papers .paper-row').length"),1)}
+  await nativeClick(library,'.paper-row .bookmark');await until(library,"document.querySelector('.arxiv-collection-picker input[type=checkbox]')");
+  await pickerVisualWorkflow({evaluate: expression=>evaluate(library,expression),key: async key=>{for(const type of ['keyDown','keyUp']) await send('Input.dispatchKeyEvent',{type,key,windowsVirtualKeyCode:9},library)},screenshot:name=>screenshot(library,`library-${name}`)});
+  const createPoint=await evaluate(library,"(()=>{const r=document.querySelector('.arxiv-collection-picker button[type=submit]').getBoundingClientRect();return {x:r.left+r.width/2,y:r.top+r.height/2}})()");await send('Input.dispatchMouseEvent',{type:'mouseMoved',...createPoint},library);
+  assert.equal(await evaluate(library,"document.querySelector('.arxiv-collection-picker button[type=submit]').matches(':hover')"),true);await screenshot(library,'library-picker-create-hover.png');
+  await nativeClick(library,'.collection-picker-heading button');
   await evaluate(arxiv,"[...document.querySelectorAll('.arxiv-collection-picker label')].find(l=>l.textContent.includes('Saved Papers')).querySelector('input').click()");await until(arxiv,"document.querySelectorAll('.arxiv-collection-picker input[type=checkbox]:checked').length===1 && document.querySelector('.arxiv-library-bookmark').getAttribute('aria-pressed')==='true'");
   await send("Page.reload",{},library);await until(library,"document.querySelectorAll('#collection-list .collection-link').length===4");
   await evaluate(library,"[...document.querySelectorAll('#collection-list .collection-link')].find(button=>button.firstElementChild.textContent==='Saved Papers').click()");assert.equal(await evaluate(library,"document.querySelectorAll('#papers .paper-row').length"),0);
@@ -292,7 +297,7 @@ try{
       await send("Emulation.setDeviceMetricsOverride",{width:1280,height:900,deviceScaleFactor:1,mobile:false},authors);
     },
     key: async key => {
-      const code = {Enter:13,Escape:27,ArrowDown:40,ArrowUp:38,Home:36,End:35,Tab:9}[key];
+      const code = {Enter:13,Escape:27,ArrowDown:40,ArrowUp:38,Home:36,End:35,Tab:9,' ':32}[key];
       await send("Input.dispatchKeyEvent", { type: "keyDown", key, code: key, windowsVirtualKeyCode: code }, authors);
       await send("Input.dispatchKeyEvent", { type: "keyUp", key, code: key, windowsVirtualKeyCode: code }, authors);
     },

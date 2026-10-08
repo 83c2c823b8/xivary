@@ -1,4 +1,5 @@
 import { collectionSidebarRow, closeCollectionMenu } from "../ui/collection-sidebar.js";
+import { bindCollectionRenameOutside } from "../ui/collection-rename.js";
 import { bindCollectionCreate } from "../ui/collection-create.js";
 import { confirmCollectionDeletion } from "../ui/confirm-collection.js";
 import { RepositoryClient } from "../repository/repository-client.js";
@@ -13,6 +14,12 @@ let busy = false;
 let editingId = null;
 let loadRevision = 0;
 let renderedCollections;
+
+bindCollectionRenameOutside({
+  getForm: () => document.querySelector("[data-rename-id]")?.closest("form"),
+  isBusy: () => busy,
+  cancel: () => { editingId = null; renderCollections(true); },
+});
 
 element("filter").addEventListener("input", render);
 element("clear-filter").addEventListener("click", () => {
@@ -60,7 +67,7 @@ function render() {
   setDisabled(busy);
 }
 
-function renderCollections() {
+function renderCollections(preserveRows = false) {
   const entries = [
     { id: "", name: "All Saved", count: library.papers.length },
     ...library.collections.map(collection => ({
@@ -73,7 +80,7 @@ function renderCollections() {
   // A focus refresh with unchanged data must not discard menu/input focus.
   closeCollectionMenu();
   renderedCollections = signature;
-  element("collection-list").replaceChildren(...entries.map(entry => {
+  const buildItem = entry => {
     const item = document.createElement("li");
     item.className = "collection-item";
     if (editingId === entry.id) {
@@ -87,7 +94,14 @@ function renderCollections() {
     });
     item.append(row);
     return item;
-  }));
+  };
+  if (preserveRows) {
+    const input = document.querySelector("[data-rename-id]");
+    const entry = entries.find(item => item.id === input?.dataset.renameId);
+    if (entry) input.closest(".collection-item").replaceWith(buildItem(entry));
+    return;
+  }
+  element("collection-list").replaceChildren(...entries.map(buildItem));
 }
 
 function renameCollection(entry) {
