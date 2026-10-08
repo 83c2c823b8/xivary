@@ -30,10 +30,10 @@ account, project-owned backend, or analytics.
 - Compact **Follow** and **Following** controls beside authors on arXiv abstract pages.
 - A Following list and per-author paper feeds retrieved from arXiv's public Atom API.
 - Paper saving from arXiv pages and author feeds.
-- Named paper collections with inline creation, overflow-menu rename/delete, and membership controls.
+- Named paper collections with inline creation, double-click/F2 rename, context-menu deletion, and membership controls.
 - Optional Following collections with the same sidebar management and collection
   browsing. Enable **Settings → Following → Organize followed authors into
-  collections**; use each author's **Collections** picker to assign memberships.
+  collections**; use each author's folder-icon collection picker to assign memberships.
   To move, select the destination before clearing the source. Disabling organization
   preserves assignments. [Workflow and data rules](docs/following-collections.md).
 - Eight-second Undo for ordinary item/membership removals; confirmation for deleting

@@ -1,4 +1,4 @@
-import { collectionSidebarRow, closeCollectionMenu } from "../ui/collection-sidebar.js";
+import { collectionSidebarRow, closeCollectionMenu, updateSidebarSelection } from "../ui/collection-sidebar.js";
 import { bindCollectionRenameOutside } from "../ui/collection-rename.js";
 import { bindCollectionCreate } from "../ui/collection-create.js";
 import { confirmCollectionDeletion } from "../ui/confirm-collection.js";
@@ -14,6 +14,7 @@ let busy = false;
 let editingId = null;
 let loadRevision = 0;
 let renderedCollections;
+const paperRows = new Map();
 
 bindCollectionRenameOutside({
   getForm: () => document.querySelector("[data-rename-id]")?.closest("form"),
@@ -52,12 +53,23 @@ function render() {
   const query = element("filter").value.trim().toLowerCase();
   const inCollection = library.papers.filter(paper => !ids || ids.has(paper.arxivId));
   const visible = inCollection.filter(paper => [paper.title, ...paper.authors.map(author => author.displayName), ...(paper.categories || [])].join(" ").toLowerCase().includes(query));
-  element("papers").replaceChildren(...visible.map(paper => paperRow(paper, {
-    saved: true,
-    showAbstract: false,
-    openArxivLinksInNewTab: library.settings.openArxivLinksInNewTab,
-    onToggle: button => managePaper(paper, button),
-  })));
+  const nodes = visible.map(paper => {
+    const signature = JSON.stringify([paper, library.settings.openArxivLinksInNewTab]);
+    let cached = paperRows.get(paper.arxivId);
+    if (cached?.signature !== signature) {
+      cached = { signature, node: paperRow(paper, {
+        saved: true, showAbstract: false,
+        openArxivLinksInNewTab: library.settings.openArxivLinksInNewTab,
+        onToggle: button => managePaper(paper, button),
+      }) };
+      paperRows.set(paper.arxivId, cached);
+    }
+    return cached.node;
+  });
+  const existing = [...element("papers").children];
+  if (existing.length !== nodes.length || nodes.some((node, index) => node !== existing[index])) element("papers").replaceChildren(...nodes);
+  const live = new Set(library.papers.map(paper => paper.arxivId));
+  for (const id of paperRows.keys()) if (!live.has(id)) paperRows.delete(id);
   element("count").textContent = query && inCollection.length
     ? `${visible.length} of ${inCollection.length} papers`
     : `${inCollection.length} ${inCollection.length === 1 ? "paper" : "papers"}`;
@@ -79,7 +91,12 @@ function renderCollections(preserveRows = false) {
   if (signature === renderedCollections) return;
   // A focus refresh with unchanged data must not discard menu/input focus.
   closeCollectionMenu();
+  const previous = renderedCollections && JSON.parse(renderedCollections);
   renderedCollections = signature;
+  if (!editingId && previous?.[1] === null && JSON.stringify(previous[2]) === JSON.stringify(entries)) {
+    updateSidebarSelection(element("collection-list"), selected);
+    return;
+  }
   const buildItem = entry => {
     const item = document.createElement("li");
     item.className = "collection-item";
@@ -172,6 +189,5 @@ function setDisabled(value) { document.querySelectorAll("button,input").forEach(
 function setStatus(message, error = false) { element("status").textContent = message; element("status").classList.toggle("error", error); }
 
 function focusCollectionAction(id) {
-  document.querySelector(`[data-collection-id="${CSS.escape(id)}"]`)?.parentElement
-    ?.querySelector('.collection-menu-trigger')?.focus();
+  (document.querySelector(`[data-collection-id="${CSS.escape(id)}"]`) ?? element("collection-list").querySelector("[aria-current=page]"))?.focus();
 }

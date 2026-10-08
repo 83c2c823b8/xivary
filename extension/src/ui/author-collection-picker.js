@@ -1,3 +1,4 @@
+import { anchorPicker } from "./popover-position.js";
 import { showUndo } from "./undo.js";
 let closeCurrent = () => {};
 
@@ -40,16 +41,15 @@ export async function openAuthorCollectionPicker({ repository, author, anchor, o
   panel.append(heading, hint, status, choices, form);
   document.body.append(panel);
   anchor.setAttribute("aria-expanded", "true");
-  const rect = anchor.getBoundingClientRect();
-  panel.style.left = `${Math.max(8, Math.min(rect.left, innerWidth - 316))}px`;
-  panel.style.top = `${Math.max(8, Math.min(rect.bottom + 6, innerHeight - Math.min(360, innerHeight - 16)))}px`;
   panel.focus();
   let busy = false;
   let closed = false;
+  let stopPositioning = () => {};
 
   function close() {
     if (closed) return;
     closed = true;
+    stopPositioning();
     panel.remove();
     anchor.setAttribute("aria-expanded", "false");
     document.removeEventListener("pointerdown", outside);
@@ -111,6 +111,8 @@ export async function openAuthorCollectionPicker({ repository, author, anchor, o
     event.preventDefault();
     void change(async () => { await repository.createAuthorCollection(name.value, author); name.value = ""; });
   });
+  stopPositioning = anchorPicker(panel, anchor, close);
+  if (closed) { stopPositioning(); return; }
   try { await render(); }
   catch (error) { status.textContent = error.message; }
 }

@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { followingWorkflow, pickerVisualWorkflow, renameOutsideWorkflow } from "./following-workflow.mjs";
+import { followingWorkflow, pickerVisualWorkflow, pickerPositionWorkflow, authorPositionRowsWorkflow, renameOutsideWorkflow } from "./following-workflow.mjs";
 import { spawn, execFileSync } from "node:child_process";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { createServer as httpServer } from "node:http";
@@ -54,14 +54,17 @@ async function screenshot(name) {
   const data = await request('GET', `/session/${session}/screenshot`);
   await writeFile(join(screenshotDir, `firefox-${name}`), Buffer.from(data, 'base64'));
 }
-async function pickerClick(selector) {
+async function pickerClick(selector, {button='left',double=false}={}) {
   const element = await command('/element', {using:'css selector', value:selector});
   await command('/actions',{actions:[{type:'pointer',id:'mouse',parameters:{pointerType:'mouse'},actions:[{type:'pointerMove',origin:element,x:0,y:0,duration:0}]}]});
-  await command(`/element/${element['element-6066-11e4-a52e-4f735466cecf']}/click`);
+  if (button==='left'&&!double) await command(`/element/${element['element-6066-11e4-a52e-4f735466cecf']}/click`);
+  else await command('/actions',{actions:[{type:'pointer',id:'mouse',parameters:{pointerType:'mouse'},actions:Array.from({length:double?2:1},()=>[{type:'pointerDown',button:button==='right'?2:0},{type:'pointerUp',button:button==='right'?2:0}]).flat()}]});
 }
 async function pickerKey(key) {
-  const value={Tab:'\uE004',Escape:'\uE00C',Enter:'\uE007'}[key];
-  await command('/actions',{actions:[{type:'key',id:'keyboard',actions:[{type:'keyDown',value},{type:'keyUp',value}]}]});
+  if(key==='ContextMenu') {await evaluate("document.activeElement.dispatchEvent(new KeyboardEvent('keydown',{key:'ContextMenu',bubbles:true,cancelable:true}))");return;}
+  const shifted=key==='Shift+F10';
+  const value={Tab:'\uE004',Escape:'\uE00C',Enter:'\uE007',ArrowDown:'\uE015',ArrowUp:'\uE013',Home:'\uE011',End:'\uE010',F2:'\uE032',F10:'\uE03A',' ':' '}[shifted?'F10':key];
+  await command('/actions',{actions:[{type:'key',id:'keyboard',actions:[...(shifted?[{type:'keyDown',value:'\uE008'}]:[]),{type:'keyDown',value},{type:'keyUp',value},...(shifted?[{type:'keyUp',value:'\uE008'}]:[])]}]});
 }
 async function navigate(url) { await command("/url", { url }); }
 // Firefox WebDriver rejects direct moz-extension navigation. Enter through the
@@ -178,7 +181,7 @@ try {
   await renameOutsideWorkflow({evaluate:evaluateAsync, click:pickerClick, until, key:pickerKey});
   await pickerClick('.paper-row .bookmark');await until("document.querySelector('.arxiv-collection-picker input[type=checkbox]')");
   await pickerVisualWorkflow({evaluate:evaluateAsync,key:pickerKey,screenshot:name=>screenshot(`library-${name}`)});
-  await pickerClick('.collection-picker-heading button');
+  await pickerPositionWorkflow({evaluate:evaluateAsync,until,click:pickerClick,resize:(width,height)=>command('/window/rect',{width,height:height+100}),screenshot:name=>screenshot(`library-${name}`)});
   const stored = await evaluateAsync("import('../lib/storage.js').then(async ({ BrowserLocalStorage }) => new BrowserLocalStorage().read())");
   assert.equal(stored.schemaVersion, 5);
   assert.equal(stored.favorites.length, 1);
@@ -237,19 +240,11 @@ try {
     evaluate: evaluateAsync,
     until,
     reload: () => command("/refresh"),
-    click: async selector => {
-      const element = await command("/element", { using: "css selector", value: selector });
-      await command("/actions", { actions: [{ type: "pointer", id: "mouse", parameters: { pointerType: "mouse" }, actions: [
-        { type: "pointerMove", origin: element, x: 0, y: 0, duration: 0 },
-      ] }] });
-      await command(`/element/${element["element-6066-11e4-a52e-4f735466cecf"]}/click`);
-    },
-    key: key => command("/actions", { actions: [{ type: "key", id: "keyboard", actions: [
-      { type: "keyDown", value: {Enter:"\uE007",Escape:"\uE00C",ArrowDown:"\uE015",ArrowUp:"\uE013",Home:"\uE011",End:"\uE010",Tab:"\uE004"," ":" "}[key] },
-      { type: "keyUp", value: {Enter:"\uE007",Escape:"\uE00C",ArrowDown:"\uE015",ArrowUp:"\uE013",Home:"\uE011",End:"\uE010",Tab:"\uE004"," ":" "}[key] },
-    ] }] }),
+    click: pickerClick,
+    key: pickerKey,
   });
 
+  await authorPositionRowsWorkflow({evaluate:evaluateAsync,until,click:pickerClick,resize:(width,height)=>command('/window/rect',{width,height:height+100}),screenshot});
   await navigate("https://arxiv.org/abs/2401.00001");
   await until("document.querySelector('.authors .arxiv-library-button')?.getAttribute('aria-pressed') === 'true'");
   await evaluate("document.querySelector('.authors .arxiv-library-button').click()");

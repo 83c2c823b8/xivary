@@ -42,13 +42,15 @@ Enable Settings → Following → Organize followed authors into collections. Th
 Following sidebar offers All Following and each collection with an author count.
 Choose a collection to browse its members; empty collections remain selectable.
 `+ New collection` opens inline entry (Enter saves, Escape cancels). Use the
-always-accessible three-dot menu for Rename/Delete collection.
-Rename uses the same Enter/Escape pattern; Delete opens a Cancel/Delete dialog
+row context menu (right-click or Shift+F10) for Rename/Delete collection.
+Double-click or F2 also starts rename; single click still selects immediately.
+Rename saves on Enter; Escape or outside click cancels without saving. Delete opens
+a Cancel/Delete dialog
 explaining sole-membership unfollows. Escape/outside dismiss the menu; keyboard
 arrows navigate its actions and focus returns to the trigger after cancellation.
 Collection names retain the existing unique-name validation.
 
-Each author's Collections button opens the shared membership picker. Multiple
+Each author's folder-icon button opens the shared membership picker. Multiple
 checked collections are allowed. For a move, check the destination before clearing
 the source. The picker also creates a collection with that author assigned. Done,
 outside click and Escape close it. Unfollow still removes all memberships.

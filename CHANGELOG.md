@@ -2,8 +2,13 @@
 
 ## Unreleased — UI and Interaction Polish
 
+- Make Collection sidebars minimal: single-click selection, double-click/F2 rename,
+  right-click/keyboard Rename/Delete menus, and outside-click rename cancellation.
+- Anchor Collection pickers to their controls, flip/constrain at viewport edges,
+  and reposition on scroll, resize and content changes without losing input state.
+
 - Unify Library/Following sidebar icons, selected/hover surfaces and stable counts;
-  replace hover pencil/trash controls with accessible Rename/Delete overflow menus.
+  keep management actions in accessible Rename/Delete context menus.
 - Reduce header/list spacing, right-align filtered Library counts and provide Clear
   search for no matches. Lighten the Library saved-bookmark surface.
 - Compact the existing toolbar popup to 300 × 159px while retaining counts, routes,

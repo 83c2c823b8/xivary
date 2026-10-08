@@ -153,7 +153,8 @@ export async function polishSmoke() {
       await chrome.until(session, "document.querySelector('#create-form').hidden && !document.querySelector('#show-create').disabled");
       const created = (await snapshot()).collections.filter(item => item.name === "Polish collection"); assert.equal(created.length, 1);
       const action = async () => {
-        await chrome.click(session, `[data-collection-id=${JSON.stringify(created[0].id)}] + .collection-actions .collection-menu-trigger`);
+        await chrome.evaluate(session, `document.querySelector('[data-collection-id="${created[0].id}"]').focus()`);
+        for (const type of ['keyDown','keyUp']) await chrome.send('Input.dispatchKeyEvent',{type,key:'F10',windowsVirtualKeyCode:121,modifiers:8},session);
         await chrome.click(session, '.collection-menu [data-action=delete]');
       };
       await action();

@@ -120,7 +120,13 @@ presentation and the existing collection picker. Do not change deletion/Undo dat
 Follow `docs/UI_DESIGN.md` for implemented compact UI conventions and
 `docs/DESIGN_PRINCIPLES.md` for reusable principles. Library/Following share the
 sidebar presentation helper: retain aggregate vs folder icons, stable counts and
-always-accessible overflow triggers. Collection menus do not select rows; retain
+focusable rows with double-click/F2 rename and right-click/Shift+F10/Context Menu
+actions; no visible management icons. Collection menus do not select rows; retain
 keyboard/outside dismissal, focus return and existing deletion confirmation.
 The actual toolbar popup is 300px wide; retain native geometry coverage and
 launcher semantics. Inspect rendered screenshots alongside behavior tests.
+
+Collection pickers share trigger-anchored viewport positioning: prefer below, flip
+above or constrain to available space, clamp horizontally, and update on scroll,
+resize and content changes without losing input state. Close when the trigger is
+removed and clean up observers/listeners; preserve membership and Undo semantics.

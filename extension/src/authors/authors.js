@@ -1,4 +1,4 @@
-import { collectionSidebarRow, closeCollectionMenu } from "../ui/collection-sidebar.js";
+import { collectionSidebarRow, closeCollectionMenu, updateSidebarSelection } from "../ui/collection-sidebar.js";
 import { setFollowButton } from "../ui/follow-button.js";
 import { setCollectionButton } from "../ui/collection-button.js";
 import { bindCollectionRenameOutside } from "../ui/collection-rename.js";
@@ -137,7 +137,12 @@ function renderCollections(preserveRows = false) {
   if (signature === renderedCollections) return;
   // A focus refresh with unchanged data must not discard menu/input focus.
   closeCollectionMenu();
+  const previous = renderedCollections && JSON.parse(renderedCollections);
   renderedCollections = signature;
+  if (!editingId && previous?.[1] === null && JSON.stringify(previous[2]) === JSON.stringify(entries)) {
+    updateSidebarSelection(element("collection-list"), selected);
+    return;
+  }
   const buildItem = entry => {
     const item = document.createElement("li");
     item.className = "collection-item";
@@ -225,6 +230,6 @@ function setDisabled(value) { document.querySelectorAll("main button,main input"
 function setStatus(message, error = false) { element("status").textContent = message; element("status").classList.toggle("error", error); }
 
 function focusCollectionAction(id) {
-  document.querySelector(`[data-collection-id="${CSS.escape(id)}"]`)?.parentElement
-    ?.querySelector('.collection-menu-trigger')?.focus();
+  const button = document.querySelector(`[data-collection-id="${CSS.escape(id)}"]`);
+  if (button) button.focus(); else focusSelection();
 }

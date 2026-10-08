@@ -31,9 +31,11 @@ lives in `ui/collection-sidebar.css`. No shared storage model is introduced.
 - Aggregate All Saved uses a bookmark icon; All Following uses a users icon.
   Real collections use folders. All views have a small gap before the collections.
 - Collection names lead; 14px tabular counts remain visible in a separate column.
-  A reserved 36px menu column prevents count displacement or layout shift.
-- The subdued three-dot button is always available, including keyboard and touch.
-  Hover/open state emphasizes it. It is a separate button, not part of row selection.
+  Counts stay right-aligned; no management icon or reserved action column appears.
+- Each row is a semantic button with visible keyboard focus. Single click or
+  Enter/Space selects immediately; double-click or F2 starts inline rename.
+  Right-click, Shift+F10 or the Context Menu key opens collection actions without
+  selecting. Aggregate rows have no rename or context-menu behavior.
 - A subtle divider precedes the plus-icon New collection control.
 
 ### Aggregate and default collection identities
@@ -59,14 +61,16 @@ The fixed, viewport-clamped management menu is at most 196px wide, has 8px corne
 areas. Rename is neutral; Delete collection uses restrained red text. Neither
 selects the collection. Delete opens the existing confirmation dialog.
 
-Enter/Space on the trigger opens it; Down opens at Rename and Up at Delete.
+Pointer menus open beside the click, clamped to an 8px viewport margin. Keyboard
+menus open below the focused collection row and initially focus Rename.
 Up/Down wrap, Home/End select the first/last action. Enter/Space activates native
 buttons. Escape closes and restores trigger focus. Tab closes and continues native
 navigation from the trigger. Outside pointer, scrolling and resizing dismiss the
 menu. Outside dismissal does not steal focus from the newly clicked control.
 Unchanged focus refresh preserves the menu and inline input instead of rebuilding
 them. Rename completion/cancellation and dialog cancellation return to the recreated
-trigger. Removed triggers fall back to existing collection/navigation focus rules.
+row. Removed rows fall back to existing collection/navigation focus rules.
+Rename preselects the current name; text inputs retain their native context menus.
 
 New collection opens focused inline entry. Enter submits a nonempty valid name;
 whitespace-only Enter cancels. Escape and outside click cancel, including typed
@@ -103,8 +107,21 @@ Whole-collection deletion requires the existing native modal confirmation with t
 actual sole-membership consequence. Cancel is initially focused; Escape cancels
 when not busy. Confirmation is guarded, errors stay visible, and focus returns.
 No persistent history, deletion semantics or Undo duration changes are implied.
-Membership pickers retain their viewport-clamped dialog surfaces, native checkboxes,
-Done/Escape/outside dismissal and focus restoration.
+Membership pickers retain their dialog surfaces, native checkbox semantics,
+Done/Escape/outside dismissal and focus restoration. `ui/popover-position.js`
+anchors them to the actual button with a 7px gap and 8px viewport margins.
+Right-side triggers prefer right-edge alignment; left-side triggers prefer left.
+The picker prefers below, flips above when it fits, or uses the larger available
+side with a constrained height. Width remains 300px (bounded by the viewport),
+natural height is capped at 360px; one scrollable surface keeps Done and creation
+controls reachable without nested scrolling. Long names wrap.
+
+Resize, captured container/page scroll, and observed layout/content changes
+coalesce into one animation-frame update. Positioning preserves input focus,
+values and scroll position; closing disconnects observers/listeners. Removing the
+trigger closes the picker. In a filtered collection this can follow membership
+removal; the existing Undo action remains available. Context menus instead dismiss
+on scroll/resize, since their pointer location no longer describes a stable anchor.
 Both paper and author pickers share `ui/author-collection-picker.css`. The semantic
 checkbox inputs use a small CSS appearance treatment: 17px squares, 4px corners,
 white unchecked surfaces with neutral borders, and `#555b63` checked surfaces with
@@ -124,6 +141,30 @@ one-click selection and navigation without rename writes. Reproduce images with
 `following-picker-checkbox-focus.png` and Firefox-prefixed equivalents. Physical
 touch, screen readers, platform high-contrast themes and store-installed rendering
 remain manual checks; fixture screenshots do not verify every browser environment.
+
+### Minimal sidebar and anchored picker verification
+
+The current refinement passes 165/165 Node tests, Chromium 154 smoke/interaction
+checks, Firefox 157 smoke, native release-transfer/Chrome Sync lifecycle checks,
+and both 72-file packages. Screenshots were captured and inspected for minimal
+rows, selected rename text, context menus at left/right/bottom edges, deletion
+confirmation, first/middle/last author pickers, above/below placement, narrow
+constrained scrolling, creation/validation and scroll reanchoring. Viewport clamps
+exclude scrollbars so edge menus stay fully visible. Existing desktop/narrow
+Library geometry and popup interaction coverage remain intact.
+
+Reproduce with `ARXIV_SCREENSHOT_DIR` on the browser commands. Representative files:
+`library.png`, `library-collection-menu-right.png`, `library-collection-rename.png`,
+`library-picker-narrow-constrained.png`, `following-picker-author-last.png`, and
+Firefox-prefixed equivalents. Edge checks temporarily reposition real controls in
+the test profile; screenshots are fixture evidence, not live/store-wide validation.
+Chromium exercises 360px constrained pickers; Firefox's native window minimum is
+wider. F2, Shift+F10, right-click and double-click use native browser input in both
+suites. Firefox's Context Menu key handler uses a dispatched event because WebDriver
+has no corresponding key code; physical-key verification remains manual. Screen
+readers, physical touch and minimum-version/store rendering also remain manual.
+No collection identities, data semantics, schemas, Sync boundaries, portable
+formats, permissions or version were changed.
 
 ## Library filtering
 

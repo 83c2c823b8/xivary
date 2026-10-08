@@ -8,7 +8,7 @@
 .collection-list { list-style: none; margin: 0; padding: 0; }
 .collection-list li + li { margin-top: 2px; }
 .collection-list li:first-child { margin-bottom: 8px; }
-.collection-row { display: grid; grid-template-columns: minmax(0, 1fr) 36px; align-items: center; min-height: 44px; padding-right: 4px; border-radius: 8px; }
+.collection-row { display: grid; grid-template-columns: minmax(0, 1fr); align-items: center; min-height: 44px; border-radius: 8px; }
 .collection-row:hover { background: #f5f6f7; }
 .collection-row.selected { background: #e8eaed; }
 .collection-link { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: center; width: 100%; min-height: 44px; padding: 9px 10px; border-color: transparent; border-radius: 8px; background: transparent; text-align: left; }
@@ -19,10 +19,6 @@
 .collection-name svg, .quiet-action svg, .collection-menu svg { width: 18px; height: 18px; flex: none; fill: none; stroke: var(--muted); stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
 .collection-list > li:first-child .collection-link { font-weight: 600; }
 .collection-count { color: var(--muted); font-size: 14px; font-weight: 400; text-align: right; font-variant-numeric: tabular-nums; }
-.collection-actions { display: flex; }
-.icon-button { display: inline-grid; place-items: center; width: 36px; min-height: 36px; padding: 8px; border-color: transparent; background: transparent; color: #74797f; }
-.icon-button:hover, .icon-button[aria-expanded="true"] { border-color: transparent; background: #dfe2e6; color: var(--text); }
-.icon-button svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
 .collection-menu { position: fixed; z-index: 20; width: min(196px, calc(100vw - 16px)); padding: 4px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); box-shadow: 0 2px 8px rgb(32 33 36 / 12%); }
 .collection-menu button { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 36px; padding: 6px 10px; border-color: transparent; background: transparent; text-align: left; font-size: 14px; }
 .collection-menu button:hover, .collection-menu button:focus-visible { background: #f1f3f4; border-color: transparent; }

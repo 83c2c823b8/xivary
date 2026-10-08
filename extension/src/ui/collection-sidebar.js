@@ -1,9 +1,9 @@
+import { pointerPosition } from "./popover-position.js";
 // Presentation only: each page keeps its existing selection and repository operations.
 const icons = {
   folder: '<path d="M3 7V5h6l2 2h10v13H3Z"/>',
   papers: '<path d="M6 3h12v18l-6-4-6 4Z"/>',
   authors: '<circle cx="10" cy="8" r="4"/><path d="M3 21v-2a7 7 0 0 1 14 0v2M17 4a4 4 0 0 1 0 8m3 9v-2a7 7 0 0 0-2-5"/>',
-  more: '<circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/>',
   rename: '<path d="m4 16-.75 4.75L8 20l10.4-10.4a2.1 2.1 0 0 0-3-3L5 17Z"/><path d="m14.5 7.5 3 3"/>',
   delete: '<path d="M4 7h16M9 3h6l1 4H8l1-4Zm-3 4 1 14h10l1-14M10 11v6m4-6v6"/>',
 };
@@ -34,26 +34,27 @@ export function collectionSidebarRow(entry, { selected, aggregateIcon, select, r
   button.addEventListener('click', () => { closeCollectionMenu(); select(); });
   row.append(button);
   if (entry.id) {
-    const actions = document.createElement('div'); actions.className = 'collection-actions';
-    const more = document.createElement('button'); more.type = 'button'; more.className = 'icon-button collection-menu-trigger';
-    more.dataset.action = 'menu'; more.append(icon('more'));
-    more.setAttribute('aria-label', `Manage ${entry.name}`); more.title = `Manage ${entry.name}`;
-    more.setAttribute('aria-haspopup', 'menu'); more.setAttribute('aria-expanded', 'false');
-    more.addEventListener('click', () => {
-      if (more.getAttribute('aria-expanded') === 'true') closeCollectionMenu();
-      else openMenu(more, entry, rename, remove);
+    button.setAttribute('aria-haspopup', 'menu');
+    button.setAttribute('aria-expanded', 'false');
+    button.setAttribute('aria-keyshortcuts', 'F2 Shift+F10');
+    button.setAttribute('aria-description', 'Double-click or F2 to rename; right-click or Shift+F10 for collection actions.');
+    button.addEventListener('dblclick', event => { if (button.disabled) return; event.preventDefault(); closeCollectionMenu(); rename(); });
+    button.addEventListener('contextmenu', event => {
+      if (button.disabled) return;
+      event.preventDefault(); openMenu(button, entry, rename, remove, { x: event.clientX, y: event.clientY });
     });
-    more.addEventListener('keydown', event => {
-      if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
-        event.preventDefault(); openMenu(more, entry, rename, remove, event.key === 'ArrowUp');
+    button.addEventListener('keydown', event => {
+      if (button.disabled || event.target !== button) return;
+      if (event.key === 'F2') { event.preventDefault(); closeCollectionMenu(); rename(); }
+      else if (event.key === 'ContextMenu' || (event.key === 'F10' && event.shiftKey)) {
+        event.preventDefault(); openMenu(button, entry, rename, remove);
       }
     });
-    actions.append(more); row.append(actions);
   }
   return row;
 }
 
-function openMenu(anchor, entry, rename, remove, last = false) {
+function openMenu(anchor, entry, rename, remove, point) {
   closeCollectionMenu();
   const menu = document.createElement('div'); menu.className = 'collection-menu'; menu.setAttribute('role', 'menu');
   menu.setAttribute('aria-label', `Manage ${entry.name}`);
@@ -89,11 +90,21 @@ function openMenu(anchor, entry, rename, remove, last = false) {
   document.body.append(menu);
   const rect = anchor.getBoundingClientRect();
   const bounds = menu.getBoundingClientRect();
-  menu.style.left = `${Math.max(8, Math.min(rect.right - bounds.width, window.innerWidth - bounds.width - 8))}px`;
-  menu.style.top = `${Math.max(8, Math.min(rect.bottom + 4, window.innerHeight - bounds.height - 8))}px`;
+  const position = pointerPosition({ x: point?.x ?? rect.left, y: point?.y ?? rect.bottom + 7,
+    width: bounds.width, height: bounds.height, viewportWidth: document.documentElement.clientWidth, viewportHeight: document.documentElement.clientHeight });
+  menu.style.left = `${position.left}px`; menu.style.top = `${position.top}px`;
   anchor.setAttribute('aria-expanded', 'true');
   activeMenu = dismiss;
   document.addEventListener('pointerdown', outside, true);
   window.addEventListener('resize', dismiss); window.addEventListener('scroll', dismiss, true);
-  items[last ? items.length - 1 : 0].focus();
+  items[0].focus();
+}
+
+/** Retain focused/clicked row identity through selection, including native dblclick. */
+export function updateSidebarSelection(list, selected) {
+  for (const button of list.querySelectorAll('.collection-link')) {
+    const active = button.dataset.collectionId === selected;
+    button.closest('.collection-row').classList.toggle('selected', active);
+    if (active) button.setAttribute('aria-current', 'page'); else button.removeAttribute('aria-current');
+  }
 }

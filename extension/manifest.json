@@ -40,6 +40,7 @@
       "src/content/author-link.js",
       "src/content/extract-paper.js",
       "src/ui/paper-collection-picker.js",
+      "src/ui/popover-position.js",
       "src/ui/author-collection-picker.js",
       "src/ui/undo.js",
       "src/ui/follow-button.js",
