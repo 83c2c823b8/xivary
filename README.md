@@ -38,7 +38,7 @@ account, project-owned backend, or analytics.
   preserves assignments. [Workflow and data rules](docs/following-collections.md).
 - Eight-second Undo for ordinary item/membership removals; confirmation for deleting
   an entire collection, including sole-membership consequences.
-- Local text filtering of saved papers and author feeds, with preset and custom date ranges on author feeds.
+- Local text filtering of saved papers and author feeds, with rolling time presets and inclusive custom year ranges on author feeds.
 - A compact popup for opening Library and Following and viewing their counts.
   **Settings → General → Open Xivary from toolbar launcher in a new tab** defaults
   to enabled. Disable it to replace the active tab when choosing a popup row;

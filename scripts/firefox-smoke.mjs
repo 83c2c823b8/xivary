@@ -1,3 +1,4 @@
+import { authorFilterWorkflow, authorHeaderWorkflow } from './author-filter-workflow.mjs';
 import assert from "node:assert/strict";
 import { followingWorkflow, pickerVisualWorkflow, pickerPositionWorkflow, authorPositionRowsWorkflow, renameOutsideWorkflow } from "./following-workflow.mjs";
 import { spawn, execFileSync } from "node:child_process";
@@ -168,6 +169,8 @@ try {
 
   await screenshot("arxiv-title-saved.png");
   await openAuthorFromArxiv();
+  await authorFilterWorkflow({evaluate:evaluateAsync,click:pickerClick,key:pickerKey,until,resize:(width,height)=>command('/window/rect',{width,height:height+100}),screenshot});
+  await authorHeaderWorkflow({evaluate:evaluateAsync,click:pickerClick,until,resize:(width,height)=>command('/window/rect',{width,height:height+100}),screenshot});
   await navigateExtension("popup/popup.html");
   await until("document.querySelector('#saved-count')?.textContent === '1' && document.querySelector('#following-count')?.textContent === '1'");
   assert.equal(await evaluate("(()=>{const root=getComputedStyle(document.documentElement),body=getComputedStyle(document.body);return document.body.getBoundingClientRect().width===300&&root.borderRadius==='12px'&&body.borderRadius==='12px'&&root.overflow==='hidden'&&body.overflow==='hidden'&&getComputedStyle(document.querySelector('nav button')).borderRadius==='8px'&&document.documentElement.scrollWidth===document.documentElement.clientWidth})()"),true);

@@ -2,6 +2,11 @@
 
 ## Unreleased — UI and Interaction Polish
 
+- Polish Author Results with a query-preserving search toggle, neutral keyboard
+  time menu, explicit inclusive year-range Apply/Clear controls, compact header
+  Collection icon and responsive toolbar. Rolling presets and data contracts stay
+  unchanged; custom ranges remain open-ended where an endpoint is blank.
+
 - Make Collection sidebars minimal: single-click selection, double-click/F2 rename,
   right-click/keyboard Rename/Delete menus, and outside-click rename cancellation.
 - Anchor Collection pickers to their controls, flip/constrain at viewport edges,

@@ -90,7 +90,7 @@ Compact repeated Following controls retain their 30px height and text label.
 Following rows use an always-visible 34px square, muted folder-only membership
 trigger with 7px corners, a neutral hover surface and visible keyboard focus. Its
 accessible name is Manage collections for [author], with a Manage collections
-tooltip. Author-heading collection triggers retain folder + label + chevron.
+tooltip. Author-heading collection triggers use the same 34px folder-only design.
 The shared Follow presentation remains dark + Follow or gray checkmark Following,
 with an Unfollow accessible action name and tooltip. Never communicate an important action by hover
 alone. Keep arXiv and author-heading Follow styling consistent.
@@ -165,6 +165,71 @@ has no corresponding key code; physical-key verification remains manual. Screen
 readers, physical touch and minimum-version/store rendering also remain manual.
 No collection identities, data semantics, schemas, Sync boundaries, portable
 formats, permissions or version were changed.
+
+## Author Results filtering and toolbar
+
+The toolbar keeps Refresh, Open on arXiv and Search as 38px icon controls, with
+18px line icons and 7px corners. The time trigger remains available when search
+is closed. The 38px search input has 8px corners and shares control typography;
+count sits at the right, while the Updated timestamp is a secondary 12px line
+below. Empty status regions reserve no space; year headings begin 10px above their
+lists. On narrow windows icons retain their compact widths, search wraps to its
+own full-width row, and year controls wrap without horizontal overflow.
+
+Search is a visibility toggle, independent of its query. Opening focuses the
+input; clicking again or Escape in the input closes it without clearing filters.
+An empty search closes on outside click, after the intended click activates to
+avoid moving the time trigger during pointerdown. Nonempty queries stay open on
+outside click. A subtle neutral active surface/dot and accessible tooltip identify
+hidden text filters. Clearing text removes only text filtering. `/` opens search
+outside editing controls; Escape in other menus/forms does not close it.
+
+The time menu preserves Any time, Past year, Past 3 years and Custom…; its neutral
+180px surface uses 9px corners, 36px items, a selected checkmark and light-gray
+selection. Semantic menu/menuitemradio roles expose selection. Arrow keys wrap,
+Home/End choose endpoints, Enter/Space select, and Escape restores trigger focus
+without changing selection. Tab dismisses and continues from the trigger; outside
+pointer dismisses without stealing focus. Shared viewport positioning anchors the
+menu with a 7px gap and 8px margins, excluding scrollbars.
+
+Custom uses From year/To year text inputs: 96px wide, 38px high, 8px corners,
+numeric input hints and no calendars/spinners. Apply accepts four ASCII digits
+from 1000 through 9999; blank endpoints remain open-ended. From must not exceed To.
+Malformed/partial/reversed drafts leave the last applied filter unchanged and show
+concise feedback only on Apply. Valid endpoints are inclusive local-calendar years:
+2020–2026 means local 2020-01-01 through, but excluding, local 2027-01-01. This
+preserves the former custom filter's timezone convention and `publishedAt` source;
+missing/invalid dates remain excluded by bounded filters. Past year/Past 3 years
+remain rolling `setFullYear` intervals, not calendar-year buckets.
+
+Choosing Custom reveals the editor without replacing a preset until Apply; the
+trigger still names the applied preset and feedback explains the pending edit.
+Switching to presets hides the editor, retaining the last valid years for reuse.
+Clear range returns to Any time without clearing text search. Filter state stays
+in memory across result refreshes; page reload starts unfiltered, as before. No
+new persistence or migration is introduced. Author headings retain text-labeled
+Follow/Following plus the conditional folder-only membership trigger, existing
+picker positioning, final-membership disclosure and eight-second Undo.
+
+### Author Results verification
+
+168/168 Node tests, Chromium 154 smoke/interaction checks, Firefox 157 smoke,
+release-transfer/Chrome Sync lifecycle checks and both 73-file packages pass.
+Inspected screenshots cover closed/empty/query search, no matches, neutral time
+selection and keyboard focus, valid/invalid years, 360px Chromium layouts, long
+names and the header membership picker. Native browser input tests verify search
+cancellation without query loss, menu selection/dismissal/focus, Apply validation,
+open-ended years, preset transitions, membership edits and existing Unfollow/Undo.
+Filter changes issue no extra arXiv requests in the Chromium fixture workflow.
+
+Reproduce with `ARXIV_SCREENSHOT_DIR` on the browser commands; examples include
+`author-search-query.png`, `author-time-menu-focus.png`, `author-custom-years.png`,
+`author-invalid-years.png`, `author-years-narrow.png`, `author-header-picker.png`
+and Firefox-prefixed equivalents. Firefox's minimum native window width is wider
+than Chromium's 360px fixture. These are rendered extension/fixture checks, not
+store-installed or minimum-version evidence. Physical touch, screen readers and
+platform-specific rendering remain manual release checks. No new persistent
+filter state, permissions or version changes are implied.
 
 ## Library filtering
 

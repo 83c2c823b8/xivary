@@ -1,3 +1,4 @@
+import { authorFilters } from './author-filters.js';
 import { setCollectionButton } from "../ui/collection-button.js";
 import { setFollowButton } from "../ui/follow-button.js";
 import { showUndo } from "../ui/undo.js";
@@ -23,6 +24,7 @@ let followed = false;
 let followBusy = false;
 let requestBusy = false;
 let feedPhase = "loading";
+const filters = authorFilters(renderFiltered);
 
 element("follow-author").addEventListener("click", () => void toggleFollow());
 element("author-collections").addEventListener("click", () => void openAuthorCollectionPicker({
@@ -32,7 +34,7 @@ element("author-collections").addEventListener("click", () => void openAuthorCol
 function renderFollowing(library) {
   followed = library.memberships.some(item => item.authorId === author.id);
   setFollowButton(element("follow-author"), followed, author.displayName);
-  setCollectionButton(element("author-collections"), author.displayName);
+  setCollectionButton(element("author-collections"), author.displayName, { iconOnly: true });
   element("follow-author").disabled = followBusy;
   element("author-collections").hidden = !followed || !library.settings.organizeFollowedAuthorsIntoCollections;
   element("author-collections").disabled = followBusy;
@@ -57,23 +59,6 @@ async function toggleFollow() {
 }
 
 element("refresh").addEventListener("click", () => void refresh(true));
-element("show-filters").addEventListener("click", openFilters);
-element("paper-query").addEventListener("input", renderFiltered);
-element("date-range").addEventListener("change", () => {
-  element("custom-dates").hidden = element("date-range").value !== "custom";
-  renderFiltered();
-});
-element("date-from").addEventListener("input", renderFiltered);
-element("date-to").addEventListener("input", renderFiltered);
-document.addEventListener("keydown", event => {
-  if (event.key === "/" && !event.ctrlKey && !event.metaKey && !event.altKey && !isEditing(event.target)) {
-    event.preventDefault();
-    openFilters();
-  } else if (event.key === "Escape" && !element("filters").hidden) {
-    event.preventDefault();
-    closeFilters();
-  }
-});
 void init();
 window.addEventListener("focus", () => void refreshLocalState());
 
@@ -146,14 +131,9 @@ function render(papers, fetchedAt) {
 }
 
 function renderFiltered() {
-  const filters = {
-    query: element("paper-query").value,
-    range: element("date-range").value,
-    from: element("date-from").value,
-    to: element("date-to").value,
-  };
-  const active = Boolean(filters.query.trim()) || filters.range !== "any";
-  const papers = filterAuthorPapers(loadedPapers, filters);
+  const values = filters.values();
+  const active = Boolean(values.query.trim()) || values.range !== "any";
+  const papers = filterAuthorPapers(loadedPapers, values);
   element("updated").textContent = loadedAt ? `Updated ${new Date(loadedAt).toLocaleString()}` : "";
   element("filter-count").textContent = active ? `${papers.length} ${papers.length === 1 ? "paper" : "papers"}` : "";
   const groups = new Map();
@@ -211,29 +191,6 @@ async function syncBookmark(paper, button) {
   localStateRevision++;
   setBookmarkState(button, savedIds.has(paper.arxivId), paper.title);
   setStatus(savedIds.has(paper.arxivId) ? "Paper collections updated." : "Paper removed from the library.");
-}
-
-function openFilters() {
-  element("filters").hidden = false;
-  element("show-filters").setAttribute("aria-expanded", "true");
-  element("paper-query").focus();
-}
-
-function closeFilters() {
-  element("filters").hidden = true;
-  element("show-filters").setAttribute("aria-expanded", "false");
-  element("paper-query").value = "";
-  element("date-range").value = "any";
-  element("date-from").value = "";
-  element("date-to").value = "";
-  element("custom-dates").hidden = true;
-  renderFiltered();
-  element("show-filters").focus();
-}
-
-function isEditing(target) {
-  return target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement
-    || target instanceof HTMLSelectElement || target?.isContentEditable;
 }
 
 function setStatus(message, error = false) {
