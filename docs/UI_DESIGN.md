@@ -117,6 +117,21 @@ corners; total normal height is 159px. Icons are 21px subdued line icons, labels
 15px semibold, counts right aligned and tabular. Neutral hover and blue focus
 outlines do not move content. There is no additional Settings row.
 
+Popup content uses a coordinated **12px** radius on `html` and `body`, hidden
+overflow, a transparent root canvas and white body. The clipped header surface is
+`#fafbfc`, with a subtle `#e8eaed` divider and a transparent Settings button surface.
+No wrapper border, extra padding, masking or application shadow is added.
+
+**Native boundary limitation:** before/after screenshots of the actual headed
+Chrome 154 popup on Linux/X11 confirm that its browser-owned backing surface and
+shadow remain rectangular. The 12px radius softens/clips application content;
+it does **not** produce genuinely rounded native outer corners in this environment.
+Do not infer native window rounding from computed CSS or a content-only screenshot.
+Normal, hover and native Tab focus states were inspected without clipping, layout
+shifts or scrollbars; the popup remains 300 × 159 CSS pixels. Other browser-native
+window shapes are platform-dependent and must be checked separately. Firefox's
+extension-page rendering is covered; its actual toolbar widget remains unverified.
+
 The icon opens the popup. Library/Following retain their routes and the existing
 new/current-tab preference, duplicate guards and conservative restricted-tab
 fallback. Settings retains openOptionsPage. Counts remain local, not synced.
