@@ -1,4 +1,122 @@
-# Xivary 0.2.0 release record
+# Xivary release records
+
+## v0.3.0 release preparation
+
+Prepared from clean `master` at `625b66c671877f14424f3f07eb0bf9ad8537933d`
+(10 commits ahead of origin). Baseline: **170/170 Node tests pass**.
+Only product version metadata, its manifest assertion and release documentation
+change in this milestone. `package.json` and the shared manifest now declare
+**0.3.0**; Firefox derives that version without a separately maintained manifest.
+The version bump does not change local schema **5**, migrations, Sync **v1**,
+portable **v2** or application code. Older portable v1/unscoped v2 files remain
+supported. Four designated preferences synchronize; all library data stays local.
+Legacy remote library records remain inert and untouched. Browser permissions and
+Firefox add-on ID `xivary@arxiv-tool` are unchanged from the preceding source.
+
+The [0.3.0 changelog](../CHANGELOG.md) is the concise store-facing summary.
+It reflects Git history: shared Library/Author Results publication filters,
+query-preserving search, contextual Follow/Collection actions, eight-second Undo,
+compact popup and launcher preference, sidebar keyboard/context menus, anchored
+pickers, search-page author navigation and quiet content-context recovery.
+Settings gears and compatible manual transfer are retained existing features.
+
+### Final verification
+
+All required commit gates passed on this release tree:
+
+| Check | Result / evidence |
+| --- | --- |
+| `npm test` | **170/170**, zero failed/skipped; migrations, portable compatibility, settings-only Sync simulations and UI/domain regressions |
+| `npm run test:browser` | **PASS**, Chrome 154.0.8037.57; smoke plus interaction suite, including native author link/Undo/keyboard and Library/Author Results filters |
+| `npm run test:firefox` | **PASS**, Firefox 157; generated extension, local-only persistence, filters, Following/Undo, pickers and keyboard workflows |
+| `npm run test:release` | **PASS**; native All/collection file transfers, invalid/Cancel/isolation, actual preference storage events, real alarm/worker recovery, reload and full profile restart |
+| Both packaging commands / manifest tests | **PASS**, matched 0.3.0, 76 files each; only generated platform manifests differ |
+| Full release diff / `git diff --check` | **PASS**; runtime code, storage and permissions untouched; artifacts ignored |
+
+Inspected current rendered `library.png`, `author-custom-years.png`,
+`firefox-library-date-invalid.png`, `library-date-narrow.png`,
+`following-collections.png` and actual Chrome `popup.png`. Desktop and 360px Chrome
+layouts remain compact; Firefox uses its native minimum window width. Capture
+via `ARXIV_SCREENSHOT_DIR` on browser commands. Browser evidence uses dedicated
+profiles and fixtures; Sync peers are simulated, with real native events/lifecycle.
+No live-network suite was rerun: current live arXiv/API availability is not asserted.
+
+### Upgrade compatibility and remaining manual checks
+
+Automated migration/legacy-record tests preserve favorites, author metadata,
+Collection IDs and memberships, including repeated migration and restart.
+Browser suites verify Collection/text/date composition, Author Results filters,
+Following/Undo, keyboard dismissal/focus and native author-link behavior. The
+release suite compares retained local metadata/memberships/caches/preferences
+across extension reload and full profile restart, tests native portable transfer
+and settings-only Sync events/recovery. Application files remain byte-identical
+to the preceding tested 0.2.0 development HEAD; only manifest version changes.
+
+**Not tested:** an actual Chrome Web Store-installed 0.2.0→0.3.0 update, a signed
+Firefox upgrade, or a byte comparison against the published store binary (not
+supplied). Reload/restart and schema simulations are not signed-update evidence.
+Before publication, use dedicated test profiles with the actual preceding build:
+record/export both categories, update the same extension identity without
+uninstalling/resetting, then compare records, counts, Collection IDs/memberships
+and preferences after reload/restart. Export is a precaution; an upgrade must not
+require import to retain data. Check open arXiv tabs' reload hint after updating.
+
+Also complete the existing [manual release checklist](#release-assessment):
+same-account preference delivery (including local-data isolation), minimum Chrome
+102/Firefox 140, native Firefox toolbar/transfer surfaces, Cmd/context-menu/copy,
+screen readers, physical touch and platform-native rendering. Firefox's native
+minimum window width prevents the Chromium 360px layout check. No account
+propagation, store rendering or signed-update result is inferred from automation.
+
+### Release artifacts and manual submission
+
+Build with `npm run package` and `npm run package:firefox`; inspect with
+`unzip -l`, `unzip -p <archive> manifest.json` and `sha256sum`.
+Artifacts are ignored, unsigned ZIPs with `manifest.json` at the root:
+
+- Chrome: `dist/xivary-0.3.0-chromium.zip`.
+- Firefox: `dist/xivary-0.3.0-firefox.zip`.
+
+No development files, test fixtures, repository metadata, credentials or source
+maps are included. Both packages contain 76 files; only manifests differ.
+Package hashes below identify this run's artifacts; rebuilding may change ZIP
+metadata/hashes.
+
+| Browser | Files | Bytes | SHA-256 |
+| --- | --- | --- | --- |
+| Chromium | 76 | 221437 | `223c184f4846b31d237bb43c42a8b36279f82e902557dbaec21eea8ba99a2079` |
+| Firefox | 76 | 221504 | `987db962ce98aef88cb5fcd936feb6ff592450e30bbd4753a7fc1436ca04fb40` |
+
+
+1. Complete the manual checks above and retain the preceding version and portable
+   backups in the dedicated test profiles. Do not uninstall to test an update.
+2. For Chrome, open the **existing Xivary item** in the developer dashboard, select
+   **Package → Upload New Package**, upload the Chromium ZIP, verify version 0.3.0,
+   and review listing/privacy/distribution details against README and PRIVACY.md.
+   Paste the concise changelog, submit for review and use deferred publication if
+   you want to control publication after approval. Do not create a replacement item.
+   If your account already requires Verified CRX Uploads, apply its existing signing
+   procedure manually; this run neither creates keys nor supplies a signed CRX.
+   See [Chrome's update procedure](https://developer.chrome.com/docs/webstore/update).
+3. For Firefox, use the existing AMO add-on's upload-new-version flow if registered;
+   otherwise submit a new listed add-on. Upload the Firefox ZIP, retain its existing
+   Gecko ID, review validator findings, provide release notes/privacy/support and
+   accurate reviewer/source details, then submit manually. Resolve validator errors
+   before distribution; obtain Mozilla's signed artifact. This ZIP is not signed
+   and is not a normal release-Firefox installation package yet. See
+   [Mozilla's submission procedure](https://extensionworkshop.com/documentation/publish/submitting-an-add-on/).
+4. After approval/publication, verify installation and same-ID data-preserving
+   update in the dedicated profiles. No upload, signing, tag, push or remote release
+   is performed by this milestone.
+
+**Assessment: RELEASE READY PENDING MANUAL VERIFICATION** of the explicit checks
+above and store validation/signing. Automated gates permit a local preparation
+commit; they do not authorize or prove distribution.
+
+## Historical 0.2.0 milestones
+
+The sections below are historical evidence, not current artifact paths or claims
+of 0.3.0 verification. Their original versions/counts/hashes are retained.
 
 The current implementation synchronizes only four designated user preferences.
 Bookmarks, Following, collections and memberships stay local. The user reports the

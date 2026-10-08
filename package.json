@@ -1,6 +1,6 @@
 {
   "name": "arxiv-tool",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Xivary, a local-first browser extension for saving arXiv papers and following authors.",
   "license": "MIT",
   "private": true,

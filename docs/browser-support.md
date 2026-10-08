@@ -1,5 +1,12 @@
 # Browser support and verification
 
+## v0.3.0 preparation
+
+The current product version is 0.3.0. See the [release record](release.md#v030-release-preparation)
+for current verification, upgrade-evidence limits, package hashes and manual submission.
+Earlier sections retain historical milestone results. Permissions, minimum versions
+and commit gates are unchanged. A store-installed/signed upgrade remains a manual check.
+
 One application tree produces Chromium and Firefox manifests. Chrome uses native
 extension Sync only for four designated user preferences; Firefox remains local-only. No Xivary
 account, OAuth, backend or external sync provider is implemented.

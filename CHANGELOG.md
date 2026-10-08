@@ -1,54 +1,28 @@
 # Release notes
 
-## Unreleased — UI and Interaction Polish
+## 0.3.0 — 2026-10-09 (prepared; not submitted)
 
-- Add Library publication-date filtering using Author Results’ shared neutral menu
-  and inclusive year editor. Compose date, text and Collection filters without
-  persistence or membership changes; retain compact rows and Abstract/PDF links.
+- Filter Library and Author Results by publication date with rolling one/three-year
+  presets or inclusive custom year ranges. Combine Library date, text and Collection
+  filters; keep Abstract/PDF links and compact paper rows.
+- Toggle Author Results search without losing the query; use a neutral keyboard
+  time menu and explicit year-range Apply/Clear controls.
+- Follow or unfollow from author results with consistent + Follow / ✓ Following
+  buttons. Undo ordinary removals for eight seconds; confirm whole-Collection deletion.
+- Make Library/Following Collection navigation compact: double-click or F2 to rename,
+  right-click or keyboard context menus for Rename/Delete, and outside-click cancel.
+  Anchor membership pickers to their controls and keep them inside the viewport.
+- Refine shared controls, dialogs and the compact toolbar popup. Choose new/current-tab
+  navigation for popup Library/Following rows, independently of arXiv navigation.
+- Extend existing abstract-page author navigation to standard arXiv search results;
+  prefer full visible names and preserve native modified/middle-click destinations.
+- Place the arXiv Bookmark action beside the paper title; disable stale extension
+  controls with a quiet reload hint after extension updates.
+- Preserve contextual Settings gears, local Bookmarks/Following/Collections,
+  schema 5 and compatible manual Import/Export. Only four designated preferences
+  synchronize through Chrome; Firefox remains local-only. No new release permissions.
 
-- Polish Author Results with a query-preserving search toggle, neutral keyboard
-  time menu, explicit inclusive year-range Apply/Clear controls, compact header
-  Collection icon and responsive toolbar. Rolling presets and data contracts stay
-  unchanged; custom ranges remain open-ended where an endpoint is blank.
-
-- Make Collection sidebars minimal: single-click selection, double-click/F2 rename,
-  right-click/keyboard Rename/Delete menus, and outside-click rename cancellation.
-- Anchor Collection pickers to their controls, flip/constrain at viewport edges,
-  and reposition on scroll, resize and content changes without losing input state.
-
-- Unify Library/Following sidebar icons, selected/hover surfaces and stable counts;
-  keep management actions in accessible Rename/Delete context menus.
-- Reduce header/list spacing, right-align filtered Library counts and provide Clear
-  search for no matches. Lighten the Library saved-bookmark surface.
-- Compact the existing toolbar popup to 300 × 159px while retaining counts, routes,
-  Settings gear and launcher preference behavior.
-- Document actual UI conventions and reusable design principles. Collection IDs,
-  data semantics, schema, settings-only Sync, portable formats and 0.2.0 are unchanged.
-
-- Refine shared control/dialog rounding, neutral pickers and destructive confirmation
-  styling. Following rows reuse ✓ Following and folder/chevron Collections triggers.
-- Keep the compact toolbar popup; add default-new-tab Library/Following launcher
-  preference through settings-only Sync as a fourth additive register. Settings
-  gear, routes, local data, portable formats and version 0.2.0 remain unchanged.
-
-- Share the arXiv Follow button presentation with author headings: dark + Follow,
-  gray ✓ Following, action labels/tooltips, focus rings and responsive alignment.
-  Existing Unfollow, Undo and collection behavior is unchanged.
-
-- Add explicit Follow/Unfollow and optional collection assignment beside author names.
-- Add default-new-tab inbound author navigation preference, separate from outbound
-  arXiv link behavior; synchronize this third designated preference only.
-- Support current standard arXiv search-result author anchors with visible full
-  names, native fallback links and unmodified-click-only interception.
-- Add eight-second Undo to ordinary item/membership removals, preserving metadata
-  and rejecting stale receipts. Confirm whole-collection deletion with actual consequences.
-- Share Library/Following creation behavior: focus, Enter, Escape, outside cancellation,
-  whitespace cancellation and guarded submission.
-- Prevent contradictory loading/empty states and caching non-Atom success responses.
-  No reproduced store-specific slowdown or speculative networking redesign.
-- Retain version 0.2.0 for implementation; choose the next version at release preparation.
-  User reports Chrome Web Store publication of the preceding version; historical
-  candidate evidence below describes the earlier preparation run.
+See [verification, upgrade limits and manual submission](docs/release.md#v030-release-preparation).
 
 ## 0.2.0 — 2026-10-08 (release candidate)
 

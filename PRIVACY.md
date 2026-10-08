@@ -1,6 +1,6 @@
 # Privacy
 
-This document describes Xivary 0.2.0, a local-first desktop extension. Browser
+This document describes Xivary 0.3.0, a local-first desktop extension. Browser
 verification and remaining distribution checks are in [the release record](docs/release.md).
 
 ## Data stored locally

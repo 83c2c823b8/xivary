@@ -1,5 +1,8 @@
 # Xivary
 
+Version **0.3.0** is prepared for manual submission; see [release verification and
+publication steps](docs/release.md#v030-release-preparation). No automatic upload occurs.
+
 Library (Bookmarks) and Following have a Settings gear in their page header. Both
 open the existing Settings page, including preferences and category-specific data
 transfer.
@@ -116,8 +119,8 @@ npm run package:firefox
 ```
 
 `npm run package` retains Chromium as the default and writes
-`dist/xivary-0.2.0-chromium.zip`; `npm run package:firefox` writes
-`dist/xivary-0.2.0-firefox.zip`. Unpacked artifacts are also generated under
+`dist/xivary-0.3.0-chromium.zip`; `npm run package:firefox` writes
+`dist/xivary-0.3.0-firefox.zip`. Unpacked artifacts are also generated under
 `dist/chromium/` and `dist/firefox/`. Only the generated manifests differ;
 application files are copied unchanged. Archives contain runtime files and the
 bundled font license, with `manifest.json` at the root.
