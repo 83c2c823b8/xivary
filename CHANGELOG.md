@@ -2,6 +2,12 @@
 
 ## Unreleased — Author Navigation and Interaction Polish
 
+- Refine shared control/dialog rounding, neutral pickers and destructive confirmation
+  styling. Following rows reuse ✓ Following and folder/chevron Collections triggers.
+- Keep the compact toolbar popup; add default-new-tab Library/Following launcher
+  preference through settings-only Sync as a fourth additive register. Settings
+  gear, routes, local data, portable formats and version 0.2.0 remain unchanged.
+
 - Share the arXiv Follow button presentation with author headings: dark + Follow,
   gray ✓ Following, action labels/tooltips, focus rings and responsive alignment.
   Existing Unfollow, Undo and collection behavior is unchanged.

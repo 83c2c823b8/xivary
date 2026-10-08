@@ -19,7 +19,7 @@ One application source tree targets Chromium-family browsers and Firefox desktop
 Chrome 154 and Firefox 157 fixture smoke suites pass; see
 [browser support](docs/browser-support.md) for exact evidence and pending manual
 distribution checks.
-Chrome synchronizes only the three designated boolean user preferences through
+Chrome synchronizes only the four designated boolean user preferences through
 its extension sync storage. Bookmarks, Following, collections and memberships
 remain local to each installation. Real account/device propagation remains
 unverified. Xivary has no
@@ -40,6 +40,9 @@ account, project-owned backend, or analytics.
   an entire collection, including sole-membership consequences.
 - Local text filtering of saved papers and author feeds, with preset and custom date ranges on author feeds.
 - A compact popup for opening Library and Following and viewing their counts.
+  **Settings → General → Open Xivary from toolbar launcher in a new tab** defaults
+  to enabled. Disable it to replace the active tab when choosing a popup row;
+  the toolbar icon still opens the popup, and its Settings gear is unchanged.
 - Settings for opening arXiv links in a new tab and optionally organizing followed
   authors into collections.
 - Explicit JSON export/import for backing up or transferring Library and Following
@@ -52,8 +55,8 @@ linked from primary navigation in this release.
 
 Saved papers, followed authors, collections, preferences, and cached author-feed
 results have a browser-local view in `storage.local`. In the Chromium package,
-only `openArxivLinksInNewTab`, `organizeFollowedAuthorsIntoCollections` and
-`openAuthorResultsInNewTab` use
+only `openArxivLinksInNewTab`, `organizeFollowedAuthorsIntoCollections`,
+`openAuthorResultsInNewTab` and `openXivaryFromToolbarInNewTab` use
 `storage.sync`. Both last-used collection pointers, all library records and feed
 caches remain local. Chrome and Firefox installations have independent libraries;
 Firefox settings remain local too. Filters and pickers remain ephemeral.
@@ -75,7 +78,7 @@ small selector for all items or one existing collection. A version-2
 `xivary-library` JSON file identifies that selection and contains only its
 papers/authors, collection definitions and memberships. Import also accepts an
 older combined version-1 backup but applies only the chosen Bookmarks or Following
-section. Preferences have no manual file transfer; the three boolean settings use
+section. Preferences have no manual file transfer; the four boolean settings use
 Chrome Sync, while last-used collection pointers remain local. Files exclude feed
 caches, last-used choices and every Chrome Sync
 revision, tombstone, replica or retry field. See
@@ -151,7 +154,7 @@ See [docs/architecture.md](docs/architecture.md) and
   or name-order variants can appear as separate authors.
 - Author feeds contain up to the 50 newest matching results returned by arXiv and
   depend on availability and name matching from the arXiv API.
-- Chrome synchronizes only three preferences. Retained legacy remote library records
+- Chrome synchronizes only four preferences. Retained legacy remote library records
   can still occupy provider quota; Xivary leaves them untouched and keeps failed
   preference uploads local and pending. There is no Xivary account or custom backend.
 - Real Google-account propagation, Firefox native transfer/toolbar flows, signed

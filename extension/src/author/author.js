@@ -1,3 +1,4 @@
+import { setCollectionButton } from "../ui/collection-button.js";
 import { setFollowButton } from "../ui/follow-button.js";
 import { showUndo } from "../ui/undo.js";
 import { openAuthorCollectionPicker } from "../ui/author-collection-picker.js";
@@ -31,6 +32,7 @@ element("author-collections").addEventListener("click", () => void openAuthorCol
 function renderFollowing(library) {
   followed = library.memberships.some(item => item.authorId === author.id);
   setFollowButton(element("follow-author"), followed, author.displayName);
+  setCollectionButton(element("author-collections"), author.displayName);
   element("follow-author").disabled = followBusy;
   element("author-collections").hidden = !followed || !library.settings.organizeFollowedAuthorsIntoCollections;
   element("author-collections").disabled = followBusy;

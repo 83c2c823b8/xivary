@@ -149,8 +149,8 @@ feeds incoming old/new records into the same queue; the worker also reconciles a
 startup and on one-shot retry alarms. Writes are coalesced, capped below documented
 rates and checked against size/item quotas. There is no steady-state polling.
 
-Only `openArxivLinksInNewTab`, `organizeFollowedAuthorsIntoCollections` and
-`openAuthorResultsInNewTab` enter
+Only `openArxivLinksInNewTab`, `organizeFollowedAuthorsIntoCollections`,
+`openAuthorResultsInNewTab` and `openXivaryFromToolbarInNewTab` enter
 Sync v1 boolean registers. Projection, event observation, validation, merge,
 materialization and publication all restrict themselves to those exact canonical
 keys. Every library entity/collection/membership, cache, last-used pointer and
@@ -230,3 +230,16 @@ with a busy guard. It exposes the existing optional collection picker. Fetching 
 single-flight per author view; a focus read cannot reveal an initial empty state
 while loading. Only valid Atom feeds become caches; unexpected successful responses
 are errors. See [investigation and evidence](author-interaction-polish.md).
+
+## Shared controls and toolbar launcher
+
+`page.css` owns small control/dialog tokens, shared modal/action styles and compact
+collection triggers. Following reuses `follow-button.js`; `collection-button.js`
+adds presentation only to existing picker anchors. No collection semantics change.
+
+The manifest action still opens the popup. `popup/launcher.js` reads preferences
+through RepositoryClient for each Library/Following activation and uses native tab
+navigation. The default-true fourth preference controls these rows only; Settings
+and inbound/outbound arXiv choices are separate. A missing/known restricted source
+uses one new tab; rejected updates surface errors without another navigation.
+See [scope and verification](ui-launcher-polish.md).

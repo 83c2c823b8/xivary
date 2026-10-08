@@ -274,10 +274,20 @@ export class LocalRepository extends PaperRepository {
 
   getPreferences() {
     return this.run(state => structuredClone({
+      openXivaryFromToolbarInNewTab: state.settings.openXivaryFromToolbarInNewTab,
       openAuthorResultsInNewTab: state.settings.openAuthorResultsInNewTab,
       openArxivLinksInNewTab: state.settings.openArxivLinksInNewTab,
       organizeFollowedAuthorsIntoCollections: state.settings.organizeFollowedAuthorsIntoCollections,
     }));
+  }
+
+  setOpenXivaryFromToolbarInNewTab(enabled) {
+    if (typeof enabled !== "boolean") return Promise.reject(new TypeError("The toolbar navigation preference must be true or false."));
+    return this.run(async state => {
+      state.settings.openXivaryFromToolbarInNewTab = enabled;
+      await this.storage.write(state);
+      return { openXivaryFromToolbarInNewTab: enabled };
+    });
   }
 
   setOpenAuthorResultsInNewTab(enabled) {
@@ -463,6 +473,7 @@ export function prepareState(stored, now) {
     settings: {
       lastUsedAuthorCollectionId: null,
       lastUsedPaperCollectionId: DEFAULT_PAPER_COLLECTION_ID,
+      openXivaryFromToolbarInNewTab: true,
       openAuthorResultsInNewTab: true,
       openArxivLinksInNewTab: false,
       organizeFollowedAuthorsIntoCollections: false,
@@ -493,6 +504,8 @@ export function prepareState(stored, now) {
   if (![state.authors, state.collections, state.memberships].every(Array.isArray) || !state.settings) {
     throw new Error("Invalid author collection data.");
   }
+  if (state.settings.openXivaryFromToolbarInNewTab === undefined) state.settings.openXivaryFromToolbarInNewTab = true;
+  if (typeof state.settings.openXivaryFromToolbarInNewTab !== "boolean") throw new Error("Invalid toolbar navigation preference.");
   if (state.settings.openAuthorResultsInNewTab === undefined) state.settings.openAuthorResultsInNewTab = true;
   if (typeof state.settings.openAuthorResultsInNewTab !== "boolean") throw new Error("Invalid author navigation preference.");
   if (state.settings.openArxivLinksInNewTab === undefined) state.settings.openArxivLinksInNewTab = false;

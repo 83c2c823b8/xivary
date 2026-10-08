@@ -72,3 +72,8 @@ The 2026-10-09 [author polish milestone](author-interaction-polish.md) adds the
 third explicitly designated preference `openAuthorResultsInNewTab` compatibly.
 The two-register cutover record above describes the preceding implementation;
 its nondestructive library isolation policy still applies.
+
+The subsequent toolbar-launcher milestone adds default-true
+`openXivaryFromToolbarInNewTab` using the same absent-register/default behavior.
+Current eligible preferences number four. No library cutover, remote cleanup or
+portable/schema migration is repeated. See [launcher decisions](ui-launcher-polish.md).

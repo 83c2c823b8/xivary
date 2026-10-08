@@ -78,6 +78,41 @@ try{
   await screenshot(settings,"settings.png");
   for(const [label,path] of [["Library","library/library.html"],["Following","authors/authors.html"]]){await evaluate(popup,`document.querySelector('[data-page=${JSON.stringify(path)}]').click()`);for(let i=0;i<30;i++){const targets=await send("Target.getTargets");if(targets.targetInfos.some(t=>t.url===extensionUrl(path)))break;if(i===29)assert.fail(`${label} did not open ${path}`);await new Promise(r=>setTimeout(r,100))}}
 
+  // Real toolbar popup: both launch routes, current/new tab, keyboard and busy guard.
+  for (const newTab of [false,true]) for (const path of ['library/library.html','authors/authors.html']) {
+    await evaluate(settings, `(async()=>{const {RepositoryClient}=await import('../repository/repository-client.js');await new RepositoryClient().setOpenXivaryFromToolbarInNewTab(${newTab})})()`);
+    const source=await page(); await send('Page.bringToFront',{},source.sessionId);
+    const target=await createdTarget(()=>evaluate(settings,'chrome.action.openPopup()'),t=>t.url===extensionUrl('popup/popup.html'));
+    const attached=await send('Target.attachToTarget',{targetId:target.targetId,flatten:true});
+    await send('Page.enable',{},attached.sessionId); await send('Runtime.enable',{},attached.sessionId);
+    await until(attached.sessionId,"document.querySelector('#saved-count')?.textContent==='1' && document.querySelector('#following-count')?.textContent==='1'");
+    assert.equal(await evaluate(attached.sessionId,"innerWidth===408 && document.querySelectorAll('nav button').length===2 && getComputedStyle(document.querySelector('nav button')).borderRadius==='7px'"),true);
+    const activate=async()=>{
+      const selector=`[data-page="${path}"]`;
+      if(path.startsWith('authors')) {
+        await evaluate(attached.sessionId,`document.querySelector(${JSON.stringify(selector)}).focus()`);
+        await send('Input.dispatchKeyEvent',{type:'keyDown',key:'Tab',windowsVirtualKeyCode:9,modifiers:8},attached.sessionId);
+        await send('Input.dispatchKeyEvent',{type:'keyUp',key:'Tab',windowsVirtualKeyCode:9,modifiers:8},attached.sessionId);
+        await send('Input.dispatchKeyEvent',{type:'keyDown',key:'Tab',windowsVirtualKeyCode:9},attached.sessionId);
+        await send('Input.dispatchKeyEvent',{type:'keyUp',key:'Tab',windowsVirtualKeyCode:9},attached.sessionId);
+        assert.equal(await evaluate(attached.sessionId,"document.activeElement.dataset.page==='authors/authors.html' && document.activeElement.matches(':focus-visible') && getComputedStyle(document.activeElement).outlineWidth==='2px'"),true);
+        await send('Input.dispatchKeyEvent',{type:'keyDown',key:'Enter',code:'Enter',text:'\r',windowsVirtualKeyCode:13},attached.sessionId);
+        await send('Input.dispatchKeyEvent',{type:'keyUp',key:'Enter',windowsVirtualKeyCode:13},attached.sessionId).catch(()=>{});
+      } else await evaluate(attached.sessionId,`document.querySelector(${JSON.stringify(selector)}).click();document.querySelector(${JSON.stringify(selector)}).click()`);
+    };
+    const beforeTargets=(await send('Target.getTargets')).targetInfos.filter(t=>t.type==='page').map(t=>t.targetId);
+    if(newTab) {
+      const opened=await createdTarget(activate,t=>t.url===extensionUrl(path));
+      const destinations=(await send('Target.getTargets')).targetInfos.filter(t=>t.type==='page'&&!beforeTargets.includes(t.targetId)&&t.url===extensionUrl(path));
+      assert.equal(destinations.length,1,'one launch, no duplicate destination');
+      await send('Target.closeTarget',{targetId:opened.targetId});
+    } else {
+      await activate(); await until(source.sessionId,`location.href===${JSON.stringify(extensionUrl(path))}`);
+      assert.equal((await send('Target.getTargets')).targetInfos.some(t=>t.type==='page'&&!beforeTargets.includes(t.targetId)&&t.url===extensionUrl(path)),false);
+    }
+    await send('Target.closeTarget',{targetId:source.targetId});
+  }
+  await evaluate(settings,"(async()=>{const {RepositoryClient}=await import('../repository/repository-client.js');await new RepositoryClient().setOpenXivaryFromToolbarInNewTab(true)})()");
   const {sessionId:library}=await page();await send("Page.navigate",{url:extensionUrl("library/library.html")},library);await until(library,"document.querySelectorAll('#papers .paper-row').length===1");assert.equal(await evaluate(library,"document.querySelector('#papers h2').textContent"),"A sample paper");
   assert.equal(await evaluate(library,"document.title==='Library — Xivary'&&document.querySelector('.app-name').textContent==='Xivary'"),true);
   assert.equal(await evaluate(library,"[...document.querySelectorAll('.app-nav a')].some(link=>link.textContent==='Search')"),false);

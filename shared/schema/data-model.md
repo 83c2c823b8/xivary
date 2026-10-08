@@ -153,7 +153,7 @@ exposes collection membership controls without changing this schema.
 
 ## Settings
 
-The three boolean preferences below synchronize through the existing Chrome Sync v1
+The four boolean preferences below synchronize through the existing Chrome Sync v1
 registers. Both last-used pointers remain browser-local convenience state. Unknown
 retained settings are excluded, as are runtime/derived/cache and replica fields.
 See [settings policy](../../docs/chrome-sync.md#bootstrap-failure-and-recovery)
@@ -190,6 +190,12 @@ existing/fresh installations. It governs ordinary recognized arXiv author-link
 entry into Xivary, independently of the outbound setting above. Missing fields
 are normalized without discarding data; malformed values fail safely. Chrome Sync
 adds this boolean v1 register using existing absent-key revision-zero seeding.
+
+`openXivaryFromToolbarInNewTab` is an additive boolean defaulting to true. It
+controls Library/Following selection in the toolbar popup; false replaces the
+active tab when possible. It uses the same normalization and absent-register
+seeding as the author-navigation preference, without a schema migration.
+
 Undo receipts/guards are ephemeral background memory and do not enter this schema.
 
 ## Local persistence
@@ -197,7 +203,7 @@ Undo receipts/guards are ephemeral background memory and do not enter this schem
 The `arxivResearchLibrary` key in the browser's extension-local `storage.local`
 area holds the same schema in Chromium and Firefox. Each browser/profile has an
 independent local view. Chrome installations with matching extension IDs and an
-enabled shared Chrome sync account synchronize only the three designated boolean
+enabled shared Chrome sync account synchronize only the four designated boolean
 preferences through the separate representation below. All library data remains local. Firefox remains independent and local-only.
 The platform boundary selects the native API, and `BrowserLocalStorage` performs
 the same single-key reads/writes in either browser:
@@ -251,13 +257,13 @@ rules; never derive this format by serializing either storage representation.
 ### Chrome settings Sync v1 (not schema 6)
 
 The domain schema and migrations remain unchanged. The repository adds an
-explicit author-navigation setter and ephemeral Undo endpoint. Only
-`openArxivLinksInNewTab`, `organizeFollowedAuthorsIntoCollections` and
-`openAuthorResultsInNewTab` synchronize.
+explicit author/toolbar navigation setters and ephemeral Undo endpoint. Only
+`openArxivLinksInNewTab`, `organizeFollowedAuthorsIntoCollections`,
+`openAuthorResultsInNewTab` and `openXivaryFromToolbarInNewTab` synchronize.
 Both last-used pointers and every library record/collection/membership/cache stay
 local. Category imports/exports remain independent portable operations.
 
-Active keys are `xivary.sync:` plus `["s", preferenceName]` for exactly those three
+Active keys are `xivary.sync:` plus `["s", preferenceName]` for exactly those four
 names. Values remain `{v:1, rev:[counter,replicaId], value:boolean, deleted}` with
 logical revision/replica ordering and retained winners. No null preference/toggle
 operation or wall-clock ordering is introduced. Unknown preferences are ignored;

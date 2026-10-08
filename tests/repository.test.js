@@ -37,7 +37,7 @@ test("empty library and favorites toggle persist through a new repository instan
 
 test("preferences use documented defaults, validate, and persist through the repository contract", async () => {
   const { repository, storage } = fixture();
-  const defaults = { openArxivLinksInNewTab: false, organizeFollowedAuthorsIntoCollections: false, openAuthorResultsInNewTab: true };
+  const defaults = { openArxivLinksInNewTab: false, organizeFollowedAuthorsIntoCollections: false, openAuthorResultsInNewTab: true, openXivaryFromToolbarInNewTab: true };
   assert.deepEqual(await repository.getPreferences(), defaults);
   await repository.savePaper(paper);
   const prePreferenceSchema5 = await storage.read();
@@ -52,12 +52,12 @@ test("preferences use documented defaults, validate, and persist through the rep
   assert.deepEqual(await repository.setOpenArxivLinksInNewTab(true), { openArxivLinksInNewTab: true });
   assert.deepEqual(await repository.setOrganizeFollowedAuthorsIntoCollections(true), { organizeFollowedAuthorsIntoCollections: true });
   assert.deepEqual(await new LocalRepository(storage).getPreferences(), {
-    openArxivLinksInNewTab: true, organizeFollowedAuthorsIntoCollections: true, openAuthorResultsInNewTab: true,
+    openArxivLinksInNewTab: true, organizeFollowedAuthorsIntoCollections: true, openAuthorResultsInNewTab: true, openXivaryFromToolbarInNewTab: true,
   });
   const handler = createRepositoryHandler(repository, "test-extension");
   const client = new RepositoryClient({ sendMessage: message => new Promise(resolve => handler(message, { id: "test-extension" }, resolve)) });
   assert.deepEqual(await client.getPreferences(), {
-    openArxivLinksInNewTab: true, organizeFollowedAuthorsIntoCollections: true, openAuthorResultsInNewTab: true,
+    openArxivLinksInNewTab: true, organizeFollowedAuthorsIntoCollections: true, openAuthorResultsInNewTab: true, openXivaryFromToolbarInNewTab: true,
   });
   await client.setOpenArxivLinksInNewTab(false);
   await client.setOrganizeFollowedAuthorsIntoCollections(false);
@@ -292,5 +292,22 @@ test("author navigation preference preserves old schema-5 data/defaults and reje
   assert.equal((await new LocalRepository(storage).getPreferences()).openAuthorResultsInNewTab, false);
   saved.settings.openAuthorResultsInNewTab = "invalid"; await storage.write(saved);
   await assert.rejects(upgraded.getPreferences(), /Invalid author navigation preference/);
+  assert.deepEqual(await storage.read(), saved);
+});
+
+test("toolbar preference preserves old schema-5 data/defaults and rejects invalid values", async () => {
+  const { repository, storage } = fixture();
+  await repository.savePaper(paper); await repository.followAuthor(author);
+  const legacy = await storage.read(); delete legacy.settings.openXivaryFromToolbarInNewTab; await storage.write(legacy);
+  const upgraded = new LocalRepository(storage);
+  assert.equal((await upgraded.getPreferences()).openXivaryFromToolbarInNewTab, true);
+  assert.deepEqual(await storage.read(), legacy, "normalization does not write/reset schema-5 on read");
+  await assert.rejects(upgraded.setOpenXivaryFromToolbarInNewTab("false"), /true or false/);
+  await upgraded.setOpenXivaryFromToolbarInNewTab(false);
+  const saved = await storage.read();
+  for (const field of ["favorites", "authors", "collections", "memberships", "paperCollections", "paperMemberships"]) assert.deepEqual(saved[field], legacy[field]);
+  assert.equal((await new LocalRepository(storage).getPreferences()).openXivaryFromToolbarInNewTab, false);
+  saved.settings.openXivaryFromToolbarInNewTab = "invalid"; await storage.write(saved);
+  await assert.rejects(upgraded.getPreferences(), /Invalid toolbar navigation preference/);
   assert.deepEqual(await storage.read(), saved);
 });

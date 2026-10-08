@@ -195,6 +195,14 @@ try {
   await command("/refresh");
   await until("document.querySelector('#open-arxiv-new-tab')?.checked && !document.querySelector('#open-arxiv-new-tab').disabled");
 
+  // Firefox popup-page entry (not a native toolbar popup): same-tab launcher uses
+  // the native Promise API and preserves the existing Library route.
+  await evaluateAsync("(async()=>{const {RepositoryClient}=await import('../repository/repository-client.js');await new RepositoryClient().setOpenXivaryFromToolbarInNewTab(false)})()");
+  await navigateExtension("popup/popup.html");
+  await until("document.querySelector('#saved-count')?.textContent === '1'");
+  await evaluate("(()=>{window.close=()=>{};document.querySelector('[data-page=\"library/library.html\"]').click()})()");
+  await until("location.pathname.endsWith('/library/library.html') && document.querySelectorAll('.paper-row').length===1");
+  await evaluateAsync("(async()=>{const {RepositoryClient}=await import('../repository/repository-client.js');return (await new RepositoryClient().getPreferences()).openXivaryFromToolbarInNewTab})()").then(value=>assert.equal(value,false));
   await navigateExtension("authors/authors.html");
   await until("document.querySelectorAll('.author-row').length === 1");
   await followingWorkflow({

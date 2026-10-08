@@ -1,3 +1,5 @@
+import { setFollowButton } from "../ui/follow-button.js";
+import { setCollectionButton } from "../ui/collection-button.js";
 import { bindCollectionCreate } from "../ui/collection-create.js";
 import { confirmCollectionDeletion } from "../ui/confirm-collection.js";
 import { showUndo } from "../ui/undo.js";
@@ -91,7 +93,7 @@ function authorRow(author) {
   const collections = document.createElement("button");
   collections.type = "button";
   collections.className = "manage-collections";
-  collections.textContent = "Collections";
+  setCollectionButton(collections, author.displayName);
   collections.setAttribute("aria-label", `Collections for ${author.displayName}`);
   collections.setAttribute("aria-haspopup", "dialog");
   collections.setAttribute("aria-expanded", "false");
@@ -101,7 +103,7 @@ function authorRow(author) {
   }));
   const unfollow = document.createElement("button");
   unfollow.type = "button";
-  unfollow.textContent = "Unfollow";
+  setFollowButton(unfollow, true, author.displayName);
   unfollow.addEventListener("click", () => void mutate(async () => { const result = await repository.unfollowAuthor(author.id); showUndo(repository, result, `Unfollowed ${author.displayName}.`, load); }));
   if (organized()) actions.append(collections);
   actions.append(unfollow);

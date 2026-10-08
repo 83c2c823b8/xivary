@@ -12,7 +12,7 @@ contain:
 - saved-paper titles, arXiv identifiers, author names, categories, abstracts, and dates;
 - followed author names and normalized name identifiers;
 - paper and author collection names and memberships;
-- the three user settings shown on the Settings page;
+- the four user settings shown on the Settings page;
 - cached public arXiv results for viewed author feeds, including non-followed
   names and their retrieval times.
 
@@ -23,9 +23,9 @@ lifecycle.
 
 ## Data synchronized by Chrome
 
-The Chromium package writes only three explicitly designated boolean preferences to
+The Chromium package writes only four explicitly designated boolean preferences to
 Chrome's extension `storage.sync`: `openArxivLinksInNewTab`,
-`organizeFollowedAuthorsIntoCollections`, and `openAuthorResultsInNewTab`, with
+`organizeFollowedAuthorsIntoCollections`, `openAuthorResultsInNewTab` and `openXivaryFromToolbarInNewTab`, with
 their logical revision/replica metadata.
 Google Chrome handles propagation when enabled for the same extension ID/account.
 Xivary receives no Google credentials and operates no account or server. Other
@@ -48,7 +48,7 @@ See [migration strategy](docs/settings-only-sync-migration.md).
 The Settings page can download separate human-readable, versioned JSON files for
 all Bookmarks or one paper collection, and all Following or one author collection.
 A selected category import changes only that category. Preferences have no manual
-file export/import; the three boolean preferences use Chrome Sync while last-used
+file export/import; the four boolean preferences use Chrome Sync while last-used
 collection pointers remain local. Older combined backups are accepted by either
 category action, without applying their preference values. Files exclude
 author-feed caches and queries, last-used collection
@@ -83,7 +83,7 @@ No remote JavaScript, CSS, fonts, or other executable code is loaded at runtime.
 ## Permissions and site access
 
 - `storage`: stores the local library, collections, cached author-feed results, and
-  settings, and accesses Chrome extension sync storage for the three designated preferences.
+  settings, and accesses Chrome extension sync storage for the four designated preferences.
 - `alarms` (Chromium package only): resumes deferred sync writes and failure recovery.
 - `https://arxiv.org/abs/*` content-script access: reads public title and author
   metadata on arXiv abstract pages, inserts Save and Follow controls, and opens

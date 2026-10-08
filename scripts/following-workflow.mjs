@@ -73,6 +73,7 @@ export async function followingWorkflow({ evaluate, click, until, reload, key, s
   await key("Escape");
   await click(collectionSelector(""));
 
+  assert.equal(await evaluate("document.querySelector('.manage-collections').querySelectorAll('svg').length===2 && document.querySelector('.author-row .xivary-follow-button').textContent==='Following' && document.querySelector('.author-row .xivary-follow-button').getAttribute('aria-label').startsWith('Unfollow:')"), true);
   await click(".manage-collections");
   await until("document.querySelector('.arxiv-collection-picker input[type=checkbox]')");
   assert.equal(await evaluate("document.querySelector('.collection-picker-subtitle').textContent.includes('last collection')"), true);
@@ -110,6 +111,12 @@ export async function followingWorkflow({ evaluate, click, until, reload, key, s
   await until("document.querySelector('#collection-sidebar')?.hidden && document.querySelectorAll('.author-row').length===1");
   await preference(true);
   await click(collectionSelector(second.id));
+  const beforeEscape = await snapshot();
+  await click(action(second.id, "delete"));
+  assert.equal(await evaluate("document.activeElement.textContent==='Cancel' && getComputedStyle(document.querySelector('.collection-delete-dialog')).borderRadius==='14px' && document.querySelector('[data-confirm-id]').classList.contains('button-danger')"), true);
+  await key("Escape");
+  assert.equal(await evaluate("!document.querySelector('.collection-delete-dialog') && document.activeElement.dataset.action==='delete'"), true);
+  assert.deepEqual(await snapshot(), beforeEscape);
   await click(action(second.id, "delete"));
   assert.equal(await evaluate("document.querySelector('.collection-delete-dialog').open && document.querySelector('.collection-delete-dialog').textContent.includes('become unfollowed')"), true);
   await key("Escape");

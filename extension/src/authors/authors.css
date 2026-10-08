@@ -7,5 +7,5 @@
 
 .following-content { min-width: 0; }
 .author-row h2 { overflow-wrap: anywhere; }
-.author-row .manage-collections { color: var(--muted); border-color: transparent; }
+.author-row .manage-collections { color: var(--text); }
 .delete-confirmation { flex-wrap: wrap; }

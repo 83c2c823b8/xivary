@@ -9,7 +9,7 @@ const methods = new Map([
   ["getAuthorLibrary", 0], ["createAuthorCollection", 2], ["renameAuthorCollection", 2],
   ["deleteAuthorCollection", 1], ["addAuthorToCollection", 2], ["removeAuthorFromCollection", 2],
   ["getAuthorPaperCache", 1], ["putAuthorPaperCache", 1],
-  ["undoRemoval", 1], ["setOpenAuthorResultsInNewTab", 1],
+  ["setOpenXivaryFromToolbarInNewTab", 1], ["undoRemoval", 1], ["setOpenAuthorResultsInNewTab", 1],
   ["getPreferences", 0], ["setOpenArxivLinksInNewTab", 1],
   ["setOrganizeFollowedAuthorsIntoCollections", 1],
   ["exportCategory", 2], ["importCategory", 2],

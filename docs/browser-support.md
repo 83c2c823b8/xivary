@@ -1,10 +1,21 @@
 # Browser support and verification
 
 One application tree produces Chromium and Firefox manifests. Chrome uses native
-extension Sync only for three designated user preferences; Firefox remains local-only. No Xivary
+extension Sync only for four designated user preferences; Firefox remains local-only. No Xivary
 account, OAuth, backend or external sync provider is implemented.
 
-## Latest Follow presentation evidence — 2026-10-09
+## Latest UI/launcher evidence — 2026-10-09
+
+156/156 Node tests and Chrome/Firefox fixture smoke suites pass. Chrome exercises
+the actual 408px toolbar popup, correct counts and Settings gear, both routes in
+new/current-tab modes, keyboard activation and duplicate guards. Shared Following
+controls, dialog Escape/focus return and Undo pass. Popup/row/dialog screenshots
+were visually inspected. Firefox exercises the popup-page current-tab Library path,
+which does not prove its native toolbar widget. The fourth designated preference
+uses existing schema-5/Sync-v1 boundaries; library state remains local.
+See [scope, safety and final verification](ui-launcher-polish.md).
+
+## Previous Follow presentation evidence — 2026-10-09
 
 151/151 Node tests and both browser smoke suites pass. Chromium additionally
 compares both Follow/Following states against arXiv, exercises keyboard Unfollow/

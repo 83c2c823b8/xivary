@@ -1,7 +1,8 @@
 # Chrome settings synchronization
 
 Chrome Sync synchronizes **only** `openArxivLinksInNewTab`,
-`organizeFollowedAuthorsIntoCollections` and `openAuthorResultsInNewTab`. Bookmarks, Following, paper/author
+`organizeFollowedAuthorsIntoCollections`, `openAuthorResultsInNewTab` and
+`openXivaryFromToolbarInNewTab`. Bookmarks, Following, paper/author
 collections and memberships remain local to each installation, including after
 manual import. Firefox uses local-only storage for everything. There is no Xivary
 account, OAuth, backend or alternative provider.
@@ -10,7 +11,7 @@ account, OAuth, backend or alternative provider.
 
 | State | Policy |
 | --- | --- |
-| Three designated boolean user preferences | Chrome Sync v1 desired-state registers |
+| Four designated boolean user preferences | Chrome Sync v1 desired-state registers |
 | Both last-used collection pointers | Device-local interaction context |
 | Papers, followed authors, collections, memberships, full metadata | Local only |
 | Author-feed caches, unknown settings/fields, queries and freshness | Local only |
@@ -31,6 +32,7 @@ The exact canonical keys are:
 - `xivary.sync:["s","openArxivLinksInNewTab"]`
 - `xivary.sync:["s","organizeFollowedAuthorsIntoCollections"]`
 - `xivary.sync:["s","openAuthorResultsInNewTab"]`
+- `xivary.sync:["s","openXivaryFromToolbarInNewTab"]`
 
 Each value remains `{v:1, rev:[logicalCounter,replicaId], value:boolean, deleted}`.
 Existing encoding/ordering is retained; no protocol version increment is needed.
@@ -64,7 +66,7 @@ Older versions uploaded `p/a/pc/ac/pm/am` library registers. Updated installatio
   may continue synchronizing library data among themselves. This update does not
   retroactively erase data from Chrome's synchronization mechanism.
 
-New replicas snapshot only the three preferences. Existing snapshots are unchanged.
+New replicas snapshot only the four preferences. Existing snapshots are unchanged.
 There is no schema migration, collection rewrite, new permission or cleanup UI.
 A later remote cleanup would require a separate explicit product/user decision.
 
@@ -155,5 +157,15 @@ Schema-5 records missing it receive the default in the validated view and on the
 next mutation; no schema bump/reset. Old bootstrapped v1 replicas seed the new
 register only when absent locally/remotely, at revision zero. An established remote
 winner beats that seed. Older settings-only clients ignore this unknown register
-and leave it untouched. Wire version remains 1; eligible keys now number three.
+and leave it untouched. Wire version remains 1; eligible keys at that milestone numbered three.
 Two-repository tests cover upgrade and propagation both ways without library data.
+
+## Additive toolbar-launcher preference
+
+`openXivaryFromToolbarInNewTab` defaults to true independently of inbound author
+entry and outbound arXiv navigation. It controls Library/Following row activation
+in the retained toolbar popup. Schema 5 and wire version 1 stay unchanged. Missing
+local values normalize to true; missing replica keys use the same validated merge
+and absent-key revision-zero seed. Remote winners prevail. Older clients ignore
+and retain this fourth register. Two-repository tests cover old-state bootstrap
+and changes from each device; live account delivery remains a manual check.

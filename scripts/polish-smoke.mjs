@@ -35,7 +35,7 @@ export async function polishSmoke() {
     const page = async destination => { const result = await chrome.page(); await chrome.send("Fetch.enable", { patterns: [{ urlPattern: "https://*" }] }, result.sessionId); await chrome.send("Page.navigate", { url: destination }, result.sessionId); return result.sessionId; };
     const rpc = (session, operation) => chrome.evaluate(session, `(async()=>{const {RepositoryClient}=await import('../repository/repository-client.js');return ${operation.replaceAll("repo.", "new RepositoryClient().")}})()`);
     const author = await page(url("author/author.html?name=Alex%20Kim"));
-    await chrome.until(author, "document.querySelector('#name').textContent==='Alex Kim' && !document.querySelector('#follow-author').disabled");
+    await chrome.until(author, "document.querySelector('#name')?.textContent==='Alex Kim' && !document.querySelector('#follow-author').disabled");
     await waitFor(() => pending.length > 0, "first API request paused");
     await chrome.evaluate(author, "window.dispatchEvent(new Event('focus'));document.querySelector('#refresh').click()");
     await chrome.until(author, "document.querySelector('#status').textContent.includes('Loading')");
@@ -132,11 +132,12 @@ export async function polishSmoke() {
     const library = await page(url("library/library.html"));
     const following = await page(url("authors/authors.html"));
     for (const [session, category] of [[library, "Paper"], [following, "Author"]]) {
+      await chrome.send("Page.bringToFront", {}, session);
       await chrome.until(session, "document.querySelector('#show-create') && !document.querySelector('#show-create').disabled");
       const snapshot = () => rpc(session, `repo.get${category}Library()`);
       const before = await snapshot();
       await chrome.click(session, "#show-create");
-      assert.equal(await chrome.evaluate(session, "document.activeElement.id==='collection-name'"), true);
+      await chrome.until(session, "!document.querySelector('#create-form').hidden && document.activeElement.id==='collection-name'");
       await chrome.evaluate(session, "document.querySelector('#collection-name').value='cancel typed name'");
       await chrome.click(session, "h1");
       assert.equal(await chrome.evaluate(session, "document.querySelector('#create-form').hidden"), true);
@@ -151,7 +152,12 @@ export async function polishSmoke() {
       await chrome.until(session, "document.querySelector('#create-form').hidden && !document.querySelector('#show-create').disabled");
       const created = (await snapshot()).collections.filter(item => item.name === "Polish collection"); assert.equal(created.length, 1);
       const action = `[data-collection-id=${JSON.stringify(created[0].id)}] + .collection-actions [data-action=delete]`;
-      await chrome.click(session, action); await chrome.click(session, ".collection-delete-dialog button");
+      await chrome.click(session, action);
+      await chrome.until(session, "document.querySelector('.collection-delete-dialog')?.open");
+      const image=await chrome.send('Page.captureScreenshot',{format:'png'},session);
+      await writeFile(`/tmp/xivary-design-${category.toLowerCase()}-dialog.png`,Buffer.from(image.data,'base64'));
+      assert.equal(await chrome.evaluate(session, "getComputedStyle(document.querySelector('.collection-delete-dialog')).borderRadius==='14px' && getComputedStyle(document.querySelector('[data-confirm-id]')).backgroundColor==='rgb(165, 42, 37)' && document.activeElement.textContent==='Cancel'"),true);
+      await chrome.click(session, ".collection-delete-dialog button");
       assert.deepEqual((await snapshot()).collections.length, before.collections.length + 1);
       await chrome.click(session, action);
       await chrome.evaluate(session, "document.querySelector('[data-confirm-id]').click();document.querySelector('[data-confirm-id]').click()");
@@ -160,7 +166,7 @@ export async function polishSmoke() {
     }
     // Paper picker removal and Undo retain full canonical metadata/memberships.
     await chrome.send("Page.navigate", { url: url("author/author.html?name=Alex%20Kim") }, author);
-    await chrome.until(author, "document.querySelector('#name').textContent==='Alex Kim' && !document.querySelector('#refresh').disabled");
+    await chrome.until(author, "document.querySelector('#name')?.textContent==='Alex Kim' && !document.querySelector('#refresh').disabled");
     await chrome.click(author, "#refresh");
     await chrome.until(author, "document.querySelector('.paper-row') && !document.querySelector('#refresh').disabled");
     await chrome.click(author, ".bookmark");

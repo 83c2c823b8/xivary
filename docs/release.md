@@ -298,3 +298,24 @@ No push or store publishing is part of this milestone.
 See [the browser checklist](browser-support.md#pending-manual-chrome-sync-checks).
 All automated commit gates pass; this is a packaged candidate, not a claim that
 account transport, store installation or every manual surface is verified.
+
+## UI consistency and popup launcher milestone
+
+Started clean at `7ab2856`, preserving both earlier local commits. Version remains
+0.2.0; this milestone is preparation for a future 0.3.0 update, not an upload-ready
+version or a publication. The popup stays; its Library/Following choices now use
+the fourth default-true synchronized preference. Data formats/permissions are
+unchanged. Node 156/156 and Chrome/Firefox fixture smoke pass. Popup/control/dialog
+screenshots were inspected. Firefox toolbar, account propagation, minimum versions
+and distribution/manual checks above remain unclaimed.
+
+See [complete scope and final results](ui-launcher-polish.md).
+
+All automated commit gates pass, including native category transfers and
+fourth-preference pending publication through alarm/worker and profile recovery.
+68-file archives were inspected against source, with no development artifacts.
+
+| Browser | Bytes | SHA-256 |
+| --- | --- | --- |
+| Chromium | 211781 | `de60a1dbd0f57d014a64edbe893c6ec36bc46ceb6eab47f541be80629c6bcbdc` |
+| Firefox | 211847 | `6d188860df9d6215151942406f794c643c05c34ff252d2c6832285925d90c4c0` |

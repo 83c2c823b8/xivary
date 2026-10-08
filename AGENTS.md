@@ -37,7 +37,7 @@ Modules use `getBrowserApi()`; the classic content loader is the sole bootstrap
 exception inside that boundary. Prefer native Promise APIs (`browser`, then
 `chrome`); do not add browser checks in application code. Preserve one shared
 background repository entry point and all schema-5 semantics. Each browser/profile
-has a local schema-5 view. Chrome synchronizes only the three designated preferences;
+has a local schema-5 view. Chrome synchronizes only the four designated preferences;
 Firefox stays local-only. Cross-browser execution does not imply shared state.
 
 Chrome sync is below LocalRepository in `repository/sync-storage.js`, with pure
@@ -49,8 +49,8 @@ library records/generations/tombstones remain inert and must never upload, merge
 or restore local library data. Leave remote legacy data untouched.
 Local commits (including pending replica records) precede best-effort sync writes.
 No wall-clock conflict ordering, toggle replay, tombstone expiry, or reset-on-error.
-Only `openArxivLinksInNewTab`, `organizeFollowedAuthorsIntoCollections` and
-`openAuthorResultsInNewTab` enter
+Only `openArxivLinksInNewTab`, `organizeFollowedAuthorsIntoCollections`,
+`openAuthorResultsInNewTab` and `openXivaryFromToolbarInNewTab` enter
 Sync registers. Bookmarks, Following, collections and memberships remain local.
 Both last-used pointers remain local. Older replicas
 missing preference registers seed only absent local/remote keys after validated
@@ -110,3 +110,9 @@ Collection deletion uses native confirmation with actual sole-member consequence
 Library and Following share creation keyboard/outside-click behavior. A non-Atom
 response is an error; loading/error must never masquerade as genuine empty results.
 See `docs/author-interaction-polish.md` for scope and release evidence.
+
+Keep the toolbar popup and its counts/Settings gear. Only its Library/Following
+rows use default-true `openXivaryFromToolbarInNewTab`; keep that fourth designated
+Sync preference separate from inbound author and outbound arXiv navigation.
+Use shared restrained control/dialog tokens; Following rows reuse Follow
+presentation and the existing collection picker. Do not change deletion/Undo data rules.

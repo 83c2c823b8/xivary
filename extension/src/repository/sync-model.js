@@ -1,6 +1,6 @@
 export const SYNC_PREFIX = "xivary.sync:";
 export const SYNC_VERSION = 1;
-export const PREFERENCES = ["openArxivLinksInNewTab", "organizeFollowedAuthorsIntoCollections", "openAuthorResultsInNewTab"];
+export const PREFERENCES = ["openArxivLinksInNewTab", "organizeFollowedAuthorsIntoCollections", "openAuthorResultsInNewTab", "openXivaryFromToolbarInNewTab"];
 export const syncKey = (type, ...ids) => SYNC_PREFIX + JSON.stringify([type, ...ids]);
 export const equal = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 export const compareRevision = (a, b) => !a ? (b ? -1 : 0) : !b ? 1
