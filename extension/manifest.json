@@ -27,9 +27,9 @@
   },
   "options_page": "src/settings/settings.html",
   "content_scripts": [{
-    "matches": ["https://arxiv.org/abs/*"],
+    "matches": ["https://arxiv.org/abs/*", "https://arxiv.org/search/*"],
     "js": ["src/platform/content-loader.js"],
-    "css": ["src/content/arxiv.css", "src/ui/author-collection-picker.css"],
+    "css": ["src/content/arxiv.css", "src/ui/author-collection-picker.css", "src/ui/undo.css"],
     "run_at": "document_idle"
   }],
   "web_accessible_resources": [{
@@ -40,6 +40,7 @@
       "src/content/extract-paper.js",
       "src/ui/paper-collection-picker.js",
       "src/ui/author-collection-picker.js",
+      "src/ui/undo.js",
       "src/domain/identifiers.js",
       "src/domain/paper.js",
       "src/domain/author.js",

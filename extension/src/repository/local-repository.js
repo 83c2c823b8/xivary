@@ -15,6 +15,9 @@ export class LocalRepository extends PaperRepository {
     this.clock = clock;
     this.makeId = makeId;
     this.pending = Promise.resolve();
+    this.removals = new Map();
+    this.entityVersions = new Map();
+    this.undoNow = () => Date.now();
   }
 
   // One worker instance serializes migrations, reads and writes across all UI contexts.
@@ -23,7 +26,13 @@ export class LocalRepository extends PaperRepository {
       const stored = await this.storage.read();
       const state = prepareState(stored, this.clock());
       if (persistMigration && stored && stored.schemaVersion !== 5) await this.storage.write(state);
-      return operation(state);
+      const before = entitySnapshots(state);
+      const result = await operation(state);
+      const after = entitySnapshots(state);
+      for (const key of new Set([...before.keys(), ...after.keys()])) {
+        if (before.get(key) !== after.get(key)) this.entityVersions.set(key, (this.entityVersions.get(key) || 0) + 1);
+      }
+      return result;
     });
     this.pending = result.catch(() => {});
     return result;
@@ -69,8 +78,7 @@ export class LocalRepository extends PaperRepository {
   removeFavorite(arxivId) {
     return this.run(async state => {
       const id = normalizeArxivId(arxivId);
-      this.removePaperEverywhere(state, id);
-      await this.storage.write(state);
+      return this.removeWithUndo(state, "paper", id, () => this.removePaperEverywhere(state, id));
     });
   }
 
@@ -119,9 +127,10 @@ export class LocalRepository extends PaperRepository {
     return this.run(async state => {
       requirePaperCollection(state, collectionId);
       const id = normalizeArxivId(arxivId);
-      state.paperMemberships = state.paperMemberships.filter(item => item.arxivId !== id || item.collectionId !== collectionId);
-      this.removeOrphanedPapers(state);
-      await this.storage.write(state);
+      return this.removeWithUndo(state, "paper", id, () => {
+        state.paperMemberships = state.paperMemberships.filter(item => item.arxivId !== id || item.collectionId !== collectionId);
+        this.removeOrphanedPapers(state);
+      });
     });
   }
 
@@ -189,16 +198,63 @@ export class LocalRepository extends PaperRepository {
   removeAuthorFromCollection(authorId, collectionId) {
     return this.run(async state => {
       requireCollection(state, collectionId);
-      state.memberships = state.memberships.filter(item => item.authorId !== authorId || item.collectionId !== collectionId);
-      await this.storage.write(state);
+      return this.removeWithUndo(state, "author", authorId, () => {
+        state.memberships = state.memberships.filter(item => item.authorId !== authorId || item.collectionId !== collectionId);
+      });
     });
   }
 
   unfollowAuthor(id) {
     return this.run(async state => {
       if (typeof id !== "string" || !id.startsWith("arxiv-author:name:v1:")) throw new TypeError("Invalid author ID.");
-      state.memberships = state.memberships.filter(item => item.authorId !== id);
-      await this.storage.write(state);
+      return this.removeWithUndo(state, "author", id, () => {
+        state.memberships = state.memberships.filter(item => item.authorId !== id);
+      });
+    });
+  }
+
+  /** Short-lived background-owned receipts, never persisted or synchronized. */
+  async removeWithUndo(state, kind, id, remove) {
+    const membershipField = kind === "paper" ? "paperMemberships" : "memberships";
+    const recordField = kind === "paper" ? "favorites" : "authors";
+    const idField = kind === "paper" ? "arxivId" : "id";
+    const memberId = kind === "paper" ? "arxivId" : "authorId";
+    const record = structuredClone(state[recordField].find(item => item[idField] === id));
+    const before = state[membershipField].filter(item => item[memberId] === id);
+    remove();
+    const removed = before.filter(item => !state[membershipField].some(other => other[memberId] === id && other.collectionId === item.collectionId));
+    await this.storage.write(state);
+    if (!removed.length) return null;
+    for (const [token, receipt] of this.removals) if (receipt.expires <= this.undoNow()) this.removals.delete(token);
+    if (this.removals.size >= 100) this.removals.delete(this.removals.keys().next().value);
+    const key = `${kind}:${id}`, token = crypto.randomUUID();
+    this.removals.set(token, { kind, id, record, removed: structuredClone(removed),
+      collectionVersions: Object.fromEntries(removed.map(item => {
+        const collectionKey = `${kind}-collection:${item.collectionId}`;
+        return [collectionKey, this.entityVersions.get(collectionKey) || 0];
+      })),
+      version: (this.entityVersions.get(key) || 0) + 1, after: entitySnapshots(state).get(key), expires: this.undoNow() + 8000 });
+    return { undoToken: token };
+  }
+
+  undoRemoval(token) {
+    return this.run(async state => {
+      const receipt = typeof token === "string" && this.removals.get(token);
+      if (!receipt || receipt.expires <= this.undoNow()) throw new Error("Undo has expired. Existing data was left unchanged.");
+      const { kind, id, record, removed } = receipt, key = `${kind}:${id}`;
+      const collectionField = kind === "paper" ? "paperCollections" : "collections";
+      if ((this.entityVersions.get(key) || 0) !== receipt.version || entitySnapshots(state).get(key) !== receipt.after
+          || Object.entries(receipt.collectionVersions).some(([key, version]) => (this.entityVersions.get(key) || 0) !== version)
+          || removed.some(item => !state[collectionField].some(collection => collection.id === item.collectionId))) {
+        throw new Error("This item changed after removal. Undo was not applied.");
+      }
+      const recordField = kind === "paper" ? "favorites" : "authors";
+      const idField = kind === "paper" ? "arxivId" : "id";
+      const membershipField = kind === "paper" ? "paperMemberships" : "memberships";
+      if (!state[recordField].some(item => item[idField] === id)) state[recordField].push(structuredClone(record));
+      state[membershipField].push(...structuredClone(removed));
+      await this.storage.write(prepareState(state, this.clock()));
+      this.removals.delete(token);
     });
   }
 
@@ -218,9 +274,19 @@ export class LocalRepository extends PaperRepository {
 
   getPreferences() {
     return this.run(state => structuredClone({
+      openAuthorResultsInNewTab: state.settings.openAuthorResultsInNewTab,
       openArxivLinksInNewTab: state.settings.openArxivLinksInNewTab,
       organizeFollowedAuthorsIntoCollections: state.settings.organizeFollowedAuthorsIntoCollections,
     }));
+  }
+
+  setOpenAuthorResultsInNewTab(enabled) {
+    if (typeof enabled !== "boolean") return Promise.reject(new TypeError("The author navigation preference must be true or false."));
+    return this.run(async state => {
+      state.settings.openAuthorResultsInNewTab = enabled;
+      await this.storage.write(state);
+      return { openAuthorResultsInNewTab: enabled };
+    });
   }
 
   setOpenArxivLinksInNewTab(enabled) {
@@ -397,6 +463,7 @@ export function prepareState(stored, now) {
     settings: {
       lastUsedAuthorCollectionId: null,
       lastUsedPaperCollectionId: DEFAULT_PAPER_COLLECTION_ID,
+      openAuthorResultsInNewTab: true,
       openArxivLinksInNewTab: false,
       organizeFollowedAuthorsIntoCollections: false,
     },
@@ -426,6 +493,8 @@ export function prepareState(stored, now) {
   if (![state.authors, state.collections, state.memberships].every(Array.isArray) || !state.settings) {
     throw new Error("Invalid author collection data.");
   }
+  if (state.settings.openAuthorResultsInNewTab === undefined) state.settings.openAuthorResultsInNewTab = true;
+  if (typeof state.settings.openAuthorResultsInNewTab !== "boolean") throw new Error("Invalid author navigation preference.");
   if (state.settings.openArxivLinksInNewTab === undefined) state.settings.openArxivLinksInNewTab = false;
   if (typeof state.settings.openArxivLinksInNewTab !== "boolean") throw new Error("Invalid link preference.");
   if (state.settings.organizeFollowedAuthorsIntoCollections === undefined) state.settings.organizeFollowedAuthorsIntoCollections = false;
@@ -498,4 +567,29 @@ export function prepareState(stored, now) {
   const lastUsedPaper = state.settings.lastUsedPaperCollectionId;
   if (lastUsedPaper !== null && !paperCollectionIds.has(lastUsedPaper)) throw new Error("Invalid last-used paper collection.");
   return state;
+}
+
+// Per-entity guards detect re-save/re-follow and ABA changes while a receipt lives.
+// Include collection existence/generation so deleted classifications cannot return.
+function entitySnapshots(state) {
+  const snapshots = new Map();
+  for (const [kind, records, memberships, collections, idField, memberId] of [
+    ["paper", state.favorites, state.paperMemberships, state.paperCollections, "arxivId", "arxivId"],
+    ["author", state.authors, state.memberships, state.collections, "id", "authorId"],
+  ]) {
+    const recordsById = new Map(records.map(item => [item[idField], item]));
+    const collectionsById = new Map(collections.map(item => [item.id, item]));
+    const membersById = new Map();
+    for (const item of memberships) {
+      if (!membersById.has(item[memberId])) membersById.set(item[memberId], []);
+      membersById.get(item[memberId]).push(item);
+    }
+    for (const collection of collections) snapshots.set(`${kind}-collection:${collection.id}`, JSON.stringify([collection.id, collection.createdAt]));
+    for (const id of new Set([...recordsById.keys(), ...membersById.keys()])) {
+      const members = (membersById.get(id) || []).sort((a, b) => a.collectionId.localeCompare(b.collectionId));
+      snapshots.set(`${kind}:${id}`, JSON.stringify([recordsById.get(id), members,
+        members.map(item => { const collection = collectionsById.get(item.collectionId); return [collection?.id, collection?.createdAt]; })]));
+    }
+  }
+  return snapshots;
 }

@@ -243,7 +243,7 @@ test("all schema 1–4 migrations remain lossless local operations before prefer
     assert.deepEqual(library(await a.local.read()), library(expected));
     assert.equal((await a.local.read()).future, "keep");
     assert.equal((await a.local.read()).schemaVersion, 5);
-    assert.deepEqual((await a.local.read())._chromeSync.bootstrapSnapshot, { settings: Object.fromEntries(PREFERENCES.map(name => [name, false])) });
+    assert.deepEqual((await a.local.read())._chromeSync.bootstrapSnapshot, { settings: Object.fromEntries(PREFERENCES.map(name => [name, name === "openAuthorResultsInNewTab"])) });
     for (const [key, value] of Object.entries(legacy)) assert.deepEqual(n.server[key], value);
   }
 });
@@ -377,7 +377,7 @@ test("preference bursts coalesce and durable desired state waits for the existin
   assert.equal(n.server[syncKey("s", PREFERENCES[1])].value, true);
 });
 
-test("preference classification syncs only the two durable booleans", () => {
+test("preference classification syncs only designated durable booleans", () => {
   const state = prepareState(undefined, date);
   state.settings.internalView = "local-only";
   state._chromeSyncError = "internal-only";
@@ -403,7 +403,7 @@ test("local preferences bootstrap to empty sync and remote values beat fresh def
   }
   const b = net.device("z"); await net.settle();
   assert.deepEqual(await b.repo.getPreferences(), await a.repo.getPreferences());
-  assert.deepEqual((await b.local.read())._chromeSync.bootstrapSnapshot.settings, Object.fromEntries(PREFERENCES.map(name => [name, false])));
+  assert.deepEqual((await b.local.read())._chromeSync.bootstrapSnapshot.settings, Object.fromEntries(PREFERENCES.map(name => [name, name === "openAuthorResultsInNewTab"])));
 });
 
 test("pre-settings Sync v1 replicas seed missing preferences without revising library records", async () => {
@@ -420,7 +420,7 @@ test("pre-settings Sync v1 replicas seed missing preferences without revising li
   }
   const net = network(remote), a = net.device("old", disk); await net.settle();
   const b = net.device("new"); await net.settle();
-  assert.deepEqual(await b.repo.getPreferences(), { openArxivLinksInNewTab: true, organizeFollowedAuthorsIntoCollections: true });
+  assert.deepEqual(await b.repo.getPreferences(), { openArxivLinksInNewTab: true, organizeFollowedAuthorsIntoCollections: true, openAuthorResultsInNewTab: true });
   assert.deepEqual((await a.local.read()).favorites, disk.favorites);
   assert.deepEqual((await a.local.read()).memberships, disk.memberships);
   for (const [key, value] of Object.entries(remote)) assert.deepEqual(net.server[key], value);
@@ -449,10 +449,10 @@ test("preferences propagate both ways without changing bookmarks, follows, cache
   const before = await a.local.read();
   await a.repo.setOpenArxivLinksInNewTab(true);
   await b.repo.setOrganizeFollowedAuthorsIntoCollections(true); await net.settle();
-  for (const d of [a, b]) assert.deepEqual(await d.repo.getPreferences(), { openArxivLinksInNewTab: true, organizeFollowedAuthorsIntoCollections: true });
+  for (const d of [a, b]) assert.deepEqual(await d.repo.getPreferences(), { openArxivLinksInNewTab: true, organizeFollowedAuthorsIntoCollections: true, openAuthorResultsInNewTab: true });
   await b.repo.setOpenArxivLinksInNewTab(false);
   await a.repo.setOrganizeFollowedAuthorsIntoCollections(false); await net.settle();
-  for (const d of [a, b]) assert.deepEqual(await d.repo.getPreferences(), { openArxivLinksInNewTab: false, organizeFollowedAuthorsIntoCollections: false });
+  for (const d of [a, b]) assert.deepEqual(await d.repo.getPreferences(), { openArxivLinksInNewTab: false, organizeFollowedAuthorsIntoCollections: false, openAuthorResultsInNewTab: true });
   const after = await a.local.read();
   for (const field of ["favorites", "authors", "paperCollections", "collections", "paperMemberships", "memberships", "authorPaperCaches"]) assert.deepEqual(after[field], before[field]);
   assert.equal(after.settings.lastUsedAuthorCollectionId, ac.id);
@@ -492,7 +492,7 @@ test("concurrent preferences use logical counters and replica ties while indepen
   await b.repo.setOpenArxivLinksInNewTab(true);
   await b.repo.setOpenArxivLinksInNewTab(false);
   await net.settle();
-  for (const d of [a, b]) assert.deepEqual(await d.repo.getPreferences(), { openArxivLinksInNewTab: false, organizeFollowedAuthorsIntoCollections: true });
+  for (const d of [a, b]) assert.deepEqual(await d.repo.getPreferences(), { openArxivLinksInNewTab: false, organizeFollowedAuthorsIntoCollections: true, openAuthorResultsInNewTab: true });
   assert.deepEqual(net.server[syncKey("s", "openArxivLinksInNewTab")].rev, [2, "b"]);
 });
 
@@ -518,7 +518,7 @@ test("failed preference publication remains local and recovers after retry and r
   assert.equal((await b.repo.getPreferences()).openArxivLinksInNewTab, false);
   const revision = clone(disk._chromeSync.records[syncKey("s", "openArxivLinksInNewTab")].rev);
   a.restart(); a.fail = false; await net.settle();
-  assert.deepEqual(await b.repo.getPreferences(), { openArxivLinksInNewTab: true, organizeFollowedAuthorsIntoCollections: true });
+  assert.deepEqual(await b.repo.getPreferences(), { openArxivLinksInNewTab: true, organizeFollowedAuthorsIntoCollections: true, openAuthorResultsInNewTab: true });
   assert.deepEqual(net.server[syncKey("s", "openArxivLinksInNewTab")].rev, revision);
   assert.equal((await a.local.read())._chromeSync.lastError, null);
 });
@@ -530,7 +530,7 @@ test("malformed or unsupported remote preferences pause sync without resetting l
     const net = network({ [key]: bad }), a = net.device("a", state);
     await a.repo.savePaper(paper); await a.repo.followAuthor(author);
     await a.repo.setOrganizeFollowedAuthorsIntoCollections(true);
-    assert.deepEqual(await a.repo.getPreferences(), { openArxivLinksInNewTab: true, organizeFollowedAuthorsIntoCollections: true });
+    assert.deepEqual(await a.repo.getPreferences(), { openArxivLinksInNewTab: true, organizeFollowedAuthorsIntoCollections: true, openAuthorResultsInNewTab: true });
     assert.equal((await a.repo.listFavorites()).length, 1);
     assert.equal((await a.repo.listFollowing()).length, 1);
     assert.match((await a.local.read())._chromeSyncError, /sync.*(?:version|record)/i);
@@ -546,7 +546,7 @@ test("unavailable sync retains preference edits and a local-only repository need
   assert.ok(a.schedules.length);
   a.failRead = false; await net.settle();
   const b = net.device("b"); await net.settle();
-  assert.deepEqual(await b.repo.getPreferences(), { openArxivLinksInNewTab: true, organizeFollowedAuthorsIntoCollections: true });
+  assert.deepEqual(await b.repo.getPreferences(), { openArxivLinksInNewTab: true, organizeFollowedAuthorsIntoCollections: true, openAuthorResultsInNewTab: true });
   let disk;
   const local = new LocalRepository({ read: async () => clone(disk), write: async value => { disk = clone(value); } });
   await local.setOpenArxivLinksInNewTab(true);
@@ -567,9 +567,27 @@ test("portable category imports remain local and leave preference values and rev
     const file = await source.exportCategory(category);
     assert.equal(Object.hasOwn(file, "preferences"), false);
     await a.repo.importCategory(JSON.stringify(file), category); await net.settle();
-    assert.deepEqual(await b.repo.getPreferences(), { openArxivLinksInNewTab: true, organizeFollowedAuthorsIntoCollections: true });
+    assert.deepEqual(await b.repo.getPreferences(), { openArxivLinksInNewTab: true, organizeFollowedAuthorsIntoCollections: true, openAuthorResultsInNewTab: true });
   }
   for (const [key, value] of Object.entries(before)) assert.deepEqual(net.server[key], value);
   assert.equal((await b.repo.listFavorites()).length, 0);
   assert.equal((await b.repo.listFollowing()).length, 0);
+});
+
+test("new author-navigation preference upgrades old schema-5/v1 replicas and propagates without library data", async () => {
+  const old = network(), previous = old.device("a"); await old.settle();
+  const disk = await previous.local.read(), remote = clone(old.server), key = syncKey("s", "openAuthorResultsInNewTab");
+  delete disk.settings.openAuthorResultsInNewTab; delete disk._chromeSync.records[key]; delete remote[key];
+  const n = network(remote), a = n.device("a", disk); n.advance(); await n.settle();
+  const b = n.device("b"); await n.settle();
+  assert.equal((await a.repo.getPreferences()).openAuthorResultsInNewTab, true);
+  assert.deepEqual(n.server[key].rev, [0, "a"]);
+  await a.repo.setOpenAuthorResultsInNewTab(false); await n.settle();
+  assert.equal((await b.repo.getPreferences()).openAuthorResultsInNewTab, false);
+  await b.repo.setOpenAuthorResultsInNewTab(true); await n.settle();
+  assert.equal((await a.repo.getPreferences()).openAuthorResultsInNewTab, true);
+  assert.ok(Object.keys(n.server).every(isPreferenceKey));
+  assert.deepEqual(await b.repo.listFollowing(), []);
+  const file = await a.repo.exportCategory("bookmarks", { kind: "all" });
+  assert.equal(JSON.stringify(file).includes("openAuthorResultsInNewTab"), false);
 });

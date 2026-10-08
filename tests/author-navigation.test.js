@@ -82,7 +82,7 @@ test("both primary library pages link accessibly to the one Settings page", asyn
 test("background opens the existing author page and rejects invalid navigation", async () => {
   const opened = [];
   const api = { runtime: { id: "extension-test", getURL: path => `chrome-extension://extension-test/${path}` }, tabs: { create: async value => { opened.push(value); } } };
-  const handler = createAuthorNavigationHandler(api);
+  const handler = createAuthorNavigationHandler(api, { getPreferences: async () => ({ openAuthorResultsInNewTab: true }) });
   const sender = { id: "extension-test", url: "https://arxiv.org/abs/2512.03554" };
   const request = (message, from = sender) => new Promise(resolve => {
     const active = handler(message, from, resolve);
@@ -92,6 +92,35 @@ test("background opens the existing author page and rejects invalid navigation",
   assert.equal(opened.length, 1);
   assert.equal(new URL(opened[0].url).searchParams.get("name"), "Alex Kim");
   assert.deepEqual(await request({ channel: AUTHOR_NAVIGATION_CHANNEL, name: "\u0000" }), { ok: false });
-  assert.deepEqual(await request({ channel: AUTHOR_NAVIGATION_CHANNEL, name: "Alex Kim" }, { ...sender, url: "https://arxiv.org/search/" }), { ok: false });
+  assert.deepEqual(await request({ channel: AUTHOR_NAVIGATION_CHANNEL, name: "Alex Kim" }, { ...sender, url: "https://arxiv.org/list/math/recent" }), { ok: false });
   assert.equal(opened.length, 1);
+});
+
+test("current standard search fixture recognizes full names only in result author paragraphs", async () => {
+  const html = await readFile(new URL("./fixtures/arxiv-search.html", import.meta.url), "utf8");
+  const paragraphs = [...html.matchAll(/<p class="authors">([\s\S]*?)<\/p>/g)];
+  assert.equal(paragraphs.length, 2);
+  const names = [];
+  for (const [, paragraph] of paragraphs) for (const [, href, name] of paragraph.matchAll(/<a href="([^"]+)"[^>]*>([^<]+)<\/a>/g)) {
+    const item = link(name, href.replaceAll("&amp;", "&"));
+    item.matches = selector => [".authors a[href]", "li.arxiv-result p.authors a[href]"].includes(selector);
+    item.closest = () => ({ querySelector: () => ({ textContent: "Authors:" }) });
+    names.push(authorFromAbstractLink(item, "https://arxiv.org/search/?query=Yuya+Nakamura&searchtype=author").name);
+    item.closest = () => ({ querySelector: () => ({ textContent: "Categories:" }) });
+    assert.equal(authorFromAbstractLink(item, "https://arxiv.org/search/"), null);
+  }
+  assert.ok(names.includes("Yuya Nakamura")); assert.ok(names.includes("Yoshiki Nakamura"));
+});
+
+test("navigation preference selects native source-tab update or a new tab for both supported pages", async () => {
+  for (const newTab of [true, false]) for (const page of ["https://arxiv.org/abs/2401.00001", "https://arxiv.org/search/math?query=test"]) {
+    const calls = [];
+    const api = { runtime: { id: "test", getURL: path => `chrome-extension://test/${path}` }, tabs: {
+      create: async options => calls.push(["create", options]), update: async (id, options) => calls.push(["update", id, options]),
+    } };
+    const handler = createAuthorNavigationHandler(api, { getPreferences: async () => ({ openAuthorResultsInNewTab: newTab }) });
+    const result = await new Promise(resolve => handler({ channel: AUTHOR_NAVIGATION_CHANNEL, name: "Yuya Nakamura" }, { id: "test", url: page, tab: { id: 9 } }, resolve));
+    assert.deepEqual(result, { ok: true }); assert.equal(calls.length, 1); assert.equal(calls[0][0], newTab ? "create" : "update");
+    if (!newTab) assert.equal(calls[0][1], 9);
+  }
 });

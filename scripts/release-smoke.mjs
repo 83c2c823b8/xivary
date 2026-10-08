@@ -10,7 +10,7 @@ const temporary = await mkdtemp(join(tmpdir(), "xivary-release-"));
 const profile = join(temporary, "profile"), downloadsPath = join(temporary, "downloads");
 await mkdir(downloadsPath);
 let chrome = new ChromiumTestSession(profile);
-const preferenceNames = ["openArxivLinksInNewTab", "organizeFollowedAuthorsIntoCollections"];
+const preferenceNames = ["openArxivLinksInNewTab", "organizeFollowedAuthorsIntoCollections", "openAuthorResultsInNewTab"];
 const syncKey = name => `xivary.sync:${JSON.stringify(["s", name])}`;
 const paper = { arxivId: "2401.00001", title: "Release transfer fixture", authors: ["Alex Kim"] };
 const client = operation => `(async () => { const { RepositoryClient } = await import('../repository/repository-client.js'); const repository = new RepositoryClient(); return ${operation}; })()`;
@@ -128,7 +128,7 @@ try {
     assert.deepEqual(otherStateAfter, otherStateBefore);
     const otherPointer = category === "bookmarks" ? "lastUsedAuthorCollectionId" : "lastUsedPaperCollectionId";
     assert.equal(otherSettingsAfter[otherPointer], otherSettingsBefore[otherPointer]);
-    assert.deepEqual(await chrome.evaluate(session, client("repository.getPreferences()")), { openArxivLinksInNewTab: true, organizeFollowedAuthorsIntoCollections: true });
+    assert.deepEqual(await chrome.evaluate(session, client("repository.getPreferences()")), { openArxivLinksInNewTab: true, organizeFollowedAuthorsIntoCollections: true, openAuthorResultsInNewTab: true });
     console.log(`Release flow PASS: ${category} All/collection download, native file chooser import, restoration, repeat and non-interference`);
   }
 
@@ -173,7 +173,7 @@ try {
   const beforeRemote = await chrome.evaluate(session, localState);
   const remote = Object.fromEntries(preferenceNames.map(name => [syncKey(name), { v: 1, rev: [beforeRemote._chromeSync.counter + 10, "release-peer"], value: false, deleted: null }]));
   await chrome.evaluate(session, `chrome.storage.sync.set(${JSON.stringify(remote)})`);
-  await chrome.until(session, `${localState}.then(state => !state.settings.openArxivLinksInNewTab && !state.settings.organizeFollowedAuthorsIntoCollections)`);
+  await chrome.until(session, `${localState}.then(state => !state.settings.openArxivLinksInNewTab && !state.settings.organizeFollowedAuthorsIntoCollections && !state.settings.openAuthorResultsInNewTab)`);
   const reconciled = await chrome.evaluate(session, localState);
   assert.deepEqual(reconciled.favorites, beforeRemote.favorites);
   assert.deepEqual(reconciled.memberships, beforeRemote.memberships);
@@ -181,7 +181,7 @@ try {
   const otherPage = await chrome.page("about:blank");
   await chrome.send("Page.bringToFront", {}, otherPage.sessionId);
   await chrome.send("Page.bringToFront", {}, session);
-  await chrome.until(session, "!document.querySelector('#open-arxiv-new-tab').checked && !document.querySelector('#organize-author-collections').checked");
+  await chrome.until(session, "!document.querySelector('#open-arxiv-new-tab').checked && !document.querySelector('#organize-author-collections').checked && !document.querySelector('#open-author-new-tab').checked");
   await chrome.send("Page.bringToFront", {}, following.sessionId);
   await chrome.until(following.sessionId, "document.querySelector('#collection-sidebar').hidden && document.querySelectorAll('.author-row').length === 1 && !document.querySelector('.manage-collections')");
   await chrome.send("Page.bringToFront", {}, session);
@@ -193,12 +193,14 @@ try {
   });
   await chrome.send("ServiceWorker.enable", {}, session);
   const version = await waitFor(() => [...versions.values()].find(item => item.scriptURL === `chrome-extension://${extensionId}/src/background/service-worker.js` && item.runningStatus === "running"), "extension service worker version");
-  // Two quick UI updates leave the second desired state pending in the 2.1s
+  // Quick UI updates leave durable preference state pending in the 2.1s
   // write interval. Stop the worker and let the real one-shot alarm wake it.
   await chrome.click(session, "#open-arxiv-new-tab + .toggle");
   await chrome.until(session, "document.querySelector('#open-arxiv-new-tab').checked && !document.querySelector('#open-arxiv-new-tab').disabled");
   await chrome.click(session, "#organize-author-collections + .toggle");
   await chrome.until(session, "document.querySelector('#organize-author-collections').checked && !document.querySelector('#organize-author-collections').disabled");
+  await chrome.click(session, "#open-author-new-tab + .toggle");
+  await chrome.until(session, "document.querySelector('#open-author-new-tab').checked && !document.querySelector('#open-author-new-tab').disabled");
   const pending = await chrome.evaluate(session, `Promise.all([${localState}, chrome.storage.sync.get(null), chrome.alarms.get('xivary-sync-pending')])`);
   const pendingKey = syncKey("organizeFollowedAuthorsIntoCollections");
   assert.notDeepEqual(pending[0]._chromeSync.records[pendingKey], pending[1][pendingKey]);
@@ -224,13 +226,14 @@ try {
   const reloaded = await chrome.evaluate(settings.sessionId, localState);
   assert.equal(reloaded._chromeSync.id, beforeReload._chromeSync.id);
   for (const field of ["favorites", "authors", "paperCollections", "collections", "paperMemberships", "memberships", "authorPaperCaches", "settings"]) assert.deepEqual(reloaded[field], beforeReload[field], `reload: ${field}`);
-  assert.deepEqual(await chrome.evaluate(settings.sessionId, client("repository.getPreferences()")), { openArxivLinksInNewTab: true, organizeFollowedAuthorsIntoCollections: true });
+  assert.deepEqual(await chrome.evaluate(settings.sessionId, client("repository.getPreferences()")), { openArxivLinksInNewTab: true, organizeFollowedAuthorsIntoCollections: true, openAuthorResultsInNewTab: true });
   console.log("Chrome Sync PASS: extension reload preserves library, preferences and replica identity");
 
   // Create another pending preference before restarting the whole browser with
   // the same test profile. Never clear storage or fabricate replica bookkeeping.
   await chrome.evaluate(settings.sessionId, client("repository.setOpenArxivLinksInNewTab(false)"));
   await chrome.evaluate(settings.sessionId, client("repository.setOrganizeFollowedAuthorsIntoCollections(false)"));
+  await chrome.evaluate(settings.sessionId, client("repository.setOpenAuthorResultsInNewTab(false)"));
   const beforeRestart = await chrome.evaluate(settings.sessionId, `Promise.all([${localState}, chrome.storage.sync.get(null)])`);
   assert.notDeepEqual(beforeRestart[0]._chromeSync.records[pendingKey], beforeRestart[1][pendingKey]);
   // Let the existing write interval elapse without invoking the repository; the
@@ -245,7 +248,7 @@ try {
   assert.equal(restarted._chromeSync.id, beforeRestart[0]._chromeSync.id);
   assert.equal(restarted._chromeSync.counter, beforeRestart[0]._chromeSync.counter);
   for (const field of ["favorites", "authors", "paperCollections", "collections", "paperMemberships", "memberships", "authorPaperCaches", "settings"]) assert.deepEqual(restarted[field], beforeRestart[0][field], `restart: ${field}`);
-  assert.deepEqual(await chrome.evaluate(settings.sessionId, client("repository.getPreferences()")), { openArxivLinksInNewTab: false, organizeFollowedAuthorsIntoCollections: false });
+  assert.deepEqual(await chrome.evaluate(settings.sessionId, client("repository.getPreferences()")), { openArxivLinksInNewTab: false, organizeFollowedAuthorsIntoCollections: false, openAuthorResultsInNewTab: false });
   await chrome.until(settings.sessionId, `chrome.storage.sync.get(${JSON.stringify(pendingKey)}).then(values => JSON.stringify(values[${JSON.stringify(pendingKey)}]) === ${JSON.stringify(JSON.stringify(beforeRestart[0]._chromeSync.records[pendingKey]))})`);
   const followingRestarted = await chrome.page(`chrome-extension://${extensionId}/src/authors/authors.html`);
   await chrome.until(followingRestarted.sessionId, "document.querySelector('#collection-sidebar')?.hidden && document.querySelectorAll('.author-row').length === 1");

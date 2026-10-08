@@ -12,7 +12,7 @@ const storage = transport ? new SyncStorage(new BrowserLocalStorage(), transport
 const repository = new LocalRepository(storage);
 const { runtime } = api;
 const repositoryHandler = createRepositoryHandler(repository, runtime.id);
-const authorNavigationHandler = createAuthorNavigationHandler(api);
+const authorNavigationHandler = createAuthorNavigationHandler(api, repository);
 runtime.onMessage.addListener((...args) => repositoryHandler(...args) || authorNavigationHandler(...args));
 
 if (transport) {

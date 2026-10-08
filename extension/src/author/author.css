@@ -47,3 +47,6 @@
   .author-filters > .search-field { flex: 1 1 100%; max-width: none; }
   .custom-dates { flex-wrap: wrap; }
 }
+
+.author-heading { display: flex; gap: 12px; align-items: center; }
+.author-heading button { padding: 6px 12px; font: inherit; }

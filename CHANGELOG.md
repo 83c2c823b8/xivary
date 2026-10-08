@@ -1,5 +1,22 @@
 # Release notes
 
+## Unreleased — Author Navigation and Interaction Polish
+
+- Add explicit Follow/Unfollow and optional collection assignment beside author names.
+- Add default-new-tab inbound author navigation preference, separate from outbound
+  arXiv link behavior; synchronize this third designated preference only.
+- Support current standard arXiv search-result author anchors with visible full
+  names, native fallback links and unmodified-click-only interception.
+- Add eight-second Undo to ordinary item/membership removals, preserving metadata
+  and rejecting stale receipts. Confirm whole-collection deletion with actual consequences.
+- Share Library/Following creation behavior: focus, Enter, Escape, outside cancellation,
+  whitespace cancellation and guarded submission.
+- Prevent contradictory loading/empty states and caching non-Atom success responses.
+  No reproduced store-specific slowdown or speculative networking redesign.
+- Retain version 0.2.0 for implementation; choose the next version at release preparation.
+  User reports Chrome Web Store publication of the preceding version; historical
+  candidate evidence below describes the earlier preparation run.
+
 ## 0.2.0 — 2026-10-08 (release candidate)
 
 - Fix incomplete Following collection organization: honor the opt-in setting on

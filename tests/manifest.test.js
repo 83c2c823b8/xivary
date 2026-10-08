@@ -24,7 +24,7 @@ test("manifest uses MV3, narrow permissions and existing entry points", async ()
   assert.deepEqual(manifest.host_permissions, ["https://export.arxiv.org/*"]);
   assert.equal(manifest.background.type, "module");
   assert.equal(manifest.options_page, "src/settings/settings.html");
-  assert.deepEqual(manifest.content_scripts[0].matches, ["https://arxiv.org/abs/*"]);
+  assert.deepEqual(manifest.content_scripts[0].matches, ["https://arxiv.org/abs/*", "https://arxiv.org/search/*"]);
   assert.deepEqual(manifest.web_accessible_resources.map(group => group.matches), [["https://arxiv.org/*"]]);
   const paths = [manifest.background.service_worker, manifest.action.default_popup,
     ...Object.values(manifest.icons), ...Object.values(manifest.action.default_icon),

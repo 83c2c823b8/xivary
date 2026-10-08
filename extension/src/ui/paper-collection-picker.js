@@ -1,3 +1,4 @@
+import { showUndo } from "./undo.js";
 let closeCurrent = () => {};
 
 /** Shared paper-membership editor. Persistence stays behind PaperRepository. */
@@ -72,7 +73,10 @@ export async function openPaperCollectionPicker({ repository, paper, anchor, onC
       checkbox.checked = selected.has(collection.id);
       checkbox.addEventListener("change", () => change(async () => {
         if (checkbox.checked) await repository.addPaperToCollection(paper, collection.id);
-        else await repository.removePaperFromCollection(paper.arxivId, collection.id);
+        else {
+          const result = await repository.removePaperFromCollection(paper.arxivId, collection.id);
+          showUndo(repository, result, "Removed from collection.", async () => { await render(); await onChange(); });
+        }
       }, collection.id));
       label.append(checkbox, document.createTextNode(collection.name));
       choices.append(label);

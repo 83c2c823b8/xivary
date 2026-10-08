@@ -1,3 +1,4 @@
+import { showUndo } from "./undo.js";
 let closeCurrent = () => {};
 
 export function closeAuthorCollectionPicker() { closeCurrent(); }
@@ -76,7 +77,10 @@ export async function openAuthorCollectionPicker({ repository, author, anchor, o
       checkbox.checked = selected.has(collection.id);
       checkbox.addEventListener("change", () => change(async () => {
         if (checkbox.checked) await repository.addAuthorToCollection(author, collection.id);
-        else await repository.removeAuthorFromCollection(author.id, collection.id);
+        else {
+          const result = await repository.removeAuthorFromCollection(author.id, collection.id);
+          showUndo(repository, result, "Removed from collection.", async () => { await render(); await onChange(); });
+        }
       }, collection.id));
       label.append(checkbox, document.createTextNode(collection.name));
       choices.append(label);

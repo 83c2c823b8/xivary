@@ -1,0 +1,3 @@
+.xivary-undo-stack { position: fixed; bottom: 16px; left: 16px; z-index: 2147483647; display: grid; gap: 6px; max-width: min(480px, calc(100vw - 32px)); }
+.xivary-undo { display: flex; align-items: center; gap: 16px; padding: 8px 12px; border: 1px solid #bbb; background: #fff; color: #222; font: 14px system-ui, sans-serif; }
+.xivary-undo button { padding: 5px 10px; color: #0665c0; background: #fff; border: 1px solid #bbb; cursor: pointer; }

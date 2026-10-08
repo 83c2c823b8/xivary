@@ -37,7 +37,7 @@ Modules use `getBrowserApi()`; the classic content loader is the sole bootstrap
 exception inside that boundary. Prefer native Promise APIs (`browser`, then
 `chrome`); do not add browser checks in application code. Preserve one shared
 background repository entry point and all schema-5 semantics. Each browser/profile
-has a local schema-5 view. Chrome synchronizes only the two designated preferences;
+has a local schema-5 view. Chrome synchronizes only the three designated preferences;
 Firefox stays local-only. Cross-browser execution does not imply shared state.
 
 Chrome sync is below LocalRepository in `repository/sync-storage.js`, with pure
@@ -49,7 +49,8 @@ library records/generations/tombstones remain inert and must never upload, merge
 or restore local library data. Leave remote legacy data untouched.
 Local commits (including pending replica records) precede best-effort sync writes.
 No wall-clock conflict ordering, toggle replay, tombstone expiry, or reset-on-error.
-Only `openArxivLinksInNewTab` and `organizeFollowedAuthorsIntoCollections` enter
+Only `openArxivLinksInNewTab`, `organizeFollowedAuthorsIntoCollections` and
+`openAuthorResultsInNewTab` enter
 Sync registers. Bookmarks, Following, collections and memberships remain local.
 Both last-used pointers remain local. Older replicas
 missing preference registers seed only absent local/remote keys after validated
@@ -91,11 +92,21 @@ see `docs/browser-support.md` for the current verification limits and manual che
 
 Library and Following gears open the existing Settings page. arXiv author entry
 reuses the author view/query/cache/paper rows without automatically following.
-Keep recognition restricted to known abstract author-search anchors, preserve the
-underlying href and intercept only unmodified primary activation. Names remain
+Keep recognition restricted to known abstract and standard search-result
+author-search anchors, preserve the underlying href and intercept only unmodified primary activation. Names remain
 name keys, not verified identities; preserve namesake disclosure and direct routes.
 
 Run `npm run test:release` for native transfer and Chrome Sync lifecycle changes.
 `npm run test:arxiv` is an optional live-network check, separate from deterministic
 fixture suites. Never automate account credentials or use normal browser profiles.
 See `docs/release.md` for package inspection and outstanding manual release checks.
+
+Author-results Follow/Unfollow is explicit and membership-based. Inbound author
+navigation has its own default-true `openAuthorResultsInNewTab` preference; outbound
+`openArxivLinksInNewTab` remains default-false. Both use repository preferences.
+Ordinary removals offer eight-second background-owned, nonpersistent Undo receipts;
+restore only removed metadata/memberships and reject expired or changed items.
+Collection deletion uses native confirmation with actual sole-member consequences.
+Library and Following share creation keyboard/outside-click behavior. A non-Atom
+response is an error; loading/error must never masquerade as genuine empty results.
+See `docs/author-interaction-polish.md` for scope and release evidence.

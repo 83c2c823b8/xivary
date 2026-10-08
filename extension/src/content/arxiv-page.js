@@ -1,12 +1,14 @@
+import { showUndo } from "../ui/undo.js";
 import { RepositoryClient } from "../repository/repository-client.js";
 import { normalizeAuthorName } from "../domain/author.js";
 import { extractPaper } from "./extract-paper.js";
 import { openAuthorCollectionPicker } from "../ui/author-collection-picker.js";
 import { openPaperCollectionPicker } from "../ui/paper-collection-picker.js";
 import { getBrowserApi } from "../platform/browser-api.js";
-import { authorFromAbstractLink, shouldOpenAuthorInXivary } from "./author-link.js";
+import { authorFromArxivLink, shouldOpenAuthorInXivary } from "./author-link.js";
 
 export async function mountArxivPage() {
+  mountAuthorNavigation();
   const heading = document.querySelector("h1.title");
   if (!heading || document.getElementById("arxiv-library-controls")) return;
 
@@ -23,16 +25,6 @@ export async function mountArxivPage() {
   try { paper = extractPaper(document, location.href); }
   catch (error) { status.textContent = `Library: ${error.message}`; return; }
 
-  document.addEventListener("click", event => {
-    if (!shouldOpenAuthorInXivary(event)) return;
-    const link = event.target?.closest?.("a[href]");
-    const reference = authorFromAbstractLink(link, location.href);
-    if (!reference || link.hasAttribute("download") || (link.target && link.target !== "_self")) return;
-    event.preventDefault();
-    void getBrowserApi().runtime.sendMessage({ channel: "xivary.author-navigation", name: reference.name })
-      .then(result => { if (!result?.ok) location.assign(link.href); })
-      .catch(() => location.assign(link.href));
-  });
 
   const repository = new RepositoryClient();
   let organizeAuthorCollections = false;
@@ -57,7 +49,7 @@ export async function mountArxivPage() {
       }
       void act(button, async () => {
         const followed = button.getAttribute("aria-pressed") === "true";
-        const record = followed ? (await repository.unfollowAuthor(author.id), null) : await repository.followAuthor(author);
+        const record = followed ? (showUndo(repository, await repository.unfollowAuthor(author.id), `Unfollowed ${author.displayName}.`, refresh), null) : await repository.followAuthor(author);
         followingButtons.filter(item => item.author.id === author.id).forEach(item => {
           setPressed(item.button, Boolean(record), "Follow", "Following", item.author.displayName, organizeAuthorCollections);
         });
@@ -174,4 +166,21 @@ function setPressed(button, pressed, off, on, name, organizeCollections = false)
     button.setAttribute("aria-label", `${pressed ? "Unfollow" : "Follow"}: ${name}`);
     button.title = pressed ? `Unfollow ${name}` : `Follow ${name}`;
   }
+}
+
+let navigationMounted = false;
+function mountAuthorNavigation() {
+  if (navigationMounted) return;
+  navigationMounted = true;
+  document.addEventListener("click", event => {
+    if (!shouldOpenAuthorInXivary(event)) return;
+    const link = event.target?.closest?.("a[href]");
+    const reference = authorFromArxivLink(link, location.href);
+    if (!reference || link.hasAttribute("download") || (link.target && link.target !== "_self")) return;
+    event.preventDefault();
+    void getBrowserApi().runtime.sendMessage({ channel: "xivary.author-navigation", name: reference.name })
+      .then(result => { if (!result?.ok) location.assign(link.href); })
+      .catch(() => location.assign(link.href));
+  });
+
 }

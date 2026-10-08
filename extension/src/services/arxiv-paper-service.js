@@ -72,6 +72,7 @@ export async function fetchArxivPapers(searchQuery, fetchImpl = fetch) {
   const response = await fetchImpl(buildArxivApiUrl(searchQuery), { headers: { Accept: "application/atom+xml" } });
   if (!response.ok) throw new Error(`arXiv returned ${response.status}.`);
   const xml = new DOMParser().parseFromString(await response.text(), "application/xml");
+  if (xml.documentElement?.localName !== "feed" || xml.documentElement?.namespaceURI !== "http://www.w3.org/2005/Atom") throw new Error("arXiv returned an unexpected response.");
   if (xml.querySelector("parsererror")) throw new Error("arXiv returned an unreadable response.");
   return [...xml.querySelectorAll("entry")].map(entry => normalizeApiEntry({
     id: entry.querySelector("id")?.textContent || "",

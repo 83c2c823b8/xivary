@@ -27,9 +27,11 @@ Author page / Search page ── arXiv paper service ── export.arxiv.org Ato
 ```
 
 The arXiv content module integrates bookmark and author-follow controls and narrowly
-recognizes abstract-page author-search anchors. An ordinary primary activation sends
-the displayed author name to a validated background navigation handler, which opens
-the existing `author/` page in a new tab. Modified and middle activations retain the
+recognizes abstract and standard search-result author-search anchors. An ordinary
+primary activation sends the displayed author name to a validated background
+navigation handler, which reads the inbound navigation preference and opens the
+existing `author/` page with native `tabs.create` or source `tabs.update`. Modified
+and middle activations retain the
 original arXiv href. The author page reconstructs a transient name-key reference
 when no followed record exists, then uses its existing query, cache, filters, paper
 rows and save actions. Viewing never calls `followAuthor`. The name key can combine
@@ -147,7 +149,8 @@ feeds incoming old/new records into the same queue; the worker also reconciles a
 startup and on one-shot retry alarms. Writes are coalesced, capped below documented
 rates and checked against size/item quotas. There is no steady-state polling.
 
-Only `openArxivLinksInNewTab` and `organizeFollowedAuthorsIntoCollections` enter
+Only `openArxivLinksInNewTab`, `organizeFollowedAuthorsIntoCollections` and
+`openAuthorResultsInNewTab` enter
 Sync v1 boolean registers. Projection, event observation, validation, merge,
 materialization and publication all restrict themselves to those exact canonical
 keys. Every library entity/collection/membership, cache, last-used pointer and
@@ -206,3 +209,19 @@ The future API owns authentication, conflict handling, tombstones, and server-si
 ordering. Clients will not connect directly to PostgreSQL. No provider-specific
 cloud SDK is assumed; the backend can run on Linux or a Raspberry Pi. None of that
 custom-backend, mobile, embedding, or semantic-search work is implemented here.
+
+## Interaction polish
+
+`ui/collection-create.js` shares Library/Following form behavior. Native modal
+collection deletion explains removal of sole-member papers/follows. Ordinary
+removal methods return short-lived Undo tokens through the same repository/RPC
+contract. LocalRepository retains detached metadata/membership receipts in memory,
+tracks entity and collection-generation changes under its queue, and restores only
+unchanged affected state. It does not roll back a library snapshot, settings or
+last-used choices. Restarts/expiry safely invalidate receipts; no history schema.
+
+The author heading rereads actual membership state and submits Follow/Unfollow
+with a busy guard. It exposes the existing optional collection picker. Fetching is
+single-flight per author view; a focus read cannot reveal an initial empty state
+while loading. Only valid Atom feeds become caches; unexpected successful responses
+are errors. See [investigation and evidence](author-interaction-polish.md).

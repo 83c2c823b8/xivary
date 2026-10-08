@@ -25,6 +25,8 @@ export class PaperRepository {
   async removeAuthorFromCollection(authorId, collectionId) { throw new Error("Not implemented"); }
   async getAuthorPaperCache(authorId) { throw new Error("Not implemented"); }
   async putAuthorPaperCache(cache) { throw new Error("Not implemented"); }
+  async setOpenAuthorResultsInNewTab(enabled) { throw new Error("Not implemented"); }
+  async undoRemoval(token) { throw new Error("Not implemented"); }
   async getPreferences() { throw new Error("Not implemented"); }
   async setOpenArxivLinksInNewTab(enabled) { throw new Error("Not implemented"); }
   async setOrganizeFollowedAuthorsIntoCollections(enabled) { throw new Error("Not implemented"); }

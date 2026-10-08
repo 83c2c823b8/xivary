@@ -1,3 +1,6 @@
+import { bindCollectionCreate } from "../ui/collection-create.js";
+import { confirmCollectionDeletion } from "../ui/confirm-collection.js";
+import { showUndo } from "../ui/undo.js";
 import { RepositoryClient } from "../repository/repository-client.js";
 import { openAuthorCollectionPicker, closeAuthorCollectionPicker } from "../ui/author-collection-picker.js";
 
@@ -7,32 +10,14 @@ let library;
 let selected = "";
 let busy = false;
 let editingId = null;
-let deletingId = null;
 let loadRevision = 0;
 const rows = new Map();
 let renderedOrganization;
 
-element("show-create").addEventListener("click", () => {
-  editingId = null;
-  deletingId = null;
-  renderCollections();
-  element("show-create").hidden = true;
-  element("create-form").hidden = false;
-  element("show-create").setAttribute("aria-expanded", "true");
-  element("collection-name").focus();
-});
-element("create-form").addEventListener("keydown", event => {
-  if (event.key === "Escape") { event.preventDefault(); closeCreate(true); }
-  if (event.key === "Enter") { event.preventDefault(); event.currentTarget.requestSubmit(); }
-});
-element("create-form").addEventListener("submit", event => {
-  event.preventDefault();
-  void mutate(async () => {
-    const collection = await repository.createAuthorCollection(element("collection-name").value);
-    selected = collection.id;
-    element("collection-name").value = "";
-    closeCreate();
-  });
+const closeCreate = bindCollectionCreate({
+  trigger: element("show-create"), form: element("create-form"), input: element("collection-name"),
+  onOpen: () => { editingId = null; renderCollections(); },
+  create: name => mutate(async () => { const collection = await repository.createAuthorCollection(name); selected = collection.id; }, { propagateError: true }),
 });
 window.addEventListener("focus", () => { if (!busy) void load(); });
 void load();
@@ -47,7 +32,7 @@ async function load() {
     if (!organized()) {
       closeAuthorCollectionPicker();
       closeCreate();
-      editingId = deletingId = null;
+      editingId = null;
     }
     render();
     setStatus("");
@@ -117,7 +102,7 @@ function authorRow(author) {
   const unfollow = document.createElement("button");
   unfollow.type = "button";
   unfollow.textContent = "Unfollow";
-  unfollow.addEventListener("click", () => void mutate(() => repository.unfollowAuthor(author.id)));
+  unfollow.addEventListener("click", () => void mutate(async () => { const result = await repository.unfollowAuthor(author.id); showUndo(repository, result, `Unfollowed ${author.displayName}.`, load); }));
   if (organized()) actions.append(collections);
   actions.append(unfollow);
   row.append(heading, actions);
@@ -145,10 +130,6 @@ function renderCollections() {
       item.append(renameForm(entry));
       return item;
     }
-    if (deletingId === entry.id) {
-      item.append(deleteConfirmation(entry));
-      return item;
-    }
     const row = document.createElement("div");
     row.className = "collection-row";
     const button = document.createElement("button");
@@ -165,7 +146,6 @@ function renderCollections() {
     button.addEventListener("click", () => {
       selected = entry.id;
       editingId = null;
-      deletingId = null;
       closeCreate();
       render();
     });
@@ -182,17 +162,17 @@ function collectionActions(entry) {
   actions.append(
     iconButton("rename", `Rename ${entry.name}`, pencilIcon, () => {
       editingId = entry.id;
-      deletingId = null;
       closeCreate();
       renderCollections();
       document.querySelector(`[data-rename-id="${CSS.escape(entry.id)}"]`)?.select();
     }),
     iconButton("delete", `Delete ${entry.name}`, trashIcon, () => {
-      deletingId = entry.id;
       editingId = null;
       closeCreate();
-      renderCollections();
-      document.querySelector(`[data-confirm-id="${CSS.escape(entry.id)}"]`)?.focus();
+      confirmCollectionDeletion(entry, "Deleting removes this collection and its memberships. Authors followed only here become unfollowed; authors in other collections remain followed.", () => mutate(async () => {
+        await repository.deleteAuthorCollection(entry.id);
+        if (selected === entry.id) selected = "";
+      }, { propagateError: true }), () => focusCollectionAction(entry.id, "delete"));
     }),
   );
   return actions;
@@ -225,42 +205,6 @@ function renameForm(entry) {
   return form;
 }
 
-function deleteConfirmation(entry) {
-  const panel = document.createElement("div");
-  panel.className = "delete-confirmation";
-  panel.setAttribute("role", "group");
-  panel.setAttribute("aria-label", `Delete ${entry.name}?`);
-  const prompt = document.createElement("span");
-  const solelyHere = library.memberships.filter(item => item.collectionId === entry.id &&
-    !library.memberships.some(other => other.authorId === item.authorId && other.collectionId !== entry.id)).length;
-  prompt.textContent = solelyHere
-    ? `Delete? Unfollows ${solelyHere} ${solelyHere === 1 ? "author" : "authors"}.`
-    : "Delete?";
-  const confirm = document.createElement("button");
-  confirm.type = "button";
-  confirm.textContent = "Yes";
-  confirm.dataset.confirmId = entry.id;
-  confirm.addEventListener("click", () => void mutate(async () => {
-    await repository.deleteAuthorCollection(entry.id);
-    if (selected === entry.id) selected = "";
-  }));
-  const cancel = document.createElement("button");
-  cancel.type = "button";
-  cancel.textContent = "Cancel";
-  cancel.addEventListener("click", () => {
-    deletingId = null;
-    renderCollections();
-    focusCollectionAction(entry.id, "delete");
-  });
-  panel.addEventListener("keydown", event => {
-    if (event.key !== "Escape") return;
-    event.preventDefault();
-    cancel.click();
-  });
-  panel.append(prompt, confirm, cancel);
-  return panel;
-}
-
 function iconButton(action, label, icon, onClick) {
   const button = document.createElement("button");
   button.type = "button";
@@ -273,27 +217,19 @@ function iconButton(action, label, icon, onClick) {
   return button;
 }
 
-function closeCreate(returnFocus = false) {
-  element("create-form").hidden = true;
-  element("show-create").hidden = false;
-  element("show-create").setAttribute("aria-expanded", "false");
-  if (returnFocus) element("show-create").focus();
-}
-
-async function mutate(operation, { focusAction } = {}) {
+async function mutate(operation, { focusAction, propagateError = false } = {}) {
   if (busy) return;
   busy = true;
   setDisabled(true);
   try {
     await operation();
     editingId = null;
-    deletingId = null;
     await load();
     setDisabled(false);
     if (focusAction) focusCollectionAction(...focusAction);
     else focusSelection();
   }
-  catch (error) { setStatus(error.message, true); }
+  catch (error) { setStatus(error.message, true); if (propagateError) throw error; }
   finally { busy = false; setDisabled(false); }
 }
 

@@ -73,6 +73,7 @@ export class ChromiumTestSession {
       const rect = node.getBoundingClientRect();
       return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
     })()`);
+    await this.send("Input.dispatchMouseEvent", { type: "mouseMoved", ...point }, sessionId);
     await this.send("Input.dispatchMouseEvent", { type: "mousePressed", ...point, button, buttons: button === "middle" ? 4 : 1, clickCount: 1, modifiers }, sessionId);
     await this.send("Input.dispatchMouseEvent", { type: "mouseReleased", ...point, button, buttons: 0, clickCount: 1, modifiers }, sessionId);
   }

@@ -1,7 +1,7 @@
 # Chrome settings synchronization
 
-Chrome Sync synchronizes **only** `openArxivLinksInNewTab` and
-`organizeFollowedAuthorsIntoCollections`. Bookmarks, Following, paper/author
+Chrome Sync synchronizes **only** `openArxivLinksInNewTab`,
+`organizeFollowedAuthorsIntoCollections` and `openAuthorResultsInNewTab`. Bookmarks, Following, paper/author
 collections and memberships remain local to each installation, including after
 manual import. Firefox uses local-only storage for everything. There is no Xivary
 account, OAuth, backend or alternative provider.
@@ -10,7 +10,7 @@ account, OAuth, backend or alternative provider.
 
 | State | Policy |
 | --- | --- |
-| Two designated boolean user preferences | Chrome Sync v1 desired-state registers |
+| Three designated boolean user preferences | Chrome Sync v1 desired-state registers |
 | Both last-used collection pointers | Device-local interaction context |
 | Papers, followed authors, collections, memberships, full metadata | Local only |
 | Author-feed caches, unknown settings/fields, queries and freshness | Local only |
@@ -30,6 +30,7 @@ The exact canonical keys are:
 
 - `xivary.sync:["s","openArxivLinksInNewTab"]`
 - `xivary.sync:["s","organizeFollowedAuthorsIntoCollections"]`
+- `xivary.sync:["s","openAuthorResultsInNewTab"]`
 
 Each value remains `{v:1, rev:[logicalCounter,replicaId], value:boolean, deleted}`.
 Existing encoding/ordering is retained; no protocol version increment is needed.
@@ -63,7 +64,7 @@ Older versions uploaded `p/a/pc/ac/pm/am` library registers. Updated installatio
   may continue synchronizing library data among themselves. This update does not
   retroactively erase data from Chrome's synchronization mechanism.
 
-New replicas snapshot only the two preferences. Existing snapshots are unchanged.
+New replicas snapshot only the three preferences. Existing snapshots are unchanged.
 There is no schema migration, collection rewrite, new permission or cleanup UI.
 A later remote cleanup would require a separate explicit product/user decision.
 
@@ -145,3 +146,14 @@ Use dedicated matching-ID installations A/B on the same developer-provided accou
    restores only preferences. Record old-version coexistence separately.
 5. Verify offline preference convergence, unavailable/disabled Sync, retry recovery
    and quota occupancy without deleting history or using normal profiles.
+
+## Additive author-navigation preference — 2026-10-09
+
+`openAuthorResultsInNewTab` defaults to true, preserving prior inbound author-link
+behavior. It is independent of default-false outbound `openArxivLinksInNewTab`.
+Schema-5 records missing it receive the default in the validated view and on the
+next mutation; no schema bump/reset. Old bootstrapped v1 replicas seed the new
+register only when absent locally/remotely, at revision zero. An established remote
+winner beats that seed. Older settings-only clients ignore this unknown register
+and leave it untouched. Wire version remains 1; eligible keys now number three.
+Two-repository tests cover upgrade and propagation both ways without library data.

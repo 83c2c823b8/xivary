@@ -1,9 +1,10 @@
 # Xivary 0.2.0 release record
 
-The current candidate synchronizes only two user preferences. Bookmarks, Following,
-collections and memberships stay local. Earlier milestone sections below retain
-historical evidence; current scope and results are in
-[Settings-only Sync cutover](#settings-only-sync-cutover).
+The current implementation synchronizes only three designated user preferences.
+Bookmarks, Following, collections and memberships stay local. The user reports the
+preceding version has been published. Earlier milestone sections below retain
+historical candidate evidence; current scope and results are in
+[Author navigation and interaction polish](#author-navigation-and-interaction-polish).
 
 ## Scope and starting state
 
@@ -217,12 +218,48 @@ Packages retain 60 source-matched runtime files each; only generated manifests
 differ. Archives remain ignored and unsigned. The current artifact inspection is
 recorded below. No push/signing/publishing or normal-profile credentials are used.
 
-Current settings-only candidate artifacts (unsigned, ignored):
+Settings-only cutover artifacts before interaction polish (unsigned, ignored):
 
 | Browser | Files | Bytes | SHA-256 |
 | --- | --- | --- | --- |
 | Chromium | 60 | 203799 | `22ad9feae74252d054fd87975726bd470aaf686f613d2d84dd78b6be1cb8ff6e` |
 | Firefox | 60 | 203869 | `8a28ea746bc851c634c3e8d2c19617ac6547a3089206ffa81113b667ac6d8c62` |
+
+## Author navigation and interaction polish
+
+Started clean on master at `c0c1a1fab86a990f51904010fcb6bd00b95217eb`, matching
+origin; baseline **135/135** passed. User reports the preceding extension was store
+published; no published binary/ID is available for independent byte comparison.
+Current implementation remains version 0.2.0 and is **not yet a new upload version**.
+No push, publication, signing or credential automation is performed.
+
+**149/149 Node tests pass** (41 Sync, 15 portable, 9 Undo). Chrome 154 complete
+fixture/geometry smoke plus the new polish suite pass; Firefox 157 fixture smoke
+passes author-heading Unfollow/Undo and expanded Following forms/dialog/Undo flows.
+Chrome release suite passes native transfers, untouched legacy Sync cutover, three
+eligible test-authored preference registers/focus, worker/alarm/reload/profile
+recovery. These are real browsers with fixtures/simulated peer intent; neither
+account transport nor human review is implied. Standard search HTML was fetched
+from arXiv, but current live API and published-store binary behavior were not verified.
+
+Packages inspected: 64 runtime files each, source-identical non-manifest bytes,
+version 0.2.0, only intended platform manifest differences. No tests, fixtures,
+scripts, repository metadata or development junk are packaged. API permissions,
+export.arxiv.org host scope, schema 5/migrations and portable v1/v2 remain unchanged.
+The manifest adds the narrow arXiv `/search/*` content match needed for the feature.
+Archives remain ignored; previous artifact tables are historical.
+
+| Browser | Files | Bytes | SHA-256 |
+| --- | --- | --- | --- |
+| Chromium | 64 | 208789 | `9eae8b5c00669b30243f7f79dcd52b1eecce6f3e9bfcc544e720227ede100163` |
+| Firefox | 64 | 208856 | `e8d33dcd4c100ed73f53d9d37844f4739fd9b4feb6ab8fd8c9015832ce2c71c7` |
+
+See [implementation, compatibility, Undo contract and investigation](author-interaction-polish.md).
+All automated commit gates pass. A subsequent store update still requires choosing
+its next version and the manual checks below, including same-account delivery of
+`openAuthorResultsInNewTab`, native context-menu/copy/Cmd interactions, minimum
+versions and Firefox-native distribution/transfer surfaces. Do not upload this
+same-version development archive over the published release.
 
 ## Git integration policy
 

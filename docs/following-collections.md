@@ -89,3 +89,19 @@ geckodriver 0.37.1 were exercised in disposable profiles. Both packages have
 60 files at version 0.2.0, match source runtime bytes, and add no permissions.
 The live harness readiness check was strengthened after an initial premature
 zero-row sample; rerun retrieved all five expected live author feeds.
+
+## Author interaction polish — 2026-10-09
+
+Whole-collection deletion now uses a native modal dialog naming the collection and
+explaining sole-membership unfollows. Ordinary Unfollow or membership removal takes
+effect immediately with an eight-second Undo. Metadata/removed memberships return
+only if the item and target classifications are still unchanged; other authors,
+Bookmarks, preferences and last-used pointers are never rolled back. Multiple
+receipts are independent; newer changes to the same author invalidate older Undo.
+Restarting the background safely invalidates the ephemeral receipt.
+
+Following and Library share input focus, Enter/Escape, whitespace cancellation,
+outside pointer cancellation and duplicate-submit guards. The shared Chrome/Firefox
+workflow covers these changes and Unfollow/Undo, in addition to prior organization,
+collection operations, reload and isolation checks. Author results also offer
+Follow/Unfollow and the existing optional collection picker beside the name.

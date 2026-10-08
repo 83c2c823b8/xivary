@@ -35,6 +35,15 @@ export async function followingWorkflow({ evaluate, click, until, reload, key, s
   await key("Escape");
   assert.equal(await evaluate("document.querySelector('#create-form').hidden && document.activeElement.id==='show-create'"), true);
 
+  const collectionCount = (await snapshot()).collections.length;
+  await click("#show-create");
+  await fill("#collection-name", "typed but cancelled");
+  await click("h1");
+  assert.equal(await evaluate("document.querySelector('#create-form').hidden"), true);
+  await click("#show-create"); await fill("#collection-name", "   "); await key("Enter");
+  assert.equal(await evaluate("document.querySelector('#create-form').hidden"), true);
+  assert.equal((await snapshot()).collections.length, collectionCount);
+
   async function create(name) {
     await click("#show-create");
     await fill("#collection-name", name);
@@ -102,7 +111,7 @@ export async function followingWorkflow({ evaluate, click, until, reload, key, s
   await preference(true);
   await click(collectionSelector(second.id));
   await click(action(second.id, "delete"));
-  assert.equal(await evaluate("document.querySelector('.delete-confirmation').textContent.includes('Unfollows 1 author')"), true);
+  assert.equal(await evaluate("document.querySelector('.collection-delete-dialog').open && document.querySelector('.collection-delete-dialog').textContent.includes('become unfollowed')"), true);
   await key("Escape");
   assert.equal((await snapshot()).memberships.length, 1, "cancel preserves sole membership");
   await click(".manage-collections");
@@ -118,7 +127,7 @@ export async function followingWorkflow({ evaluate, click, until, reload, key, s
   for (const id of previous) await membership(id, true);
   await click(".collection-picker-heading button");
   await click(action(second.id, "delete"));
-  assert.equal(await evaluate("document.querySelector('.delete-confirmation span').textContent"), "Delete?");
+  assert.equal(await evaluate("document.querySelector('.collection-delete-dialog').textContent.includes('other collections remain followed')"), true);
   await click("[data-confirm-id]");
   await settled();
   assert.equal(await evaluate("document.querySelectorAll('.author-row').length"), 1, "deleting group retains author followed in another");
@@ -132,5 +141,10 @@ export async function followingWorkflow({ evaluate, click, until, reload, key, s
   assert.deepEqual(final.authors, original.authors);
   assert.deepEqual(final.memberships.map(({ authorId, collectionId }) => ({ authorId, collectionId })), original.memberships.map(({ authorId, collectionId }) => ({ authorId, collectionId })));
   assert.deepEqual(await bookmarks(), papers);
+  await click(".author-row .actions button:last-child");
+  await until("document.querySelectorAll('.author-row').length===0 && document.querySelector('.xivary-undo button')");
+  await click(".xivary-undo-stack .xivary-undo:last-child button");
+  await until("document.querySelectorAll('.author-row').length===1");
+  assert.deepEqual((await snapshot()).memberships, final.memberships);
   console.log("Following workflow PASS: toggle, defaults, create/rename/errors/cancel/delete, assign/move, counts/filter, reload, metadata and Bookmark isolation");
 }

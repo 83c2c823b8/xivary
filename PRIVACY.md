@@ -12,7 +12,7 @@ contain:
 - saved-paper titles, arXiv identifiers, author names, categories, abstracts, and dates;
 - followed author names and normalized name identifiers;
 - paper and author collection names and memberships;
-- the two user settings shown on the Settings page;
+- the three user settings shown on the Settings page;
 - cached public arXiv results for viewed author feeds, including non-followed
   names and their retrieval times.
 
@@ -23,9 +23,10 @@ lifecycle.
 
 ## Data synchronized by Chrome
 
-The Chromium package writes only two explicitly designated boolean preferences to
-Chrome's extension `storage.sync`: `openArxivLinksInNewTab` and
-`organizeFollowedAuthorsIntoCollections`, with their logical revision/replica metadata.
+The Chromium package writes only three explicitly designated boolean preferences to
+Chrome's extension `storage.sync`: `openArxivLinksInNewTab`,
+`organizeFollowedAuthorsIntoCollections`, and `openAuthorResultsInNewTab`, with
+their logical revision/replica metadata.
 Google Chrome handles propagation when enabled for the same extension ID/account.
 Xivary receives no Google credentials and operates no account or server. Other
 Chromium distributions' sync infrastructure is not verified or promised.
@@ -47,7 +48,7 @@ See [migration strategy](docs/settings-only-sync-migration.md).
 The Settings page can download separate human-readable, versioned JSON files for
 all Bookmarks or one paper collection, and all Following or one author collection.
 A selected category import changes only that category. Preferences have no manual
-file export/import; the two boolean preferences use Chrome Sync while last-used
+file export/import; the three boolean preferences use Chrome Sync while last-used
 collection pointers remain local. Older combined backups are accepted by either
 category action, without applying their preference values. Files exclude
 author-feed caches and queries, last-used collection
@@ -82,12 +83,15 @@ No remote JavaScript, CSS, fonts, or other executable code is loaded at runtime.
 ## Permissions and site access
 
 - `storage`: stores the local library, collections, cached author-feed results, and
-  settings, and accesses Chrome extension sync storage for the two designated preferences.
+  settings, and accesses Chrome extension sync storage for the three designated preferences.
 - `alarms` (Chromium package only): resumes deferred sync writes and failure recovery.
 - `https://arxiv.org/abs/*` content-script access: reads public title and author
   metadata on arXiv abstract pages, inserts Save and Follow controls, and opens
   Xivary author views for recognized unmodified author-link activations. Viewing
   alone does not follow an author.
+- `https://arxiv.org/search/*` content-script access: recognizes standard result
+  author links and passes full displayed names to the existing Xivary author view.
+  It leaves original destinations and modified-click behavior intact.
 - `https://export.arxiv.org/*` host access: retrieves public Atom results for author
   feeds and the retained field-aware search page.
 
@@ -105,3 +109,6 @@ Because Xivary has no account, project-owned server, or analytics endpoint, the
 project does not receive the locally stored library through the extension. This is
 an implementation description, not a claim about protections supplied by the browser,
 operating system, arXiv, or other software on the device.
+
+Undo receipts are temporary background memory, expire after eight seconds, and
+are never written to local storage, Sync, or portable files.

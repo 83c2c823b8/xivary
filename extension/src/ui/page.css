@@ -133,3 +133,8 @@ input[type="search"] {
   input[type="search"], input[type="text"], select { min-width: 0; width: 100%; }
   .toolbar > * { flex: 1 1 100%; }
 }
+
+.collection-delete-dialog { max-width: 440px; padding: 20px; border: 1px solid #aaa; color: inherit; }
+.collection-delete-dialog::backdrop { background: rgb(0 0 0 / 20%); }
+.collection-delete-dialog h2 { font-size: 18px; margin-top: 0; }
+.collection-delete-dialog button { margin-right: 8px; padding: 6px 12px; }

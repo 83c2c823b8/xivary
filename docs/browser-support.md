@@ -1,10 +1,42 @@
 # Browser support and verification
 
 One application tree produces Chromium and Firefox manifests. Chrome uses native
-extension Sync only for two designated user preferences; Firefox remains local-only. No Xivary
+extension Sync only for three designated user preferences; Firefox remains local-only. No Xivary
 account, OAuth, backend or external sync provider is implemented.
 
-## Current evidence — 2026-10-08
+## Current evidence — 2026-10-09
+
+- **149/149 Node tests pass**, including 41 independent-repository Sync simulations,
+  15 portable-file tests and 9 Undo tests. New boolean defaults/upgrades/validation,
+  settings-only propagation, full-name link recognition and stale/failed/expired
+  Undo are covered. Schema 5 and portable formats remain unchanged.
+- **Chrome 154.0.8037.57**: original geometry/UI suite plus native author Follow/
+  Unfollow/Undo/reload, both collection forms/dialogs, paper metadata restoration,
+  eight-second UI expiry, delayed/invalid/empty API states, default-new-tab and
+  current-tab entry, current real-search DOM fixture with dynamic authors and native
+  Ctrl/middle/Enter interactions. **VERIFIED IN REAL BROWSER, fixtures**.
+- **Firefox 157.0 / geckodriver 0.37.1**: existing suite, author heading Unfollow/
+  Undo and shared Following empty/outside/create/delete/Undo workflow pass.
+  **VERIFIED IN REAL BROWSER, fixtures**. New search/current-tab variants were
+  exercised in Chrome; Firefox-specific search/navigation checks remain manual.
+- **Chrome release suite** passes native All/collection transfers, settings-only
+  cutover, all three test-authored remote preference registers/focus updates,
+  pending alarm/worker recovery, extension reload and full test-profile restart.
+  **VERIFIED IN REAL BROWSER, unsigned-in disposable profiles**; account transport
+  remains **NOT YET VERIFIED**.
+- **64-file Chromium/Firefox packages pass** source/manifest inspection. No API or
+  broad host permission added; content matching adds only arXiv `/search/*`.
+  **VERIFIED AUTOMATICALLY**.
+- Current standard search HTML was fetched on 2026-10-09 and used as a regression
+  fixture. This is **LIVE DOM INSPECTION**, not a current live API/browser claim.
+  The published store archive was not supplied or compared. No store-specific
+  slowdown was reproduced; two demonstrated loading/response defects were fixed.
+
+See [polish scope and bounded investigation](author-interaction-polish.md).
+All required commit gates pass. Account delivery, minimum versions, platform-native
+manual surfaces and the next store version remain release-preparation checks.
+
+## Prior evidence — 2026-10-08
 
 | Check | Evidence | Status |
 | --- | --- | --- |
@@ -83,21 +115,25 @@ profile and retains the replica ID/library. No account login is automated.
 
 ## Author-link support
 
-Content injection remains limited to `https://arxiv.org/abs/*`. Delegated click
-handling recognizes `.authors a[href]` with same-origin `/search/` or
+Content injection matches only `https://arxiv.org/abs/*` and
+`https://arxiv.org/search/*`. Delegated click handling recognizes abstract
+`.authors a[href]` and standard result `li.arxiv-result p.authors a[href]` with an
+`Authors:` label and same-origin `/search/` or
 `/search/{archive}` destinations, `searchtype=author`, and a nonempty query.
 Visible full names supply the existing name-key/query pipeline, rather than
-abbreviated surname/initial href queries. Search/list pages are outside this match.
+abbreviated surname/initial href queries. Unsupported layouts and list pages
+remain native; dynamically inserted results use the same single listener.
 Unknown/malformed links fail open; download links and non-self targets stay native.
 
-Ordinary primary click and Enter open the reusable author page in another tab.
+Ordinary primary click and Enter open the reusable author page in another tab
+by default; the inbound author navigation setting permits the current tab.
 Ctrl/Cmd/Shift/Alt, middle-click, context menus and copying keep the original anchor
 href. All modifiers are unit tested; Ctrl/middle/Enter also ran in Chrome. Human
 context-menu and platform-specific Cmd interactions remain manual checks.
 Namesakes may share results and are disclosed; no verified identity is inferred.
 Opening a name route never follows it and survives refresh without page memory.
 
-Live pages exercised (no fixture responses):
+Historical live pages exercised before this polish (no fixture responses):
 
 - [math/0307245](https://arxiv.org/abs/math/0307245): one author, Grisha Perelman,
   `/search/math?searchtype=author&query=Perelman,+G`.
@@ -111,7 +147,8 @@ The Following repair rerun rendered 3, 2, 39, 26 and 7, after tightening harness
 readiness to wait for retrieval metadata/error. These counts are observations,
 not permanent expectations. Unicode/accented names
 and encoded apostrophes are fixture/unit coverage, not claimed as live-page tests.
-No new stable unsupported pattern was discovered; support was not broadened.
+That historical run did not broaden support. This milestone extends support to
+standard search-result anchors based on current fetched HTML and fixture checks.
 
 ## API boundary, manifests and packages
 
@@ -140,7 +177,7 @@ Use dedicated installations A/B with the same extension ID and browser sync enab
 on the same account, set up by the developer. Record versions, IDs and observations.
 Do not use two unsigned-in profiles as evidence of account transport.
 
-1. Change each boolean preference on A then B; refocus Settings/Following and
+1. Change each of the three boolean preferences on A then B; refocus Settings/Following and
    observe the desired value on the other installation.
 2. Save/follow/create/rename/move/delete locally; verify the other installation's
    Bookmarks/Following/collections/memberships stay unchanged after reload/restart.

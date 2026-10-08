@@ -177,6 +177,11 @@ try {
   await evaluate("document.querySelector('.author-row a').click()");
   await until("document.querySelectorAll('.paper-row').length === 1");
   assert.equal(await evaluate("document.querySelector('.paper-row h2').textContent"), "Firefox feed fixture");
+  await until("document.querySelector('#follow-author').textContent==='Unfollow' && !document.querySelector('#follow-author').disabled");
+  await evaluate("(()=>{document.querySelector('#follow-author').click();document.querySelector('#follow-author').click()})()");
+  await until("document.querySelector('#follow-author').textContent==='Follow' && document.querySelector('.xivary-undo button')");
+  await evaluate("document.querySelector('.xivary-undo button').click()");
+  await until("document.querySelector('#follow-author').textContent==='Unfollow' && !document.querySelector('.xivary-undo')");
 
   await navigateExtension("popup/popup.html");
   await until("document.querySelector('#saved-count')?.textContent === '1'");

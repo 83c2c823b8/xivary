@@ -55,9 +55,6 @@
   font: var(--control-font);
 }
 .collection-inline-form { padding: 1px 0; }
-.delete-confirmation { display: flex; align-items: center; gap: 7px; min-height: 42px; padding: 4px 10px; background: #f2f3f3; font-size: 13px; }
-.delete-confirmation span { margin-right: auto; }
-.delete-confirmation button { min-height: 30px; padding: 3px 7px; }
 
 @media (max-width: 860px) {
   .library-layout { grid-template-columns: 1fr; gap: 18px; }

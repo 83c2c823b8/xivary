@@ -35,9 +35,9 @@ test("empty library and favorites toggle persist through a new repository instan
   await repository.removeFavorite(paper.arxivId);
 });
 
-test("preferences default off, validate, and persist through the repository contract", async () => {
+test("preferences use documented defaults, validate, and persist through the repository contract", async () => {
   const { repository, storage } = fixture();
-  const defaults = { openArxivLinksInNewTab: false, organizeFollowedAuthorsIntoCollections: false };
+  const defaults = { openArxivLinksInNewTab: false, organizeFollowedAuthorsIntoCollections: false, openAuthorResultsInNewTab: true };
   assert.deepEqual(await repository.getPreferences(), defaults);
   await repository.savePaper(paper);
   const prePreferenceSchema5 = await storage.read();
@@ -52,12 +52,12 @@ test("preferences default off, validate, and persist through the repository cont
   assert.deepEqual(await repository.setOpenArxivLinksInNewTab(true), { openArxivLinksInNewTab: true });
   assert.deepEqual(await repository.setOrganizeFollowedAuthorsIntoCollections(true), { organizeFollowedAuthorsIntoCollections: true });
   assert.deepEqual(await new LocalRepository(storage).getPreferences(), {
-    openArxivLinksInNewTab: true, organizeFollowedAuthorsIntoCollections: true,
+    openArxivLinksInNewTab: true, organizeFollowedAuthorsIntoCollections: true, openAuthorResultsInNewTab: true,
   });
   const handler = createRepositoryHandler(repository, "test-extension");
   const client = new RepositoryClient({ sendMessage: message => new Promise(resolve => handler(message, { id: "test-extension" }, resolve)) });
   assert.deepEqual(await client.getPreferences(), {
-    openArxivLinksInNewTab: true, organizeFollowedAuthorsIntoCollections: true,
+    openArxivLinksInNewTab: true, organizeFollowedAuthorsIntoCollections: true, openAuthorResultsInNewTab: true,
   });
   await client.setOpenArxivLinksInNewTab(false);
   await client.setOrganizeFollowedAuthorsIntoCollections(false);
@@ -276,4 +276,21 @@ test("worker rejects unknown methods, malformed arguments and external senders",
     assert.equal(response.ok, false);
   }
   assert.equal(handler({ channel: "unrelated" }, {}, () => assert.fail()), false);
+});
+
+test("author navigation preference preserves old schema-5 data/defaults and rejects invalid values", async () => {
+  const { repository, storage } = fixture();
+  await repository.savePaper(paper); await repository.followAuthor(author);
+  const legacy = await storage.read(); delete legacy.settings.openAuthorResultsInNewTab; await storage.write(legacy);
+  const upgraded = new LocalRepository(storage);
+  assert.equal((await upgraded.getPreferences()).openAuthorResultsInNewTab, true);
+  assert.deepEqual(await storage.read(), legacy, "normalization does not write/reset schema-5 on read");
+  await assert.rejects(upgraded.setOpenAuthorResultsInNewTab("false"), /true or false/);
+  await upgraded.setOpenAuthorResultsInNewTab(false);
+  const saved = await storage.read();
+  for (const field of ["favorites", "authors", "collections", "memberships", "paperCollections", "paperMemberships"]) assert.deepEqual(saved[field], legacy[field]);
+  assert.equal((await new LocalRepository(storage).getPreferences()).openAuthorResultsInNewTab, false);
+  saved.settings.openAuthorResultsInNewTab = "invalid"; await storage.write(saved);
+  await assert.rejects(upgraded.getPreferences(), /Invalid author navigation preference/);
+  assert.deepEqual(await storage.read(), saved);
 });

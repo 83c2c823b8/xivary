@@ -3,6 +3,7 @@ import { RepositoryClient } from "../repository/repository-client.js";
 const repository = new RepositoryClient();
 const element = id => document.getElementById(id);
 const controls = {
+  "open-author-new-tab": { key: "openAuthorResultsInNewTab", save: enabled => repository.setOpenAuthorResultsInNewTab(enabled) },
   "open-arxiv-new-tab": {
     key: "openArxivLinksInNewTab",
     save: enabled => repository.setOpenArxivLinksInNewTab(enabled),

@@ -1,3 +1,5 @@
+import { bindCollectionCreate } from "../ui/collection-create.js";
+import { confirmCollectionDeletion } from "../ui/confirm-collection.js";
 import { RepositoryClient } from "../repository/repository-client.js";
 import { paperRow } from "../ui/paper-row.js";
 import { openPaperCollectionPicker } from "../ui/paper-collection-picker.js";
@@ -8,40 +10,27 @@ let library;
 let selected = "";
 let busy = false;
 let editingId = null;
-let deletingId = null;
+let loadRevision = 0;
 
 element("filter").addEventListener("input", render);
-element("show-create").addEventListener("click", () => {
-  editingId = null;
-  deletingId = null;
-  element("show-create").hidden = true;
-  element("create-form").hidden = false;
-  element("show-create").setAttribute("aria-expanded", "true");
-  element("collection-name").focus();
+const closeCreate = bindCollectionCreate({
+  trigger: element("show-create"), form: element("create-form"), input: element("collection-name"),
+  onOpen: () => { editingId = null; renderCollections(); },
+  create: name => mutate(async () => { const collection = await repository.createPaperCollection(name); selected = collection.id; }, { propagateError: true }),
 });
-element("create-form").addEventListener("keydown", event => {
-  if (event.key === "Escape") { event.preventDefault(); closeCreate(true); }
-  if (event.key === "Enter") { event.preventDefault(); event.currentTarget.requestSubmit(); }
-});
-element("create-form").addEventListener("submit", event => {
-  event.preventDefault();
-  void mutate(async () => {
-    const collection = await repository.createPaperCollection(element("collection-name").value);
-    selected = collection.id;
-    element("collection-name").value = "";
-    closeCreate();
-  });
-});
-window.addEventListener("focus", () => void load());
+window.addEventListener("focus", () => { if (!busy) void load(); });
 void load();
 
 async function load() {
+  const revision = ++loadRevision;
   try {
-    library = await repository.getPaperLibrary();
+    const snapshot = await repository.getPaperLibrary();
+    if (revision !== loadRevision) return;
+    library = snapshot;
     if (!library.collections.some(collection => collection.id === selected)) selected = "";
     render();
     setStatus("");
-  } catch (error) { setStatus(error.message, true); }
+  } catch (error) { if (revision === loadRevision) setStatus(error.message, true); }
 }
 
 function render() {
@@ -62,6 +51,7 @@ function render() {
     : `${inCollection.length} ${inCollection.length === 1 ? "paper" : "papers"}`;
   element("empty").textContent = query ? "No matching papers." : selected ? "No papers in this collection." : "No saved papers.";
   element("empty").hidden = visible.length > 0;
+  setDisabled(busy);
 }
 
 function renderCollections() {
@@ -77,10 +67,6 @@ function renderCollections() {
     item.className = "collection-item";
     if (editingId === entry.id) {
       item.append(renameForm(entry));
-      return item;
-    }
-    if (deletingId === entry.id) {
-      item.append(deleteConfirmation(entry));
       return item;
     }
     const row = document.createElement("div");
@@ -99,7 +85,6 @@ function renderCollections() {
     button.addEventListener("click", () => {
       selected = entry.id;
       editingId = null;
-      deletingId = null;
       closeCreate();
       render();
     });
@@ -116,17 +101,17 @@ function collectionActions(entry) {
   actions.append(
     iconButton("rename", `Rename ${entry.name}`, pencilIcon, () => {
       editingId = entry.id;
-      deletingId = null;
       closeCreate();
       renderCollections();
       document.querySelector(`[data-rename-id="${CSS.escape(entry.id)}"]`)?.select();
     }),
     iconButton("delete", `Delete ${entry.name}`, trashIcon, () => {
-      deletingId = entry.id;
       editingId = null;
       closeCreate();
-      renderCollections();
-      document.querySelector(`[data-confirm-id="${CSS.escape(entry.id)}"]`)?.focus();
+      confirmCollectionDeletion(entry, "Deleting removes this collection and its memberships. Papers saved only here are removed from Bookmarks; papers in other collections remain saved.", () => mutate(async () => {
+        await repository.deletePaperCollection(entry.id);
+        if (selected === entry.id) selected = "";
+      }, { propagateError: true }), () => focusCollectionAction(entry.id, "delete"));
     }),
   );
   return actions;
@@ -159,38 +144,6 @@ function renameForm(entry) {
   return form;
 }
 
-function deleteConfirmation(entry) {
-  const panel = document.createElement("div");
-  panel.className = "delete-confirmation";
-  panel.setAttribute("role", "group");
-  panel.setAttribute("aria-label", `Delete ${entry.name}?`);
-  const prompt = document.createElement("span");
-  prompt.textContent = "Delete?";
-  const confirm = document.createElement("button");
-  confirm.type = "button";
-  confirm.textContent = "Yes";
-  confirm.dataset.confirmId = entry.id;
-  confirm.addEventListener("click", () => void mutate(async () => {
-    await repository.deletePaperCollection(entry.id);
-    if (selected === entry.id) selected = "";
-  }));
-  const cancel = document.createElement("button");
-  cancel.type = "button";
-  cancel.textContent = "Cancel";
-  cancel.addEventListener("click", () => {
-    deletingId = null;
-    renderCollections();
-    focusCollectionAction(entry.id, "delete");
-  });
-  panel.addEventListener("keydown", event => {
-    if (event.key !== "Escape") return;
-    event.preventDefault();
-    cancel.click();
-  });
-  panel.append(prompt, confirm, cancel);
-  return panel;
-}
-
 function iconButton(action, label, icon, onClick) {
   const button = document.createElement("button");
   button.type = "button";
@@ -209,25 +162,17 @@ async function managePaper(paper, button) {
   await openPaperCollectionPicker({ repository, paper, anchor: button, onChange: load });
 }
 
-function closeCreate(returnFocus = false) {
-  element("create-form").hidden = true;
-  element("show-create").hidden = false;
-  element("show-create").setAttribute("aria-expanded", "false");
-  if (returnFocus) element("show-create").focus();
-}
-
-async function mutate(operation, { focusAction } = {}) {
+async function mutate(operation, { focusAction, propagateError = false } = {}) {
   if (busy) return;
   busy = true;
   setDisabled(true);
   try {
     await operation();
     editingId = null;
-    deletingId = null;
     await load();
     if (focusAction) focusCollectionAction(...focusAction);
   }
-  catch (error) { setStatus(error.message, true); }
+  catch (error) { setStatus(error.message, true); if (propagateError) throw error; }
   finally { busy = false; setDisabled(false); }
 }
 

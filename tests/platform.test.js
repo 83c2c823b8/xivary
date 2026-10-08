@@ -73,7 +73,7 @@ test("actual Chrome background wires sync events, alarms, startup and repository
   local[STORAGE_KEY]._chromeSync.retryAt = 0;
   alarmHandler({ name: SYNC_ALARM }); await client.listFavorites();
   assert.equal(synced[syncKey("p", "2401.00001")], undefined);
-  assert.ok(Object.keys(synced).every(key => key === syncKey("s", "openArxivLinksInNewTab") || key === syncKey("s", "organizeFollowedAuthorsIntoCollections")));
+  assert.ok(Object.keys(synced).every(key => key === syncKey("s", "openArxivLinksInNewTab") || key === syncKey("s", "organizeFollowedAuthorsIntoCollections") || key === syncKey("s", "openAuthorResultsInNewTab")));
   const key = syncKey("s", "openArxivLinksInNewTab");
   const oldValue = synced[key];
   synced[key] = { v: 1, rev: [100, "remote"], value: true, deleted: null };

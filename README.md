@@ -4,9 +4,12 @@ Library (Bookmarks) and Following have a Settings gear in their page header. Bot
 open the existing Settings page, including preferences and category-specific data
 transfer.
 
-On supported arXiv abstract pages, an ordinary click or keyboard activation of
-an author-name search link opens Xivary's existing author papers page in a new tab.
-Viewing does not follow the author. The view matches full displayed names and may
+On supported arXiv abstract and standard search-results pages, an ordinary click
+or keyboard activation of an author-name search link opens the existing Xivary
+author papers page. **Settings → General → Open arXiv author names in Xivary in a
+new tab** defaults to enabled; disable it for the current tab.
+Viewing does not follow the author. Follow/Unfollow beside the name is explicit.
+The view matches full displayed names and may
 include namesakes; arXiv's abbreviated author-search URL is not a verified person
 identifier. Modified clicks, middle clicks, and unrelated links retain their native
 arXiv destinations.
@@ -16,7 +19,7 @@ One application source tree targets Chromium-family browsers and Firefox desktop
 Chrome 154 and Firefox 157 fixture smoke suites pass; see
 [browser support](docs/browser-support.md) for exact evidence and pending manual
 distribution checks.
-Chrome synchronizes only the two designated boolean user preferences through
+Chrome synchronizes only the three designated boolean user preferences through
 its extension sync storage. Bookmarks, Following, collections and memberships
 remain local to each installation. Real account/device propagation remains
 unverified. Xivary has no
@@ -33,6 +36,8 @@ account, project-owned backend, or analytics.
   collections**; use each author's **Collections** picker to assign memberships.
   To move, select the destination before clearing the source. Disabling organization
   preserves assignments. [Workflow and data rules](docs/following-collections.md).
+- Eight-second Undo for ordinary item/membership removals; confirmation for deleting
+  an entire collection, including sole-membership consequences.
 - Local text filtering of saved papers and author feeds, with preset and custom date ranges on author feeds.
 - A compact popup for opening Library and Following and viewing their counts.
 - Settings for opening arXiv links in a new tab and optionally organizing followed
@@ -47,7 +52,8 @@ linked from primary navigation in this release.
 
 Saved papers, followed authors, collections, preferences, and cached author-feed
 results have a browser-local view in `storage.local`. In the Chromium package,
-only `openArxivLinksInNewTab` and `organizeFollowedAuthorsIntoCollections` use
+only `openArxivLinksInNewTab`, `organizeFollowedAuthorsIntoCollections` and
+`openAuthorResultsInNewTab` use
 `storage.sync`. Both last-used collection pointers, all library records and feed
 caches remain local. Chrome and Firefox installations have independent libraries;
 Firefox settings remain local too. Filters and pickers remain ephemeral.
@@ -69,7 +75,7 @@ small selector for all items or one existing collection. A version-2
 `xivary-library` JSON file identifies that selection and contains only its
 papers/authors, collection definitions and memberships. Import also accepts an
 older combined version-1 backup but applies only the chosen Bookmarks or Following
-section. Preferences have no manual file transfer; the two boolean settings use
+section. Preferences have no manual file transfer; the three boolean settings use
 Chrome Sync, while last-used collection pointers remain local. Files exclude feed
 caches, last-used choices and every Chrome Sync
 revision, tombstone, replica or retry field. See
@@ -119,7 +125,9 @@ The fixture suites use temporary profiles. `npm run test:release` additionally
 checks native category downloads/file inputs and real Chrome Sync events,
 alarm/worker recovery, reload and test-profile restart. It uses one unsigned-in
 profile and does not verify Google-account delivery. `npm run test:arxiv` is the
-separate live-network author-link check; three actual abstracts passed in Chrome.
+separate live-network author-link check; the preceding milestone verified three
+actual abstracts in Chrome. Current search support was checked against fetched
+search HTML and native browser fixtures; current live API behavior was not verified.
 See [release packaging and remaining checks](docs/release.md).
 
 ## Architecture
@@ -143,7 +151,7 @@ See [docs/architecture.md](docs/architecture.md) and
   or name-order variants can appear as separate authors.
 - Author feeds contain up to the 50 newest matching results returned by arXiv and
   depend on availability and name matching from the arXiv API.
-- Chrome synchronizes only two preferences. Retained legacy remote library records
+- Chrome synchronizes only three preferences. Retained legacy remote library records
   can still occupy provider quota; Xivary leaves them untouched and keeps failed
   preference uploads local and pending. There is no Xivary account or custom backend.
 - Real Google-account propagation, Firefox native transfer/toolbar flows, signed
@@ -155,3 +163,6 @@ See [docs/architecture.md](docs/architecture.md) and
 Xivary is released under the [MIT License](LICENSE). The bundled IBM Plex font files
 retain their separate SIL Open Font License in
 [`extension/assets/fonts/LICENSE.txt`](extension/assets/fonts/LICENSE.txt).
+
+See [author navigation and interaction polish](docs/author-interaction-polish.md)
+for current verification, additive preference compatibility and the bounded API investigation.

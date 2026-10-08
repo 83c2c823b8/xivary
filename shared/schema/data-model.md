@@ -143,8 +143,8 @@ The `(authorId, collectionId)` pair is unique. Adds are idempotent and do not
 reset timestamps on an existing membership. An author is followed if and only
 if at least one membership exists. Removing a membership or deleting a collection
 never deletes an Author entity. Removing all memberships globally unfollows the
-author. These remain local hard deletes. The separate Chrome wire representation
-retains membership tombstones; it does not put tombstones in these arrays.
+author. These remain local hard deletes. Legacy Chrome wire bookkeeping may
+retain inert membership tombstones; they never upload or alter these local arrays.
 
 Author collections are retained for stored-data and repository compatibility but
 are hidden from the default UI. The visible model is simply Follow/Following;
@@ -153,7 +153,7 @@ exposes collection membership controls without changing this schema.
 
 ## Settings
 
-The two boolean preferences below synchronize through the existing Chrome Sync v1
+The three boolean preferences below synchronize through the existing Chrome Sync v1
 registers. Both last-used pointers remain browser-local convenience state. Unknown
 retained settings are excluded, as are runtime/derived/cache and replica fields.
 See [settings policy](../../docs/chrome-sync.md#bootstrap-failure-and-recovery)
@@ -185,12 +185,19 @@ hidden. Enabling it reveals the existing collection picker; changing the prefere
 does not create, delete, rename, or otherwise rewrite collections or memberships.
 Schema 5 records that omit it are treated as `false` without a write-on-read.
 
+`openAuthorResultsInNewTab` is additive in schema 5 and defaults to `true` for
+existing/fresh installations. It governs ordinary recognized arXiv author-link
+entry into Xivary, independently of the outbound setting above. Missing fields
+are normalized without discarding data; malformed values fail safely. Chrome Sync
+adds this boolean v1 register using existing absent-key revision-zero seeding.
+Undo receipts/guards are ephemeral background memory and do not enter this schema.
+
 ## Local persistence
 
 The `arxivResearchLibrary` key in the browser's extension-local `storage.local`
 area holds the same schema in Chromium and Firefox. Each browser/profile has an
 independent local view. Chrome installations with matching extension IDs and an
-enabled shared Chrome sync account synchronize only the two designated boolean
+enabled shared Chrome sync account synchronize only the three designated boolean
 preferences through the separate representation below. All library data remains local. Firefox remains independent and local-only.
 The platform boundary selects the native API, and `BrowserLocalStorage` performs
 the same single-key reads/writes in either browser:
@@ -243,12 +250,14 @@ rules; never derive this format by serializing either storage representation.
 
 ### Chrome settings Sync v1 (not schema 6)
 
-The domain schema, migrations and PaperRepository methods remain unchanged. Only
-`openArxivLinksInNewTab` and `organizeFollowedAuthorsIntoCollections` synchronize.
+The domain schema and migrations remain unchanged. The repository adds an
+explicit author-navigation setter and ephemeral Undo endpoint. Only
+`openArxivLinksInNewTab`, `organizeFollowedAuthorsIntoCollections` and
+`openAuthorResultsInNewTab` synchronize.
 Both last-used pointers and every library record/collection/membership/cache stay
 local. Category imports/exports remain independent portable operations.
 
-Active keys are `xivary.sync:` plus `["s", preferenceName]` for exactly those two
+Active keys are `xivary.sync:` plus `["s", preferenceName]` for exactly those three
 names. Values remain `{v:1, rev:[counter,replicaId], value:boolean, deleted}` with
 logical revision/replica ordering and retained winners. No null preference/toggle
 operation or wall-clock ordering is introduced. Unknown preferences are ignored;

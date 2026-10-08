@@ -67,3 +67,8 @@ of old remote or already-restored local data is deliberately outside its scope.
 - Account-mediated preference propagation/library non-propagation, minimum versions,
   signed Firefox installation/restart and native Firefox transfer remain manual
   release checks. No account credentials, signing, publishing or push is automated.
+
+The 2026-10-09 [author polish milestone](author-interaction-polish.md) adds the
+third explicitly designated preference `openAuthorResultsInNewTab` compatibly.
+The two-register cutover record above describes the preceding implementation;
+its nondestructive library isolation policy still applies.

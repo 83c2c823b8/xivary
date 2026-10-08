@@ -9,3 +9,9 @@ test("cached author results normalize into portable paper records",()=>{const ca
 test("author cache freshness uses a centralized TTL boundary",()=>{const cache={fetchedAt:"2026-09-24T00:00:00Z"};const now=Date.parse("2026-09-25T00:00:00Z");assert.equal(isAuthorCacheFresh(cache,now,24*60*60*1000),false);assert.equal(isAuthorCacheFresh(cache,now-1,24*60*60*1000),true);assert.equal(isAuthorCacheFresh(null,now),false)});
 test("field search plans translate to arXiv API syntax",()=>{const plan=expandQuery({query:"mirror symmetry",fieldId:"mirror-symmetry",mode:"balanced"});const query=buildApiQuery(plan);assert.match(query,/all:\"mirror symmetry\"/);assert.match(query,/cat:math\.AG/);assert.match(query,/ OR /)});
 test("author result matching requires one individual full-name match",()=>{const followed={displayName:"Atsushi Takahashi"};assert.equal(paperMatchesAuthor({authors:["Atsushi Takahashi","Other Person"]},followed),true);assert.equal(paperMatchesAuthor({authors:["Atsushi Sato","Ken Takahashi"]},followed),false);assert.equal(paperMatchesAuthor({authors:[{displayName:"  ATSUSHI  TAKAHASHI "}]},followed),true)});
+
+test("HTTP/network failures reject instead of producing an empty author feed", async () => {
+  const { fetchArxivPapers } = await import("../extension/src/services/arxiv-paper-service.js");
+  await assert.rejects(fetchArxivPapers('au:"Alex Kim"', async () => ({ ok: false, status: 503 })), /arXiv returned 503/);
+  await assert.rejects(fetchArxivPapers('au:"Alex Kim"', async () => { throw new Error("network interrupted"); }), /network interrupted/);
+});

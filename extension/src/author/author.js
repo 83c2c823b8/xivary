@@ -1,3 +1,5 @@
+import { showUndo } from "../ui/undo.js";
+import { openAuthorCollectionPicker } from "../ui/author-collection-picker.js";
 import { RepositoryClient } from "../repository/repository-client.js";
 import { buildAuthorQuery, fetchArxivPapers, isAuthorCacheFresh, paperMatchesAuthor } from "../services/arxiv-paper-service.js";
 import { paperRow, setBookmarkState } from "../ui/paper-row.js";
@@ -15,6 +17,42 @@ let openArxivLinksInNewTab = false;
 let loadedPapers = [];
 let loadedAt = "";
 let localStateRevision = 0;
+let followed = false;
+let followBusy = false;
+let requestBusy = false;
+let feedPhase = "loading";
+
+element("follow-author").addEventListener("click", () => void toggleFollow());
+element("author-collections").addEventListener("click", () => void openAuthorCollectionPicker({
+  repository, author, anchor: element("author-collections"), onChange: refreshLocalState,
+}));
+
+function renderFollowing(library) {
+  followed = library.memberships.some(item => item.authorId === author.id);
+  element("follow-author").textContent = followed ? "Unfollow" : "Follow";
+  element("follow-author").setAttribute("aria-pressed", String(followed));
+  element("follow-author").disabled = followBusy;
+  element("author-collections").hidden = !followed || !library.settings.organizeFollowedAuthorsIntoCollections;
+  element("author-collections").disabled = followBusy;
+}
+
+async function toggleFollow() {
+  if (!author || followBusy) return;
+  followBusy = true;
+  element("follow-author").disabled = element("author-collections").disabled = true;
+  localStateRevision++;
+  try {
+    // Read actual state again, then submit desired-state operations (never toggle RPC).
+    const library = await repository.getAuthorLibrary();
+    const current = library.memberships.some(item => item.authorId === author.id);
+    if (current) showUndo(repository, await repository.unfollowAuthor(author.id), `Unfollowed ${author.displayName}.`, refreshLocalState);
+    else await repository.followAuthor(author);
+    followBusy = false;
+    localStateRevision++;
+    await refreshLocalState();
+  } catch (error) { setStatus(error.message, true); }
+  finally { followBusy = false; element("follow-author").disabled = element("author-collections").disabled = false; }
+}
 
 element("refresh").addEventListener("click", () => void refresh(true));
 element("show-filters").addEventListener("click", openFilters);
@@ -39,10 +77,12 @@ window.addEventListener("focus", () => void refreshLocalState());
 
 async function refreshLocalState() {
   if (!author) return;
-  const revision = localStateRevision;
+  const revision = ++localStateRevision;
   try {
-    const [papers, preferences] = await Promise.all([repository.listFavorites(), repository.getPreferences()]);
+    const [papers, library] = await Promise.all([repository.listFavorites(), repository.getAuthorLibrary()]);
+    const preferences = library.settings;
     if (revision !== localStateRevision) return;
+    renderFollowing(library);
     savedIds = new Set(papers.map(p => p.arxivId));
     openArxivLinksInNewTab = preferences.openArxivLinksInNewTab;
     configureArxivLink(element("open-search"), openArxivLinksInNewTab);
@@ -56,6 +96,7 @@ async function init() {
     const route = resolveAuthorRoute(location.search, library);
     author = route.author;
     query = buildAuthorQuery(author);
+    renderFollowing(library);
     element("name").textContent = author.displayName;
     element("identity").textContent = "Matched by author name; namesakes may share results.";
     document.title = `${author.displayName} — Xivary`;
@@ -65,6 +106,7 @@ async function init() {
     savedIds = new Set((await repository.listFavorites()).map(paper => paper.arxivId));
     const cache = await repository.getAuthorPaperCache(author.id);
     if (cache) {
+      feedPhase = "ready";
       render(cache.papers, cache.fetchedAt);
       if (!isAuthorCacheFresh(cache)) void refresh(false);
     } else await refresh(false);
@@ -78,16 +120,21 @@ async function init() {
 }
 
 async function refresh(manual) {
+  if (requestBusy) return;
+  requestBusy = true;
+  feedPhase = "loading";
+  element("empty").hidden = true;
   element("refresh").disabled = true;
   setStatus(manual ? "Refreshing from arXiv…" : "Loading papers from arXiv…");
   try {
     const papers = await fetchArxivPapers(query);
     const cache = await repository.putAuthorPaperCache({ authorId: author.id, papers, fetchedAt: new Date().toISOString(), queryUsed: query });
     savedIds = new Set((await repository.listFavorites()).map(paper => paper.arxivId));
+    feedPhase = "ready";
     render(cache.papers, cache.fetchedAt);
     setStatus("");
-  } catch (error) { setStatus(`Could not refresh: ${error.message}`, true); }
-  finally { element("refresh").disabled = false; }
+  } catch (error) { feedPhase = "error"; renderFiltered(); setStatus(`Could not refresh: ${error.message}`, true); }
+  finally { requestBusy = false; element("refresh").disabled = false; }
 }
 
 function render(papers, fetchedAt) {
@@ -134,7 +181,7 @@ function renderFiltered() {
   }
   element("papers").replaceChildren(fragment);
   element("empty").textContent = active ? "No matching papers." : "No papers were returned for this author name.";
-  element("empty").hidden = papers.length > 0;
+  element("empty").hidden = feedPhase !== "ready" || papers.length > 0;
 }
 
 async function save(paper, button) {

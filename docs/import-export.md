@@ -4,7 +4,7 @@ Settings has compact Import and Export actions for Bookmarks and Following. Expo
 opens a native dialog with **All** and the existing collections for that category.
 The selection is made through the repository, so Settings does not read browser
 storage or manipulate raw IDs. Import merges the chosen file through the repository.
-Preferences have no manual Import or Export action; the two boolean preferences
+Preferences have no manual Import or Export action; the three boolean preferences
 continue to use the existing Chrome Sync mechanism.
 
 ## Portable format
