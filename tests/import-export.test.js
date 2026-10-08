@@ -5,7 +5,7 @@ import { RepositoryClient } from "../extension/src/repository/repository-client.
 import { SyncStorage } from "../extension/src/repository/sync-storage.js";
 import { createRepositoryHandler } from "../extension/src/background/repository-handler.js";
 import { PORTABLE_FORMAT, PORTABLE_VERSION, SCOPED_PORTABLE_VERSION } from "../extension/src/repository/portable-library.js";
-import { projectState, syncKey } from "../extension/src/repository/sync-model.js";
+import { projectState } from "../extension/src/repository/sync-model.js";
 
 const now = "2026-10-07T02:03:04.000Z";
 const later = "2026-10-08T02:03:04.000Z";
@@ -294,7 +294,7 @@ test("persistence failure leaves previous local data intact", async () => {
   assert.deepEqual(target.state(), before);
 });
 
-test("category imports change only matching Sync projections and RPC enforces the category API", async () => {
+test("category imports remain local without changing preference projection and RPC enforces the category API", async () => {
   const source = await populated("sync-source");
   for (const category of Object.keys(fields)) {
     const base = await populated(`sync-target-${category}`);
@@ -317,21 +317,14 @@ test("category imports change only matching Sync projections and RPC enforces th
     await client.importCategory(JSON.stringify(file), category);
     const after = projectState(base.state());
     const updated = base.state()._chromeSync.records;
-    const allowed = category === "bookmarks" ? ["p", "pc", "pm"] : ["a", "ac", "am"];
-    assert.ok(Object.keys(after).some(key => JSON.stringify(after[key]) !== JSON.stringify(before[key])));
-    for (const key of new Set([...Object.keys(before), ...Object.keys(after)])) {
-      const type = JSON.parse(key.slice("xivary.sync:".length))[0];
-      if (!allowed.includes(type)) assert.deepEqual(after[key], before[key]);
-    }
-    for (const key of Object.keys(updated)) {
-      const type = JSON.parse(key.slice("xivary.sync:".length))[0];
-      if (!allowed.includes(type)) assert.deepEqual(updated[key], old[key]);
-    }
+    assert.deepEqual(after, before);
+    assert.deepEqual(updated, old);
+    assert.deepEqual(Object.keys(remote).sort(), Object.keys(before).sort());
     assert.equal(JSON.stringify(file).includes("_chromeSync"), false);
     assert.equal(JSON.stringify(file).includes("rev"), false);
     assert.equal(JSON.stringify(file).includes("tombstone"), false);
     assert.equal(base.state().schemaVersion, 5);
-    assert.ok(base.state()._chromeSync.records[syncKey(allowed[1], category === "bookmarks"
-      ? source.paperCollection.id : source.authorCollection.id)]);
+    assert.ok(base.state()[category === "bookmarks" ? "paperCollections" : "collections"].some(item => item.id === (category === "bookmarks"
+      ? source.paperCollection.id : source.authorCollection.id)));
   }
 });

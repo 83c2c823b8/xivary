@@ -15,6 +15,9 @@ const syncKey = name => `xivary.sync:${JSON.stringify(["s", name])}`;
 const paper = { arxivId: "2401.00001", title: "Release transfer fixture", authors: ["Alex Kim"] };
 const client = operation => `(async () => { const { RepositoryClient } = await import('../repository/repository-client.js'); const repository = new RepositoryClient(); return ${operation}; })()`;
 const localState = "chrome.storage.local.get('arxivResearchLibrary').then(value => value.arxivResearchLibrary)";
+const legacy = JSON.parse(await readFile(join(root, "tests/fixtures/legacy-sync-v1.json"), "utf8"));
+const ignoredSync = { ...legacy, "xivary.sync:broken": { v: 99 },
+  'xivary.sync:["s","futureSetting"]': { v: 1, rev: [50, "old-client"], value: true, deleted: null } };
 
 async function settingsPage(extensionId) {
   const page = await chrome.page(`chrome-extension://${extensionId}/src/settings/settings.html`);
@@ -43,6 +46,22 @@ try {
   await chrome.until(session, "document.readyState === 'complete' && document.querySelector('#open-arxiv-new-tab').checked && document.querySelector('#organize-author-collections').checked");
   assert.deepEqual(await chrome.evaluate(session, "[...document.querySelectorAll('[data-import]')].map(node => node.dataset.import)"), ["bookmarks", "following"]);
   assert.deepEqual(await chrome.evaluate(session, "[...document.querySelectorAll('[data-export]')].map(node => node.dataset.export)"), ["bookmarks", "following"]);
+
+  // Emulate an existing pre-cutover local replica and retained legacy remote
+  // records in this disposable profile. No production cleanup API is added.
+  const beforeCutover = await chrome.evaluate(session, localState);
+  const oldReplica = structuredClone(beforeCutover);
+  Object.assign(oldReplica._chromeSync.records, legacy);
+  oldReplica._chromeSync.counter = Math.max(oldReplica._chromeSync.counter, 5);
+  oldReplica._chromeSync.bootstrapSnapshot = { favorites: oldReplica.favorites, authors: oldReplica.authors,
+    collections: oldReplica.collections, memberships: oldReplica.memberships, settings: oldReplica.settings };
+  await chrome.evaluate(session, `chrome.storage.local.set({arxivResearchLibrary:${JSON.stringify(oldReplica)}})`);
+  await chrome.evaluate(session, `chrome.storage.sync.set(${JSON.stringify(ignoredSync)})`);
+  await chrome.evaluate(session, client("repository.getPreferences()"));
+  const afterCutover = await chrome.evaluate(session, localState);
+  for (const field of ["favorites", "authors", "paperCollections", "collections", "paperMemberships", "memberships", "authorPaperCaches", "settings"]) assert.deepEqual(afterCutover[field], beforeCutover[field], `cutover: ${field}`);
+  assert.deepEqual(afterCutover._chromeSync.bootstrapSnapshot, oldReplica._chromeSync.bootstrapSnapshot);
+  for (const [key, value] of Object.entries(legacy)) assert.deepEqual(afterCutover._chromeSync.records[key], value);
 
   const downloads = new Map(), choosers = [];
   chrome.listeners.push(message => {
@@ -124,6 +143,27 @@ try {
   await importFile("bookmarks", malformedPath, false);
   assert.deepEqual(await chrome.evaluate(session, client("repository.getPaperLibrary()")), beforeInvalid);
   console.log("Release flow PASS: export Cancel, malformed-file feedback, no Preferences transfer UI");
+  const syncAfterTransfers = await chrome.evaluate(session, "chrome.storage.sync.get(null)");
+  for (const [key, value] of Object.entries(ignoredSync)) assert.deepEqual(syncAfterTransfers[key], value);
+  assert.ok(Object.keys(syncAfterTransfers).every(key => Object.hasOwn(ignoredSync, key) || preferenceNames.some(name => key === syncKey(name))));
+  console.log("Settings-only Sync PASS: existing local legacy replica, remote live/malformed library records, native category imports remain local; remote history untouched");
+
+  // A fresh installation receives test-authored peer records, not account sync.
+  const freshChrome = new ChromiumTestSession(join(temporary, "fresh-profile"));
+  try {
+    const { id } = await freshChrome.send("Extensions.loadUnpacked", { path: join(root, "extension") });
+    const fresh = await freshChrome.page(`chrome-extension://${id}/src/settings/settings.html`);
+    await freshChrome.until(fresh.sessionId, "document.querySelector('#open-arxiv-new-tab') && !document.querySelector('#open-arxiv-new-tab').disabled");
+    await freshChrome.evaluate(fresh.sessionId, client("repository.getPreferences()"));
+    const incoming = { ...ignoredSync, ...Object.fromEntries(preferenceNames.map(name => [syncKey(name), { v: 1, rev: [100, "test-peer"], value: true, deleted: null }])) };
+    await freshChrome.evaluate(fresh.sessionId, `chrome.storage.sync.set(${JSON.stringify(incoming)})`);
+    await freshChrome.until(fresh.sessionId, `${localState}.then(state => state.settings.openArxivLinksInNewTab && state.settings.organizeFollowedAuthorsIntoCollections)`);
+    assert.deepEqual(await freshChrome.evaluate(fresh.sessionId, client("repository.listFavorites()")), []);
+    assert.deepEqual(await freshChrome.evaluate(fresh.sessionId, client("repository.listFollowing()")), []);
+    assert.deepEqual(await freshChrome.evaluate(fresh.sessionId, client("repository.getAuthorLibrary()")).then(library => library.collections), []);
+    assert.deepEqual(await freshChrome.evaluate(fresh.sessionId, client("repository.getPaperLibrary()")).then(library => library.collections.map(item => item.name)), ["Saved Papers"]);
+    console.log("Settings-only Sync PASS: fresh Chrome profile receives preferences, no legacy Bookmarks/Following/author collections");
+  } finally { await freshChrome.close(); }
 
   // This is real Chrome storage/event integration, with a test-authored peer
   // record in ONE unsigned-in profile. It does not test account propagation.

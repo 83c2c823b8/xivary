@@ -1,5 +1,10 @@
 # Xivary 0.2.0 release record
 
+The current candidate synchronizes only two user preferences. Bookmarks, Following,
+collections and memberships stay local. Earlier milestone sections below retain
+historical evidence; current scope and results are in
+[Settings-only Sync cutover](#settings-only-sync-cutover).
+
 ## Scope and starting state
 
 Release hardening began from `4076d63c4a88120f6df7dad106e57772bf0205bf` on
@@ -55,7 +60,7 @@ An old already-bootstrapped replica without settings now merges validated remote
 first and seeds only keys missing on both sides, without revising library data.
 Malformed/unsupported remote records pause Sync rather than reset state. Unavailable
 Sync leaves local editing/pending intent intact. Firefox stays local-only.
-See [Sync compatibility table](chrome-sync.md#settings-policy-and-compatibility).
+See [Sync compatibility table](chrome-sync.md#bootstrap-failure-and-recovery).
 
 ## Original candidate evidence
 
@@ -174,12 +179,50 @@ rendered 3, 2, 39, 26 and 7 matching rows, with native primary/Enter/Ctrl/middle
 unrelated navigation retained. These counts are observations, not guarantees.
 All manual distribution checks in the release assessment remain required; no signing, push, publishing or credential automation occurred.
 
-Repaired candidate artifacts (unsigned, ignored):
+Following-repair artifacts before the settings-only cutover (unsigned, ignored):
 
 | Browser | Files | Bytes | SHA-256 |
 | --- | --- | --- | --- |
 | Chromium | 60 | 205530 | `6da3099740bceeb3f31c1b3ec29c6fd83034b399050c264bfc13848cb2331881` |
 | Firefox | 60 | 205600 | `169ae7108272bf952615843aacb94a1c80bb6b8fd6ff6176828e65bd3c20b296` |
+
+## Settings-only Sync cutover
+
+Started from clean `f33a925dd812ad04005cb864d7aae0defbb605e4` on master,
+three commits ahead of origin. Baseline 135/135 passed. The nondestructive
+[strategy was recorded before implementation](settings-only-sync-migration.md).
+Only the two existing boolean preference registers are active. Library records,
+collections/memberships, caches, unknown settings and last-used pointers stay local.
+Existing local data and inert replica records/snapshots are retained. Remote legacy
+records/tombstones are ignored, never repaired/deleted; fresh installations restore
+only preferences. Older versions may still synchronize library data themselves.
+Schema 5/migrations, Sync v1 preference encoding, portable v2, permissions,
+dependencies and candidate version 0.2.0 are unchanged.
+
+Deterministic evidence: **135/135 Node tests**, including **40 Sync simulations**.
+Obsolete library-propagation/conflict expectations were replaced by explicit local
+isolation and legacy-cutover regressions; preference bootstrap, ordering, replay,
+restart, write/read failure, quota and coalescing coverage remains. The existing 15
+portable tests preserve All/collection restoration, isolation, collisions, atomicity,
+legacy compatibility and preference exclusion, now asserting no library upload.
+
+Chrome 154/Firefox 157 fixture suites pass, including full Following organization.
+The Chrome release suite passes native category transfer, existing local legacy
+replica preservation, untouched remote legacy live/malformed records, a fresh
+unsigned-in profile receiving preferences without library restoration, onChanged/
+focus refresh, pending alarms/worker recovery, extension reload and full-profile
+restart. No production permission or test-only behavior was added. These are native
+browser tests with test-authored records, not account transport or human review.
+Packages retain 60 source-matched runtime files each; only generated manifests
+differ. Archives remain ignored and unsigned. The current artifact inspection is
+recorded below. No push/signing/publishing or normal-profile credentials are used.
+
+Current settings-only candidate artifacts (unsigned, ignored):
+
+| Browser | Files | Bytes | SHA-256 |
+| --- | --- | --- | --- |
+| Chromium | 60 | 203799 | `22ad9feae74252d054fd87975726bd470aaf686f613d2d84dd78b6be1cb8ff6e` |
+| Firefox | 60 | 203869 | `8a28ea746bc851c634c3e8d2c19617ac6547a3089206ffa81113b667ac6d8c62` |
 
 ## Git integration policy
 
@@ -203,10 +246,11 @@ No push or store publishing is part of this milestone.
 
 **RELEASE READY PENDING MANUAL VERIFICATION:**
 
-1. Same-account, same-extension-ID Chrome propagation between dedicated A/B
-   installations: save/follow/collections/memberships/deletions, both boolean
-   preferences, and non-propagation of valid last-used pointers/caches; offline
-   convergence and disabled/unavailable Sync. No credentials are automated.
+1. Same-account, same-extension-ID Chrome **preference-only** propagation between
+   dedicated A/B installations; offline convergence and unavailable/disabled Sync.
+   Confirm saves/follows/collections/memberships/imports/last-used pointers/caches
+   stay local, including upgrade/fresh-install behavior with old remote records.
+   Legacy remote data must remain untouched. No credentials are automated.
 2. Firefox's real toolbar popup and native download/file-picker All/collection
    flow, repeat/Cancel/malformed and legacy-category selection; signed installation
    and installed-extension browser restart.

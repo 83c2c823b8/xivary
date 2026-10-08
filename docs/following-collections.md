@@ -32,7 +32,8 @@ unfollows them; expose that consequence before deletion and in the picker.
 No migration, schema change, Sync v1 change or portable format change is needed.
 Legacy follows retain the existing idempotent migration to Following; malformed
 stored records remain errors rather than being reset. All writes use existing
-RepositoryClient operations and their local-first Sync projection. Firefox remains
+RepositoryClient operations. Library changes remain local; only the organization
+preference uses Chrome Sync. Firefox remains
 local-only; collection exports/imports keep their current independent contract.
 
 ## Using collections
@@ -62,7 +63,8 @@ original plain list. Refocusing reads remote changes through the existing RPC pa
 The deterministic suite adds four tests: complete toggle/move/restart/metadata and
 Bookmark isolation; legacy default membership plus idempotent collection import;
 missing preference defaults and malformed membership non-reset; independent-device
-Sync toggle/move/rename/delete/restart convergence. Existing migrations, portable
+Sync preference propagation with local-only toggle/move/rename/delete/restart
+collection isolation. Existing migrations, portable
 collision/legacy/atomicity and Sync failure tests remain unchanged.
 
 The shared `scripts/following-workflow.mjs` scenario runs inside both existing

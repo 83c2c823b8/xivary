@@ -18,7 +18,7 @@ runtime.onMessage.addListener((...args) => repositoryHandler(...args) || authorN
 if (transport) {
   const reconcile = () => repository.run(() => {}).catch(error => console.warn("Xivary library initialization:", error.message));
   // Register wake-up listeners synchronously before starting asynchronous work.
-  transport.subscribe(changes => { storage.observe(changes); void reconcile(); });
+  transport.subscribe(changes => { if (storage.observe(changes)) void reconcile(); });
   api.alarms.onAlarm.addListener(alarm => { if (alarm.name === SYNC_ALARM) void reconcile(); });
   runtime.onStartup.addListener(() => void reconcile());
   void reconcile();

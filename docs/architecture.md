@@ -17,7 +17,7 @@ Search result bookmarks ─────┘                                      
                                                                        │
                                                     schema-5 browser-local view
                                                                        │
-                                            Chrome only: sync record projection
+                                            Chrome only: preference projection
                                                                        │
                                                            native storage.sync
 
@@ -91,7 +91,7 @@ version-2 `xivary-library` documents; the legacy combined version-1 reader remai
 for selected-category imports. It validates the entire untrusted document, merges
 only the selected category into a detached clone, then LocalRepository validates
 the proposed schema-5 result and submits one repository state write. The sync storage decorator,
-when present, sees one ordinary desired-state change and projects it normally.
+when present, observes unchanged preferences and never uploads imported library data.
 
 Caches, last-used pointers, envelope extensions and sync bookkeeping never enter
 the portable projection. The merge retains local-only state and shared collection
@@ -147,18 +147,24 @@ feeds incoming old/new records into the same queue; the worker also reconciles a
 startup and on one-shot retry alarms. Writes are coalesced, capped below documented
 rates and checked against size/item quotas. There is no steady-state polling.
 
-Collection/membership null records and collection generations prevent replay from
-reviving old relationships. Membership is still the definition of saved/followed
-state. The full conflict/partition/bootstrap policy is in [chrome-sync.md](chrome-sync.md).
-Only `openArxivLinksInNewTab` and `organizeFollowedAuthorsIntoCollections` are
-preference registers; both last-used collection pointers remain local. Old v1
-replicas missing preference registers seed only absent local/remote keys at revision
-zero after validated reconciliation, without resetting library records.
-Full saved metadata and caches remain local; newly received papers get enough
-display metadata for offline rows. Local fields and unknown fields on retained
-records survive. Author, Settings, Library, Following and arXiv surfaces refresh
-repository state on focus; popup/reopened pages load fresh state. No UI listens
-to sync storage. The hidden Search page refreshes saved state when searching.
+Only `openArxivLinksInNewTab` and `organizeFollowedAuthorsIntoCollections` enter
+Sync v1 boolean registers. Projection, event observation, validation, merge,
+materialization and publication all restrict themselves to those exact canonical
+keys. Every library entity/collection/membership, cache, last-used pointer and
+unknown preference remains local. Old library Sync records and tombstones remain
+inert locally/remotely; no migration derives library state from them or deletes
+remote history. Existing replica identity, counter, preference winners and pending
+edits are retained. New bootstrap snapshots contain only eligible preferences;
+older snapshots remain untouched.
+
+Old v1 replicas missing preference registers seed only absent local/remote keys at
+revision zero after validated preference reconciliation. Remote initial overlaps
+win seeds; subsequent conflicts use logical revision then replica ID. Malformed
+active preference input pauses Sync without resetting local or remote data.
+All application surfaces refresh via RepositoryClient on focus/reopening; no UI
+listens to storage. See [Chrome Sync](chrome-sync.md) and the
+[explicit cutover strategy](settings-only-sync-migration.md). Local schema 5 and
+portable v2 remain independent, unchanged representations.
 
 The reusable arXiv service maps an author identity to a name query, builds API
 queries, normalizes Atom entries into a Paper-like result, and defines the 24-hour

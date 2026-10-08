@@ -1,8 +1,9 @@
 import test from "node:test";
+import { readFile } from "node:fs/promises";
 import assert from "node:assert/strict";
 import { LocalRepository, prepareState } from "../extension/src/repository/local-repository.js";
 import { SyncStorage } from "../extension/src/repository/sync-storage.js";
-import { assertQuota, equal, mergeRecord, projectState, syncKey, validateRecord, PREFERENCES } from "../extension/src/repository/sync-model.js";
+import { assertQuota, equal, mergeRecord, projectState, syncKey, validateRecord, PREFERENCES, isPreferenceKey, materialize, recordChanges } from "../extension/src/repository/sync-model.js";
 import { createPaper } from "../extension/src/domain/paper.js";
 import { stableAuthorKey } from "../extension/src/domain/author.js";
 
@@ -12,6 +13,9 @@ const other = { ...paper, arxivId: "2401.00002", title: "Independent paper" };
 const author = { displayName: "Alex Kim" };
 const defaultId = "paper-collection:saved-papers";
 const clone = value => structuredClone(value);
+const legacy = JSON.parse(await readFile(new URL("./fixtures/legacy-sync-v1.json", import.meta.url), "utf8"));
+const fields = ["favorites", "authors", "paperCollections", "collections", "paperMemberships", "memberships", "authorPaperCaches"];
+const library = state => Object.fromEntries(fields.map(field => [field, clone(state[field])]));
 const record = (value, counter = 1, id = "remote") => ({ v: 1, rev: [counter, id], value, deleted: value === null ? [counter, id] : null });
 
 /** Two separate local disks + transport views; writes don't reach the other
@@ -72,367 +76,305 @@ function network(initial = {}) {
   return { device, server, wire, deliver, settle, advance: () => { time += 600001; } };
 }
 
-test("Following organization workflow converges across independent replicas without touching Bookmarks", async () => {
-  const n = network();
-  const a = n.device("a"), b = n.device("b");
-  await a.repo.savePaper(paper);
-  const followed = await a.repo.followAuthor(author);
-  await n.settle();
-  const original = await a.repo.getAuthorLibrary();
-  const paperSnapshot = async () => { const { exportedAt, ...data } = await a.repo.exportCategory("bookmarks"); return data; };
-  const bookmarks = await paperSnapshot();
-  await a.repo.setOrganizeFollowedAuthorsIntoCollections(true);
-  const destination = await a.repo.createAuthorCollection("Move here");
-  await a.repo.addAuthorToCollection(followed, destination.id);
-  await a.repo.removeAuthorFromCollection(followed.id, original.collections[0].id);
-  await n.settle();
-  assert.equal((await b.repo.getPreferences()).organizeFollowedAuthorsIntoCollections, true);
-  assert.deepEqual((await b.repo.getAuthorLibrary()).memberships, (await a.repo.getAuthorLibrary()).memberships);
-  await b.repo.renameAuthorCollection(destination.id, "Renamed remotely");
-  await b.repo.setOrganizeFollowedAuthorsIntoCollections(false);
-  await n.settle();
-  a.restart();
-  const reloaded = await a.repo.getAuthorLibrary();
-  assert.equal(reloaded.collections.find(item => item.id === destination.id).name, "Renamed remotely");
-  assert.equal(reloaded.settings.organizeFollowedAuthorsIntoCollections, false);
-  assert.equal((await a.repo.listFollowing()).length, 1);
-  assert.deepEqual(await paperSnapshot(), bookmarks);
-  await b.repo.deleteAuthorCollection(destination.id);
-  await n.settle();
-  assert.deepEqual(await a.repo.listFollowing(), []);
-  assert.deepEqual(await paperSnapshot(), bookmarks);
-});
 
-test("first device migrates schema 1 before seeding sync; full original metadata is retained", async () => {
-  const net = network();
-  const original = { schemaVersion: 1, favorites: [{ ...createPaper(paper, date), note: "private", future: 42 }], following: [], future: "retained" };
-  const a = net.device("a", original);
-  await net.settle();
-  const local = await a.local.read();
-  assert.equal(local.schemaVersion, 5);
-  assert.equal(local.future, "retained");
-  assert.deepEqual(local.favorites, original.favorites);
-  assert.deepEqual(local._chromeSync.bootstrapSnapshot.favorites, original.favorites);
-  assert.ok(net.server[syncKey("pm", paper.arxivId, defaultId)]);
-  assert.equal(local._chromeSync.version, 1);
-});
+// Settings-only isolation and nondestructive legacy cutover regressions.
 
-test("second device hydrates saved papers offline, preserves complete title/authors and canonical links", async () => {
-  const net = network(), a = net.device("a");
-  await a.repo.savePaper({ ...paper, abstract: "local abstract", categories: ["math.AG"], note: "private", read: true });
-  await net.settle();
-  const b = net.device("b"); await net.settle();
-  const saved = (await b.repo.listFavorites())[0];
-  assert.equal(saved.title, paper.title);
-  assert.deepEqual(saved.authors.map(a => a.displayName), paper.authors);
-  assert.equal(saved.absUrl, "https://arxiv.org/abs/2401.00001");
-  assert.equal(saved.abstract, ""); assert.deepEqual(saved.categories, []);
-  assert.equal(saved.note, ""); assert.equal(saved.read, false);
-  assert.equal((await a.repo.listFavorites())[0].abstract, "local abstract");
-  assert.equal((await a.repo.listFavorites())[0].note, "private");
-});
-
-test("both existing libraries union disjoint intent, preserve local metadata and retain bootstrap snapshot", async () => {
-  const net = network(), a = net.device("a");
-  await a.repo.savePaper(paper); await a.repo.setOpenArxivLinksInNewTab(true); await net.settle();
-  let original = prepareState(undefined, date);
-  const local = { read: async () => clone(original), write: async value => { original = clone(value); } };
-  const old = new LocalRepository(local, () => date);
-  await old.savePaper({ ...paper, title: "Local spelling", note: "Do not overwrite" });
-  await old.savePaper(other);
-  const b = net.device("b", original); await net.settle();
-  assert.equal((await a.repo.listFavorites()).length, 2);
-  assert.equal((await b.repo.listFavorites()).length, 2);
-  assert.equal((await b.repo.listFavorites()).find(p => p.arxivId === paper.arxivId).note, "Do not overwrite");
-  assert.deepEqual((await b.local.read())._chromeSync.bootstrapSnapshot, original);
+test("populated installations publish only preferences and independent installations retain separate libraries", async () => {
+  const n = network(), a = n.device("a"), b = n.device("b");
+  await a.repo.savePaper(paper); await a.repo.followAuthor(author);
+  await b.repo.savePaper(other); await b.repo.followAuthor({ displayName: "Renée Smith" });
+  const beforeA = library(await a.local.read()), beforeB = library(await b.local.read());
+  await n.settle();
+  assert.deepEqual(Object.keys(n.server).sort(), PREFERENCES.map(name => syncKey("s", name)).sort());
+  assert.deepEqual(library(await a.local.read()), beforeA);
+  assert.deepEqual(library(await b.local.read()), beforeB);
+  await a.repo.setOpenArxivLinksInNewTab(true); await n.settle();
   assert.equal((await b.repo.getPreferences()).openArxivLinksInNewTab, true);
+  assert.deepEqual(library(await b.local.read()), beforeB);
 });
 
-test("fresh device defaults never overwrite revision-zero legacy preferences or renamed default collection", async () => {
-  const state = prepareState(undefined, date);
-  state.settings.openArxivLinksInNewTab = true;
-  state.paperCollections[0].name = "My saved papers";
-  const net = network(), a = net.device("a", state); await net.settle();
-  const b = net.device("z"); b.failRead = true;
-  await b.repo.getPaperLibrary(); b.restart(); b.failRead = false; await net.settle();
-  for (const d of [a, b]) {
-    assert.equal((await d.repo.getPreferences()).openArxivLinksInNewTab, true);
-    assert.equal((await d.repo.getPaperLibrary()).collections[0].name, "My saved papers");
-  }
-});
-
-test("unchanged migrations 2 through 4 run before synchronization and preserve user fields", async () => {
-  for (const schemaVersion of [2, 3, 4]) {
-    const state = prepareState(undefined, date);
-    state.schemaVersion = schemaVersion;
-    state.favorites = [{ ...createPaper(paper, date), note: "Keep this", extensionField: true }];
-    delete state.paperCollections; delete state.paperMemberships;
-    delete state.settings.lastUsedPaperCollectionId;
-    if (schemaVersion < 4) delete state.authorPaperCaches;
-    if (schemaVersion === 2) { state.following = []; delete state.authors; delete state.collections; delete state.memberships; }
-    const net = network(), a = net.device("a", state); await net.settle();
-    assert.deepEqual((await a.local.read()).favorites, state.favorites);
-    const b = net.device("b"); await net.settle();
-    assert.equal((await b.repo.listFavorites())[0].arxivId, paper.arxivId);
-  }
-});
-
-test("paper save/delete and author follow/unfollow propagate without coupling their state", async () => {
-  const net = network(), a = net.device("a"), b = net.device("b");
-  await a.repo.savePaper(paper); const followed = await a.repo.followAuthor(author); await net.settle();
-  assert.equal((await b.repo.listFollowing()).length, 1);
-  assert.equal((await b.repo.listFavorites()).length, 1);
-  await b.repo.removeFavorite(paper.arxivId); await net.settle();
-  assert.deepEqual(await a.repo.listFavorites(), []);
-  assert.equal((await a.repo.listFollowing()).length, 1);
-  await b.repo.unfollowAuthor(followed.id); await net.settle();
-  assert.deepEqual(await a.repo.listFollowing(), []);
-  assert.equal((await a.repo.getAuthorLibrary()).authors[0].id, followed.id);
-  assert.equal(net.server[syncKey("pm", paper.arxivId, defaultId)].value, null);
-  await a.repo.followAuthor(author); await a.repo.savePaper(paper); await net.settle();
-  assert.equal((await b.repo.listFollowing()).length, 1);
-  assert.equal((await b.repo.listFavorites()).length, 1);
-});
-
-test("paper collections create/rename/membership/delete maintain schema-5 semantics", async () => {
-  const net = network(), a = net.device("a"), b = net.device("b");
-  await a.repo.savePaper(paper);
-  const c = await a.repo.createPaperCollection("Reading", paper); await net.settle();
-  await b.repo.renamePaperCollection(c.id, "Research");
-  await b.repo.removePaperFromCollection(paper.arxivId, defaultId); await net.settle();
-  assert.equal((await a.repo.getPaperLibrary()).collections.find(x => x.id === c.id).name, "Research");
-  assert.equal((await a.repo.listFavorites()).length, 1);
-  await a.repo.deletePaperCollection(c.id); await net.settle();
-  assert.equal((await b.repo.getPaperLibrary()).memberships.length, 0);
-  assert.equal((await b.repo.listFavorites()).length, 0);
-  assert.equal((await b.repo.getPaperLibrary()).settings.lastUsedPaperCollectionId, defaultId);
-});
-
-test("author collections synchronize even when hidden; deletion retains Author entities", async () => {
-  const net = network(), a = net.device("a"), b = net.device("b");
-  const c = await a.repo.createAuthorCollection("Geometers", author); await net.settle();
-  await b.repo.renameAuthorCollection(c.id, "Algebra"); await net.settle();
-  assert.equal((await a.repo.getAuthorLibrary()).collections[0].name, "Algebra");
-  await a.repo.deleteAuthorCollection(c.id); await net.settle();
+test("Following create/rename/move/delete stays local even when organization preference propagates", async () => {
+  const n = network(), a = n.device("a"), b = n.device("b");
+  await a.repo.followAuthor(author); await n.settle();
+  const first = (await a.repo.getAuthorLibrary()).collections[0];
+  const next = await a.repo.createAuthorCollection("A");
+  await a.repo.addAuthorToCollection(author, next.id);
+  await a.repo.removeAuthorFromCollection(stableAuthorKey(author.displayName), first.id);
+  await a.repo.renameAuthorCollection(next.id, "Renamed");
+  await a.repo.setOrganizeFollowedAuthorsIntoCollections(true); await n.settle();
+  assert.equal((await b.repo.getPreferences()).organizeFollowedAuthorsIntoCollections, true);
   assert.deepEqual(await b.repo.listFollowing(), []);
-  assert.equal((await b.repo.getAuthorLibrary()).authors[0].id, stableAuthorKey(author.displayName));
+  assert.deepEqual((await b.repo.getAuthorLibrary()).collections, []);
+  await a.repo.deleteAuthorCollection(next.id); await n.settle();
+  assert.deepEqual(await a.repo.listFollowing(), []);
+  assert.equal((await a.repo.getAuthorLibrary()).authors.length, 1);
+  assert.ok(Object.keys(n.server).every(isPreferenceKey));
 });
 
-test("disconnected devices add unrelated records without a shared queue; delayed transport converges", async () => {
-  const net = network(), a = net.device("a"), b = net.device("b"); await net.settle();
-  await a.repo.savePaper(paper); await b.repo.savePaper(other);
-  await a.repo.followAuthor(author); await b.repo.followAuthor({ displayName: "Other Person" });
-  await net.settle();
-  for (const d of [a, b]) { assert.equal((await d.repo.listFavorites()).length, 2); assert.equal((await d.repo.listFollowing()).length, 2); }
-});
-
-test("concurrent collection name collisions keep both stable IDs with unique deterministic labels", async () => {
-  const net = network(), a = net.device("a"), b = net.device("b"); await net.settle();
-  const ac = await a.repo.createPaperCollection("Reading", paper);
-  const bc = await b.repo.createPaperCollection("Reading", other); await net.settle();
-  const shape = async d => (await d.repo.getPaperLibrary()).collections.map(c => [c.id, c.name]).sort();
-  assert.deepEqual(await shape(a), await shape(b));
-  const pairs = await shape(a);
-  assert.ok(pairs.some(([id, name]) => id === ac.id && name === "Reading"));
-  assert.ok(pairs.some(([id, name]) => id === bc.id && name === "Reading (2)"));
-  await b.repo.renamePaperCollection(bc.id, "Different"); await net.settle();
-  assert.deepEqual(await shape(a), await shape(b));
-  const longName = "x".repeat(75) + " xxxx";
-  await a.repo.createPaperCollection(longName);
-  await a.repo.createPaperCollection("x".repeat(75) + " (2)");
-  await b.repo.createPaperCollection(longName); await net.settle();
-  assert.deepEqual(await shape(a), await shape(b));
-  assert.ok((await shape(a)).some(([, name]) => name === "x".repeat(75) + " (3)"));
-});
-
-test("same-register concurrent edits use logical revision then replica ID, not date", async () => {
-  const net = network(), a = net.device("a"), b = net.device("b");
-  const c = await a.repo.createPaperCollection("Initial"); await net.settle();
-  a.repo.clock = () => "2099-01-01T00:00:00Z";
-  b.repo.clock = () => "2000-01-01T00:00:00Z";
-  await a.repo.renamePaperCollection(c.id, "A"); await b.repo.renamePaperCollection(c.id, "B");
-  await net.settle();
-  for (const d of [a, b]) assert.equal((await d.repo.getPaperLibrary()).collections.find(x => x.id === c.id).name, "B");
-});
-
-test("global removal deletes observed memberships; unseen concurrent different membership survives", async () => {
-  const net = network(), a = net.device("a"), b = net.device("b");
-  await a.repo.savePaper(paper); const c = await a.repo.createPaperCollection("Extra"); await net.settle();
-  await a.repo.removeFavorite(paper.arxivId);
-  await b.repo.addPaperToCollection(paper, c.id); await net.settle();
-  for (const d of [a, b]) assert.deepEqual((await d.repo.getPaperLibrary()).memberships.map(m => m.collectionId), [c.id]);
-});
-
-test("collection delete suppresses delayed members; restoring the default cannot resurrect old ones", async () => {
-  const net = network(), a = net.device("a"), b = net.device("b");
-  await a.repo.savePaper(paper); await net.settle();
-  await a.repo.deletePaperCollection(defaultId);
-  await b.repo.savePaper(other); await net.settle();
+test("Bookmark collections and removals stay local while local metadata is retained", async () => {
+  const n = network(), a = n.device("a"), b = n.device("b");
+  const saved = await a.repo.savePaper({ ...paper, abstract: "private local metadata", note: "keep" });
+  const group = await a.repo.createPaperCollection("Read", paper);
+  await a.repo.renamePaperCollection(group.id, "Read next");
+  await n.settle();
+  assert.deepEqual(await b.repo.listFavorites(), []);
+  assert.equal((await a.repo.listFavorites())[0].abstract, saved.abstract);
+  await a.repo.removePaperFromCollection(paper.arxivId, defaultId);
+  await a.repo.deletePaperCollection(group.id); await n.settle();
   assert.deepEqual(await a.repo.listFavorites(), []);
-  await a.repo.savePaper(paper); await net.settle();
-  for (const d of [a, b]) assert.deepEqual((await d.repo.listFavorites()).map(p => p.arxivId), [paper.arxivId]);
+  assert.ok(Object.keys(n.server).every(isPreferenceKey));
 });
 
-test("stale/replayed events repair tombstones and never toggle saved state", async () => {
-  const net = network(), a = net.device("a"), b = net.device("b");
-  await a.repo.savePaper(paper); await net.settle();
-  const key = syncKey("pm", paper.arxivId, defaultId), stale = clone(net.server[key]);
-  await a.repo.removeFavorite(paper.arxivId); await net.settle();
-  const removed = clone(net.server[key]);
-  for (const d of [a, b]) {
-    d.view[key] = stale;
-    d.storage.observe({ [key]: { oldValue: removed, newValue: stale } });
-    d.storage.observe({ [key]: { oldValue: removed, newValue: stale } });
+for (const type of ["p", "a", "pc", "ac", "pm", "am"]) {
+  test(`legacy ${type} input/events never restore, overwrite or delete local library data`, async () => {
+    const key = Object.keys(legacy).find(key => JSON.parse(key.slice("xivary.sync:".length))[0] === type);
+    const initial = { [key]: legacy[key] };
+    const n = network(initial), a = n.device("a");
+    await a.repo.savePaper({ ...paper, title: "Local title", abstract: "keep" });
+    await a.repo.followAuthor(author); await n.settle();
+    const before = await a.local.read();
+    assert.deepEqual(n.server[key], initial[key]);
+    const tombstone = { v: 99, rev: [900, "older-client"], value: null, deleted: [900, "older-client"] };
+    n.server[key] = clone(tombstone); a.view[key] = clone(tombstone);
+    assert.equal(a.storage.observe({ [key]: { oldValue: legacy[key], newValue: tombstone } }), false);
+    a.restart(); await n.settle();
+    const after = await a.local.read();
+    assert.deepEqual(library(after), library(before));
+    assert.deepEqual(after.settings, before.settings);
+    assert.equal(after._chromeSync.counter, before._chromeSync.counter);
+    assert.deepEqual(n.server[key], tombstone);
+    await a.repo.setOpenArxivLinksInNewTab(true); await n.settle();
+    assert.deepEqual(n.server[key], tombstone, "preference publication never repairs legacy records");
+    const fresh = n.device("fresh"); await n.settle();
+    assert.deepEqual(await fresh.repo.listFavorites(), []);
+    assert.deepEqual(await fresh.repo.listFollowing(), []);
+  });
+}
+
+test("fresh installation with complete old Sync v1 library receives preferences only", async () => {
+  const remote = { ...clone(legacy), [syncKey("s", PREFERENCES[0])]: record(true) };
+  const n = network(remote), a = n.device("a"); await n.settle();
+  assert.equal((await a.repo.getPreferences()).openArxivLinksInNewTab, true);
+  assert.deepEqual(await a.repo.listFavorites(), []);
+  assert.deepEqual(await a.repo.listFollowing(), []);
+  assert.deepEqual((await a.repo.getAuthorLibrary()).collections, []);
+  assert.equal((await a.repo.getPaperLibrary()).collections[0].name, "Saved Papers");
+  for (const [key, value] of Object.entries(remote)) assert.deepEqual(n.server[key], value);
+});
+
+test("existing local legacy replica keeps identity, counter, snapshots and inert pending library records", async () => {
+  const old = network().device("old");
+  await old.repo.savePaper({ ...paper, abstract: "keep", future: 42 }); await old.repo.followAuthor(author);
+  const disk = await old.local.read();
+  disk.favorites[0].future = { keep: "paper extension metadata" };
+  disk.authors[0].future = "author extension metadata";
+  disk.paperCollections[0].future = "collection extension metadata";
+  disk.settings.deviceOnly = "local context";
+  disk.futureEnvelope = { keep: true };
+  disk._chromeSync.records = { ...clone(legacy), [syncKey("s", PREFERENCES[0])]: record(true, 7, "old") };
+  disk._chromeSync.counter = 7;
+  disk._chromeSync.bootstrapSnapshot = { precious: "original migration snapshot", favorites: clone(disk.favorites) };
+  disk.settings.openArxivLinksInNewTab = true;
+  const n = network(), a = n.device("ignored-new-id", disk); await n.settle();
+  const updated = await a.local.read();
+  assert.deepEqual(library(updated), library(disk));
+  assert.deepEqual(updated.settings, disk.settings);
+  assert.deepEqual(updated.futureEnvelope, disk.futureEnvelope);
+  assert.equal(updated._chromeSync.id, "old");
+  assert.equal(updated._chromeSync.counter, 7);
+  assert.deepEqual(updated._chromeSync.bootstrapSnapshot, disk._chromeSync.bootstrapSnapshot);
+  for (const [key, value] of Object.entries(legacy)) assert.deepEqual(updated._chromeSync.records[key], value);
+  assert.deepEqual(Object.keys(n.server).sort(), PREFERENCES.map(name => syncKey("s", name)).sort());
+  assert.deepEqual(n.server[syncKey("s", PREFERENCES[0])], disk._chromeSync.records[syncKey("s", PREFERENCES[0])]);
+  const stable = await a.local.read(); a.restart(); await n.settle();
+  assert.deepEqual(await a.local.read(), stable, "cutover is idempotent");
+});
+
+test("legacy records missing preferences seed absent keys without advancing retained library clock", async () => {
+  const state = prepareState(undefined, date);
+  state.settings.organizeFollowedAuthorsIntoCollections = true;
+  state._chromeSync = { version: 1, id: "old", counter: 5, records: clone(legacy), bootstrapped: true, retryAt: 0, lastError: null };
+  const n = network(legacy), a = n.device("a", state); await n.settle();
+  assert.equal((await a.local.read())._chromeSync.counter, 5);
+  assert.deepEqual(n.server[syncKey("s", PREFERENCES[1])].rev, [0, "old"]);
+  for (const [key, value] of Object.entries(legacy)) assert.deepEqual(n.server[key], value);
+});
+
+test("malformed/unsupported legacy and unknown keys cannot pause eligible preference Sync", async () => {
+  const ignored = { ...clone(legacy), "xivary.sync:broken": { v: 99 },
+    [syncKey("a", "invalid")]: "malformed legacy record", [syncKey("s", "futureSetting")]: record(true), foreign: { keep: true } };
+  const n = network(ignored), a = n.device("a"), b = n.device("b");
+  await a.repo.setOpenArxivLinksInNewTab(true); await n.settle();
+  assert.equal((await b.repo.getPreferences()).openArxivLinksInNewTab, true);
+  assert.equal((await a.local.read())._chromeSyncError, undefined);
+  for (const [key, value] of Object.entries(ignored)) assert.deepEqual(n.server[key], value);
+});
+
+test("damaged inert legacy local records do not block settings or get uploaded", async () => {
+  const state = prepareState(undefined, date);
+  const ignored = { ...clone(legacy), "xivary.sync:broken": { v: 99 } };
+  state._chromeSync = { version: 1, id: "old", counter: 5, records: ignored, bootstrapped: true, retryAt: 0, lastError: null };
+  const n = network(), a = n.device("a", state);
+  await a.repo.setOpenArxivLinksInNewTab(true); await n.settle();
+  for (const [key, value] of Object.entries(ignored)) assert.deepEqual((await a.local.read())._chromeSync.records[key], value);
+  assert.ok(Object.keys(n.server).every(isPreferenceKey));
+});
+
+test("projection and materialization cannot transfer a library even when directly given legacy records", () => {
+  const state = prepareState(undefined, date);
+  state.future = { keep: true };
+  const before = clone(state);
+  assert.deepEqual(materialize(state, legacy), state);
+  const projected = projectState(state);
+  assert.deepEqual(Object.keys(projected).sort(), PREFERENCES.map(name => syncKey("s", name)).sort());
+  const replica = { id: "test", counter: 5, records: clone(legacy) };
+  recordChanges(replica, { ...projected, [syncKey("p", "2401.00001")]: {} }, projected);
+  assert.deepEqual(replica.records, legacy); assert.equal(replica.counter, 5);
+  assert.deepEqual(state, before);
+});
+
+test("all schema 1–4 migrations remain lossless local operations before preference bootstrap", async () => {
+  for (const version of [1, 2, 3, 4]) {
+    const original = version < 3 ? { schemaVersion: version, favorites: [createPaper({ ...paper, note: "keep" }, date)], following: [], future: "keep" }
+      : { ...prepareState(undefined, date), schemaVersion: version, future: "keep" };
+    const expected = prepareState(original, date);
+    const n = network(legacy), a = n.device("a", original);
+    await a.repo.getPreferences(); await n.settle();
+    assert.deepEqual(library(await a.local.read()), library(expected));
+    assert.equal((await a.local.read()).future, "keep");
+    assert.equal((await a.local.read()).schemaVersion, 5);
+    assert.deepEqual((await a.local.read())._chromeSync.bootstrapSnapshot, { settings: Object.fromEntries(PREFERENCES.map(name => [name, false])) });
+    for (const [key, value] of Object.entries(legacy)) assert.deepEqual(n.server[key], value);
   }
-  await net.settle();
-  assert.deepEqual(net.server[key], removed);
-  assert.deepEqual(await b.repo.listFavorites(), []);
-  const writes = a.writes + b.writes;
-  a.storage.observe({ [key]: { oldValue: removed, newValue: removed } });
-  await net.settle();
-  assert.equal(a.writes + b.writes, writes);
 });
 
-test("restart with failed pending upload retains library, identity, logical clock and removal intent", async () => {
-  const net = network(), a = net.device("a"), b = net.device("b");
-  await a.repo.savePaper(paper); await net.settle(); a.fail = true;
-  await a.repo.removeFavorite(paper.arxivId); net.advance(); await a.repo.listFavorites();
-  const disk = await a.local.read(); assert.match(disk._chromeSync.lastError, /QUOTA/);
-  a.restart(); a.fail = false; await net.settle();
-  assert.equal((await a.local.read())._chromeSync.id, disk._chromeSync.id);
-  assert.deepEqual(await b.repo.listFavorites(), []);
-  assert.equal((await a.local.read())._chromeSync.lastError, null);
-});
-
-test("partial independent records wait for dependencies instead of corrupting or losing saved intent", async () => {
-  const net = network(), a = net.device("a"); await net.settle();
-  const member = syncKey("pm", paper.arxivId, defaultId);
-  a.view[member] = record({ addedAt: date, updatedAt: date, generation: null });
-  await a.repo.listFavorites(); assert.deepEqual(await a.repo.listFavorites(), []);
-  a.view[syncKey("p", paper.arxivId)] = record(projectState({ ...prepareState(undefined, date), favorites: [createPaper(paper, date)] })[syncKey("p", paper.arxivId)]);
-  assert.equal((await a.repo.listFavorites()).length, 1);
-});
-
-test("caches, full local metadata, unknown fields and last-used choices never enter sync", async () => {
-  const net = network(), a = net.device("a"), b = net.device("b");
-  await a.repo.savePaper({ ...paper, abstract: "CACHE-SECRET", categories: ["math.AG"], note: "LOCAL-NOTE" });
-  await a.repo.putAuthorPaperCache({ authorId: stableAuthorKey(author.displayName), queryUsed: "CACHE-QUERY", fetchedAt: date,
-    papers: [{ ...paper, abstract: "CACHE-SECRET", publishedAt: date, categories: [] }] });
-  const c = await a.repo.createPaperCollection("Reading"); await net.settle();
-  assert.equal((await a.repo.getPaperLibrary()).settings.lastUsedPaperCollectionId, c.id);
-  assert.equal((await b.repo.getPaperLibrary()).settings.lastUsedPaperCollectionId, defaultId);
-  assert.doesNotMatch(JSON.stringify(net.server), /CACHE-|LOCAL-NOTE|abstract|lastUsed|authorPaperCaches/);
-  assert.equal((await a.local.read()).authorPaperCaches.length, 1);
-  assert.deepEqual((await b.local.read()).authorPaperCaches, []);
-  await a.repo.setOpenArxivLinksInNewTab(true); await a.repo.setOrganizeFollowedAuthorsIntoCollections(true); await net.settle();
-  assert.deepEqual(await b.repo.getPreferences(), { openArxivLinksInNewTab: true, organizeFollowedAuthorsIntoCollections: true });
-});
-
-test("malformed/unsupported remote state pauses writes, preserves local library and leaves remote untouched", async () => {
-  for (const bad of [record({ title: "Missing authors" }), { ...record(null), v: 2 }]) {
-    const key = syncKey("p", paper.arxivId), net = network({ [key]: bad }), a = net.device("a");
-    await a.repo.savePaper(paper); await a.repo.savePaper(other);
-    assert.equal((await a.repo.listFavorites()).length, 2);
-    assert.match((await a.local.read())._chromeSyncError, /sync.*(?:version|record)/i);
-    assert.deepEqual(net.server[key], bad); assert.equal(a.writes, 0);
-  }
-});
-
-test("read failure never treats remote state as empty and local writes still commit", async () => {
-  const net = network(), a = net.device("a"); a.failRead = true;
-  await a.repo.savePaper(paper);
-  assert.equal((await a.repo.listFavorites()).length, 1); assert.equal(a.writes, 0);
-  a.failRead = false; await net.settle();
-  const b = net.device("b"); await net.settle();
-  assert.equal((await b.repo.listFavorites()).length, 1);
-});
-
-test("rejected sync writes preserve new local saves; failed local writes publish nothing", async () => {
-  const net = network(), a = net.device("a"), b = net.device("b"); await net.settle();
-  a.fail = true;
-  await a.repo.savePaper(paper); net.advance(); await a.repo.listFavorites();
-  assert.equal((await a.local.read()).favorites.length, 1);
-  assert.match((await a.local.read())._chromeSync.lastError, /QUOTA/);
-  assert.deepEqual(await b.repo.listFavorites(), []);
-  a.fail = false; await net.settle();
-  assert.equal((await b.repo.listFavorites()).length, 1);
-  const disk = await a.local.read(), writes = a.writes;
-  a.local.write = async () => { throw new Error("Local quota"); };
-  await assert.rejects(a.repo.savePaper(other), /Local quota/);
-  assert.deepEqual(await a.local.read(), disk); assert.equal(a.writes, writes);
-});
-
-test("bursts coalesce below Chrome rate quotas and cache-only writes do not publish", async () => {
-  const net = network(), a = net.device("a"); await net.settle();
-  const before = a.writes;
-  for (let i = 1; i <= 20; i++) await a.repo.savePaper({ ...paper, arxivId: `2401.${String(i).padStart(5, "0")}` });
-  assert.ok(a.writes - before <= 1);
-  await net.settle();
-  const after = a.writes;
-  await a.repo.putAuthorPaperCache({ authorId: stableAuthorKey(author.displayName), papers: [], fetchedAt: date, queryUsed: "local-query" });
-  await net.settle(); assert.equal(a.writes, after);
-});
-
-test("invalid local schema is never replaced or exported", async () => {
-  const original = { schemaVersion: 99, precious: "keep" };
-  const net = network(), a = net.device("a", original);
+test("invalid local schema never gets replaced or exported", async () => {
+  const state = { schemaVersion: 99, precious: "keep" };
+  const n = network(), a = n.device("a", state);
   await assert.rejects(a.repo.listFavorites(), /Unsupported or damaged library/);
-  assert.deepEqual(await a.local.read(), original); assert.equal(a.writes, 0);
+  assert.deepEqual(await a.local.read(), state); assert.equal(a.writes, 0);
 });
 
-test("remote author collections do not change a local null last-used choice", async () => {
-  const net = network(), a = net.device("a"), b = net.device("b");
-  await a.repo.followAuthor(author); await net.settle();
-  assert.equal((await b.repo.getAuthorLibrary()).settings.lastUsedAuthorCollectionId, null);
-  assert.equal((await b.repo.listFollowing()).length, 1);
-});
-
-test("quota failures leave oversized records local without truncation or aggressive retry", async () => {
-  const net = network(), a = net.device("a"); await net.settle();
-  await a.repo.savePaper({ ...paper, title: "長".repeat(4000) });
-  net.advance(); await a.repo.listFavorites();
-  const disk = await a.local.read();
-  assert.equal(disk.favorites[0].title.length, 4000);
-  assert.match(disk._chromeSync.lastError, /per-item quota/);
-  const attempts = a.writes;
-  for (let i = 0; i < 5; i++) await a.repo.getPaperLibrary();
-  assert.equal(a.writes, attempts);
-  assert.ok(a.schedules.length);
-});
-
-test("quota budgeting includes foreign keys and item/total limits; realistic small library fits", () => {
-  assert.throws(() => assertQuota({ a: 1, b: 2 }, { MAX_ITEMS: 1 }), /MAX_ITEMS/);
-  assert.throws(() => assertQuota({ foreign: "long value" }, { QUOTA_BYTES: 4 }), /total quota/);
-  assert.throws(() => assertQuota({ a: "😀" }, { QUOTA_BYTES_PER_ITEM: 5 }), /per-item/);
-  const values = {};
-  const wireRecord = value => record(value, 1000, "11111111-2222-4333-8444-555555555555");
-  for (let i = 0; i < 100; i++) {
-    const id = `2401.${String(i).padStart(5, "0")}`;
-    values[syncKey("p", id)] = wireRecord({ title: "Research title ".repeat(7), authors: ["Alex Kim", "Renée Smith", "Third Author"], savedAt: date, updatedAt: date });
-    values[syncKey("pm", id, defaultId)] = wireRecord({ addedAt: date, updatedAt: date, generation: null });
-  }
-  values[syncKey("pc", defaultId)] = wireRecord({ name: "Saved Papers", createdAt: date, updatedAt: date });
-  values[syncKey("s", "openArxivLinksInNewTab")] = wireRecord(false);
-  values[syncKey("s", "organizeFollowedAuthorsIntoCollections")] = wireRecord(false);
-  const budget = assertQuota(values);
-  assert.equal(budget.items, 203); assert.ok(budget.bytes < 75000, JSON.stringify(budget));
-});
-
-test("merge is commutative/idempotent and deletion history survives a newer restoration", () => {
-  const deleted = record(null, 3, "a"), restored = record({ name: "Restored", createdAt: date, updatedAt: date }, 4, "b");
-  const joined = mergeRecord(deleted, restored);
-  assert.deepEqual(joined, mergeRecord(restored, deleted));
-  assert.deepEqual(joined, mergeRecord(joined, joined));
-  assert.deepEqual(joined.deleted, deleted.rev);
-  validateRecord(syncKey("pc", defaultId), joined);
-});
-
-test("unsupported local sync metadata never resets the replica or blocks local domain writes", async () => {
-  const state = prepareState(undefined, date); state._chromeSync = { version: 9, retained: true };
-  const net = network(), a = net.device("a", state);
+test("unsupported local sync metadata is preserved and local domain writes still work", async () => {
+  const state = prepareState(undefined, date); state._chromeSync = { version: 9, precious: "keep" };
+  const n = network(legacy), a = n.device("a", state);
   await a.repo.savePaper(paper);
   assert.deepEqual((await a.local.read())._chromeSync, state._chromeSync);
   assert.equal((await a.repo.listFavorites()).length, 1); assert.equal(a.writes, 0);
+});
+
+test("failed local writes never publish a desired preference", async () => {
+  const n = network(), a = n.device("a"); await n.settle();
+  const before = clone(n.server), disk = await a.local.read();
+  a.local.write = async () => { throw new Error("local disk failed"); };
+  await assert.rejects(a.repo.setOpenArxivLinksInNewTab(true), /local disk failed/);
+  assert.deepEqual(n.server, before); assert.deepEqual(await a.local.read(), disk);
+});
+
+test("local library and cache activity neither advances preference clocks nor publishes", async () => {
+  const n = network(), a = n.device("a"); await n.settle();
+  const writes = a.writes, before = clone(n.server), counter = (await a.local.read())._chromeSync.counter;
+  await a.repo.savePaper(paper); await a.repo.followAuthor(author);
+  await a.repo.createPaperCollection("Empty"); await a.repo.createAuthorCollection("Empty");
+  await a.repo.putAuthorPaperCache({ authorId: stableAuthorKey(author.displayName), papers: [], fetchedAt: date, queryUsed: "local" });
+  await n.settle();
+  assert.equal(a.writes, writes); assert.equal((await a.local.read())._chromeSync.counter, counter);
+  assert.deepEqual(n.server, before);
+});
+
+test("preference merge remains commutative and idempotent", () => {
+  const a = record(false, 5, "a"), b = record(true, 5, "b");
+  assert.deepEqual(mergeRecord(a, b), mergeRecord(b, a));
+  assert.deepEqual(mergeRecord(b, b), b);
+  assert.deepEqual(mergeRecord(a, b), b);
+});
+
+test("legacy quota occupancy is accounted for without erasing remote history", async () => {
+  const n = network(legacy), a = n.device("a");
+  a.transport.limits = { MAX_ITEMS: Object.keys(legacy).length };
+  await a.repo.setOpenArxivLinksInNewTab(true);
+  const disk = await a.local.read();
+  assert.equal(disk.settings.openArxivLinksInNewTab, true);
+  assert.match(disk._chromeSync.lastError, /quota/i);
+  assert.deepEqual(n.server, legacy);
+  a.transport.limits = {}; a.restart(); await n.settle();
+  assert.equal(n.server[syncKey("s", PREFERENCES[0])].value, true);
+  for (const [key, value] of Object.entries(legacy)) assert.deepEqual(n.server[key], value);
+});
+
+test("quota preflight includes foreign keys, byte limits and item counts", () => {
+  const values = { foreign: { payload: "keep" }, [syncKey("s", PREFERENCES[0])]: record(true) };
+  assert.throws(() => assertQuota(values, { MAX_ITEMS: 1 }), /MAX_ITEMS/);
+  assert.throws(() => assertQuota(values, { QUOTA_BYTES_PER_ITEM: 4 }), /per-item/);
+  assert.throws(() => assertQuota(values, { QUOTA_BYTES: 4 }), /total/);
+  assert.ok(assertQuota(values).bytes < 102400);
+});
+
+test("mixed preference and legacy change events update settings without touching local library", async () => {
+  const n = network(), a = n.device("a");
+  await a.repo.savePaper(paper); await a.repo.followAuthor(author); await n.settle();
+  const before = await a.local.read(), key = syncKey("s", PREFERENCES[0]);
+  const incoming = record(true, 20);
+  const badLegacy = { v: 99, broken: true };
+  const oldKey = Object.keys(legacy)[0];
+  a.view[key] = incoming; a.view[oldKey] = badLegacy;
+  assert.equal(a.storage.observe({ [key]: { newValue: incoming }, [oldKey]: { newValue: badLegacy } }), true);
+  await n.settle();
+  assert.equal((await a.repo.getPreferences()).openArxivLinksInNewTab, true);
+  assert.deepEqual(library(await a.local.read()), library(before));
+  assert.deepEqual(a.view[oldKey], badLegacy);
+});
+
+test("deleted remote preference key repairs from retained winner without replaying legacy data", async () => {
+  const n = network(legacy), a = n.device("a"), b = n.device("b");
+  await a.repo.setOpenArxivLinksInNewTab(true); await n.settle();
+  const key = syncKey("s", PREFERENCES[0]), winner = clone(n.server[key]);
+  delete n.server[key];
+  for (const d of [a, b]) { delete d.view[key]; d.storage.observe({ [key]: { oldValue: winner } }); }
+  await n.settle();
+  assert.deepEqual(n.server[key], winner);
+  assert.deepEqual(await b.repo.listFavorites(), []);
+  for (const [key, value] of Object.entries(legacy)) assert.deepEqual(n.server[key], value);
+});
+
+test("legacy pending records never leak when unavailable Sync recovers after restart", async () => {
+  const state = prepareState(undefined, date);
+  state._chromeSync = { version: 1, id: "old", counter: 5, records: clone(legacy), bootstrapped: true, retryAt: 0, lastError: null };
+  const n = network(), a = n.device("a", state); a.failRead = true;
+  await a.repo.savePaper(paper); await a.repo.setOpenArxivLinksInNewTab(true);
+  assert.equal(a.writes, 0);
+  a.restart(); a.failRead = false; await n.settle();
+  assert.ok(Object.keys(n.server).every(isPreferenceKey));
+  assert.equal(n.server[syncKey("s", PREFERENCES[0])].value, true);
+  for (const [key, value] of Object.entries(legacy)) assert.deepEqual((await a.local.read())._chromeSync.records[key], value);
+  assert.equal((await a.repo.listFavorites()).length, 1);
+});
+
+test("repairing a malformed active remote record resumes Sync without resetting library", async () => {
+  const key = syncKey("s", PREFERENCES[0]);
+  const n = network({ [key]: record("bad") }), a = n.device("a");
+  await a.repo.savePaper(paper); await a.repo.setOpenArxivLinksInNewTab(true);
+  assert.match((await a.local.read())._chromeSyncError, /Malformed/);
+  const repaired = record(false, 10);
+  a.view[key] = repaired; a.storage.observe({ [key]: { newValue: repaired } });
+  await n.settle();
+  assert.equal((await a.repo.getPreferences()).openArxivLinksInNewTab, false);
+  assert.equal((await a.local.read())._chromeSyncError, undefined);
+  assert.equal((await a.repo.listFavorites()).length, 1);
+});
+
+test("preference bursts coalesce and durable desired state waits for the existing write interval", async () => {
+  const n = network(), a = n.device("a"); await n.settle();
+  await a.repo.setOpenArxivLinksInNewTab(true);
+  const writes = a.writes;
+  await a.repo.setOpenArxivLinksInNewTab(false);
+  await a.repo.setOpenArxivLinksInNewTab(true);
+  await a.repo.setOrganizeFollowedAuthorsIntoCollections(true);
+  assert.equal(a.writes, writes);
+  assert.equal((await a.local.read()).settings.organizeFollowedAuthorsIntoCollections, true);
+  await n.settle();
+  assert.equal(a.writes, writes + 1);
+  assert.equal(n.server[syncKey("s", PREFERENCES[1])].value, true);
 });
 
 test("preference classification syncs only the two durable booleans", () => {
@@ -461,13 +403,15 @@ test("local preferences bootstrap to empty sync and remote values beat fresh def
   }
   const b = net.device("z"); await net.settle();
   assert.deepEqual(await b.repo.getPreferences(), await a.repo.getPreferences());
-  assert.deepEqual((await b.local.read())._chromeSync.bootstrapSnapshot.settings, prepareState(undefined, date).settings);
+  assert.deepEqual((await b.local.read())._chromeSync.bootstrapSnapshot.settings, Object.fromEntries(PREFERENCES.map(name => [name, false])));
 });
 
 test("pre-settings Sync v1 replicas seed missing preferences without revising library records", async () => {
   const oldNet = network(), old = oldNet.device("old");
   await old.repo.savePaper(paper); await old.repo.followAuthor(author); await oldNet.settle();
-  const disk = await old.local.read(), remote = clone(oldNet.server);
+  const disk = await old.local.read(), remote = { ...clone(legacy), ...clone(oldNet.server) };
+  Object.assign(disk._chromeSync.records, clone(legacy));
+  disk._chromeSync.counter = 5;
   disk.settings.openArxivLinksInNewTab = true;
   disk.settings.organizeFollowedAuthorsIntoCollections = true;
   for (const name of PREFERENCES) {
@@ -611,7 +555,7 @@ test("unavailable sync retains preference edits and a local-only repository need
   assert.equal(Object.hasOwn(disk, "_chromeSync"), false);
 });
 
-test("portable category imports and library sync leave preference values and revisions unchanged", async () => {
+test("portable category imports remain local and leave preference values and revisions unchanged", async () => {
   const net = network(), a = net.device("a"), b = net.device("b");
   await a.repo.setOpenArxivLinksInNewTab(true);
   await a.repo.setOrganizeFollowedAuthorsIntoCollections(true); await net.settle();
@@ -626,6 +570,6 @@ test("portable category imports and library sync leave preference values and rev
     assert.deepEqual(await b.repo.getPreferences(), { openArxivLinksInNewTab: true, organizeFollowedAuthorsIntoCollections: true });
   }
   for (const [key, value] of Object.entries(before)) assert.deepEqual(net.server[key], value);
-  assert.equal((await b.repo.listFavorites()).length, 1);
-  assert.equal((await b.repo.listFollowing()).length, 1);
+  assert.equal((await b.repo.listFavorites()).length, 0);
+  assert.equal((await b.repo.listFollowing()).length, 0);
 });

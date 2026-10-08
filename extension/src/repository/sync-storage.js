@@ -1,6 +1,6 @@
 import { prepareState } from "./local-repository.js";
-import { SYNC_PREFIX, SYNC_VERSION, equal, projectState, recordChanges, validateRecord,
-  mergeRecord, materialize, assertQuota, PREFERENCES, syncKey } from "./sync-model.js";
+import { SYNC_VERSION, equal, projectState, recordChanges, validateRecord,
+  mergeRecord, materialize, assertQuota, PREFERENCES, syncKey, isPreferenceKey } from "./sync-model.js";
 
 const RETRY_MS = 5 * 60 * 1000;
 const WRITE_INTERVAL_MS = 2100; // Below both documented write-rate ceilings.
@@ -20,13 +20,16 @@ export class SyncStorage {
   }
 
   observe(changes) {
+    let observed = false;
     for (const [key, change] of Object.entries(changes)) {
-      if (!key.startsWith(SYNC_PREFIX)) continue;
+      if (!isPreferenceKey(key)) continue;
+      observed = true;
       // oldValue matters when a delayed transport write replaces a newer value.
       for (const record of [change.oldValue, change.newValue]) {
         if (record !== undefined) this.observations.push([key, structuredClone(record)]);
       }
     }
+    return observed;
   }
 
   async schedule(when) {
@@ -43,7 +46,7 @@ export class SyncStorage {
       if (state._chromeSync === undefined) {
         state._chromeSync = {
           version: SYNC_VERSION, id: this.makeId(), counter: 0, records: {}, bootstrapped: false,
-          retryAt: 0, lastError: null, bootstrapSnapshot: { ...structuredClone(state), authorPaperCaches: [] },
+          retryAt: 0, lastError: null, bootstrapSnapshot: { settings: Object.fromEntries(PREFERENCES.map(name => [name, state.settings[name]])) },
         };
         recordChanges(state._chromeSync, {}, projectState(state), true);
       }
@@ -53,7 +56,7 @@ export class SyncStorage {
       let remote;
       try { remote = await this.transport.read(); }
       catch (error) { await this.schedule(this.now() + RETRY_MS); throw error; }
-      const incoming = [...Object.entries(remote).filter(([key]) => key.startsWith(SYNC_PREFIX)), ...observations];
+      const incoming = [...Object.entries(remote).filter(([key]) => isPreferenceKey(key)), ...observations];
       for (const [key, record] of incoming) validateRecord(key, record);
       const replica = structuredClone(state._chromeSync);
       // Remote intent beats overlapping legacy/default seeds, including another
@@ -98,8 +101,11 @@ export class SyncStorage {
   validateReplica(replica) {
     if (replica?.version !== SYNC_VERSION || !/^[a-zA-Z0-9-]{1,64}$/.test(replica.id)
         || !Number.isSafeInteger(replica.counter) || replica.counter < 0 || replica.counter === Number.MAX_SAFE_INTEGER
-        || !replica.records || Array.isArray(replica.records)) throw new Error("Unsupported or damaged local sync replica.");
+        || !replica.records || typeof replica.records !== "object" || Array.isArray(replica.records)) throw new Error("Unsupported or damaged local sync replica.");
     for (const [key, record] of Object.entries(replica.records)) {
+      // Old library records remain inert local bookkeeping, never validated,
+      // merged, materialized or published by the settings-only policy.
+      if (!isPreferenceKey(key)) continue;
       validateRecord(key, record);
       if (record.rev[0] > replica.counter) throw new Error("Damaged local sync clock.");
     }
@@ -125,7 +131,7 @@ export class SyncStorage {
   async flush(state) {
     const replica = state._chromeSync;
     if (!this.remote) return;
-    const update = Object.fromEntries(Object.entries(replica.records).filter(([key, record]) => !equal(this.remote[key], record)));
+    const update = Object.fromEntries(Object.entries(replica.records).filter(([key, record]) => isPreferenceKey(key) && !equal(this.remote[key], record)));
     if (!Object.keys(update).length) {
       if (replica.lastError !== null) {
         replica.lastError = null;

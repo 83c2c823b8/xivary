@@ -37,18 +37,21 @@ Modules use `getBrowserApi()`; the classic content loader is the sole bootstrap
 exception inside that boundary. Prefer native Promise APIs (`browser`, then
 `chrome`); do not add browser checks in application code. Preserve one shared
 background repository entry point and all schema-5 semantics. Each browser/profile
-has a local schema-5 view. Chrome's small durable intent also uses native sync;
+has a local schema-5 view. Chrome synchronizes only the two designated preferences;
 Firefox stays local-only. Cross-browser execution does not imply shared state.
 
 Chrome sync is below LocalRepository in `repository/sync-storage.js`, with pure
 record projection/merge in `repository/sync-model.js`. Do not move storage access
 into UI code or copy the whole schema-5 envelope to sync. Keep caches, full local
 paper metadata and last-used collection settings local. Sync v1 is independent
-of schema 5; preserve logical revisions, collection generations and tombstones.
+of schema 5; preserve preference logical revisions and retained winners. Legacy
+library records/generations/tombstones remain inert and must never upload, merge
+or restore local library data. Leave remote legacy data untouched.
 Local commits (including pending replica records) precede best-effort sync writes.
 No wall-clock conflict ordering, toggle replay, tombstone expiry, or reset-on-error.
 Only `openArxivLinksInNewTab` and `organizeFollowedAuthorsIntoCollections` enter
-preference Sync registers. Both last-used pointers remain local. Older replicas
+Sync registers. Bookmarks, Following, collections and memberships remain local.
+Both last-used pointers remain local. Older replicas
 missing preference registers seed only absent local/remote keys after validated
 merge, at revision zero. See `docs/chrome-sync.md` for bootstrap, conflict, quota
 and privacy decisions.
@@ -57,8 +60,9 @@ Portable import/export is a separate repository-level path. Never use the raw
 local schema envelope or Chrome Sync records as the backup format. Preserve the
 independent `xivary-library` format version, exclude caches, last-used pointers and
 all sync bookkeeping, validate the whole document before one local write, and keep
-merge behavior idempotent. Imported user-owned state must reach Chrome Sync only
-through the existing LocalRepository/SyncStorage projection. See
+merge behavior idempotent. Imported Bookmarks/Following state remains local and
+must not enter Chrome Sync.
+Preferences use the existing LocalRepository/SyncStorage boundary. See
 `docs/import-export.md`.
 Importing one portable category must never modify user-owned state belonging to
 another category. Bookmarks own papers and paper collections/memberships;

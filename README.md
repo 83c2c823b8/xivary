@@ -16,8 +16,10 @@ One application source tree targets Chromium-family browsers and Firefox desktop
 Chrome 154 and Firefox 157 fixture smoke suites pass; see
 [browser support](docs/browser-support.md) for exact evidence and pending manual
 distribution checks.
-The current source adds Chrome library synchronization through Chrome's extension
-sync storage. Real account/device propagation remains unverified. Xivary has no
+Chrome synchronizes only the two designated boolean user preferences through
+its extension sync storage. Bookmarks, Following, collections and memberships
+remain local to each installation. Real account/device propagation remains
+unverified. Xivary has no
 account, project-owned backend, or analytics.
 
 ## Features
@@ -45,23 +47,20 @@ linked from primary navigation in this release.
 
 Saved papers, followed authors, collections, preferences, and cached author-feed
 results have a browser-local view in `storage.local`. In the Chromium package,
-small durable library intent also uses `storage.sync`: saved-paper IDs with full
-titles/author names, author identities, collection definitions/memberships, and
-the two boolean preferences. Google Chrome propagates this through the user's
-Chrome sync account when extension sync is enabled and extension IDs match.
-Installing Xivary in Chrome and Firefox creates **two independent local libraries**.
-Firefox sync is not implemented. Full existing paper metadata, feed caches and
-last-used collection choices remain local. Filters and pickers remain ephemeral.
-Remote papers are readable offline by title and author; their abstracts/categories
-are not transferred. Existing local metadata is preserved.
+only `openArxivLinksInNewTab` and `organizeFollowedAuthorsIntoCollections` use
+`storage.sync`. Both last-used collection pointers, all library records and feed
+caches remain local. Chrome and Firefox installations have independent libraries;
+Firefox settings remain local too. Filters and pickers remain ephemeral.
 
-First sync migrates existing local data and merges it with remote intent. A local
-snapshot preserves pre-sync user data. Independent memberships merge; conflicting
-same-record edits use logical revisions. Removing known memberships does not erase
-an unseen concurrent membership in a different collection. Deletion markers are
-retained to resist stale replay. Chrome's small storage quota limits library size;
-failed uploads leave local saves intact and pending. See [sync design and recovery
-details](docs/chrome-sync.md) for exact behavior, limits and diagnostic locations.
+Existing local data is preserved, including anything restored by older versions.
+Legacy Sync v1 library records are ignored and left untouched remotely; they cannot
+restore, overwrite or delete local items. Older extensions can still sync library
+data among themselves. New installations receive preferences only. Preferences
+keep logical revision/replica conflict ordering, pending writes and local-first
+retry behavior. No schema or portable-file migration is needed. See
+[settings-only migration](docs/settings-only-sync-migration.md) and
+[Sync design](docs/chrome-sync.md). Real Chrome-account propagation remains a
+manual release check; dedicated test profiles do not prove it.
 It sends author-name searches to `https://export.arxiv.org/` when loading or refreshing
 an author feed. It does not send library data to a project-owned service.
 
@@ -144,9 +143,9 @@ See [docs/architecture.md](docs/architecture.md) and
   or name-order variants can appear as separate authors.
 - Author feeds contain up to the 50 newest matching results returned by arXiv and
   depend on availability and name matching from the arXiv API.
-- Chrome sync is intended for small libraries (100 ordinary papers fit the tested
-  fixture); long titles/author lists, many collections and retained tombstones can
-  exhaust quotas. There is no Xivary account or custom backend.
+- Chrome synchronizes only two preferences. Retained legacy remote library records
+  can still occupy provider quota; Xivary leaves them untouched and keeps failed
+  preference uploads local and pending. There is no Xivary account or custom backend.
 - Real Google-account propagation, Firefox native transfer/toolbar flows, signed
   installation and declared minimum versions still require verification.
 - There is no mobile application. The extension targets desktop browsers.

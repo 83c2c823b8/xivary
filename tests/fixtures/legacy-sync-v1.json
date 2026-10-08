@@ -1,0 +1,83 @@
+{
+  "xivary.sync:[\"p\",\"2401.00001\"]": {
+    "v": 1,
+    "rev": [
+      5,
+      "legacy"
+    ],
+    "value": {
+      "title": "Legacy remote paper",
+      "authors": [
+        "Alex Kim"
+      ],
+      "savedAt": "2026-10-03T00:00:00.000Z",
+      "updatedAt": "2026-10-03T00:00:00.000Z"
+    },
+    "deleted": null
+  },
+  "xivary.sync:[\"a\",\"arxiv-author:name:v1:alex%20kim\"]": {
+    "v": 1,
+    "rev": [
+      5,
+      "legacy"
+    ],
+    "value": {
+      "displayName": "Alex Kim",
+      "followedAt": "2026-10-03T00:00:00.000Z",
+      "updatedAt": "2026-10-03T00:00:00.000Z"
+    },
+    "deleted": null
+  },
+  "xivary.sync:[\"pc\",\"paper-collection:saved-papers\"]": {
+    "v": 1,
+    "rev": [
+      5,
+      "legacy"
+    ],
+    "value": {
+      "name": "Legacy remote collection",
+      "createdAt": "2026-10-03T00:00:00.000Z",
+      "updatedAt": "2026-10-03T00:00:00.000Z"
+    },
+    "deleted": null
+  },
+  "xivary.sync:[\"ac\",\"collection:legacy\"]": {
+    "v": 1,
+    "rev": [
+      5,
+      "legacy"
+    ],
+    "value": {
+      "name": "Legacy authors",
+      "createdAt": "2026-10-03T00:00:00.000Z",
+      "updatedAt": "2026-10-03T00:00:00.000Z"
+    },
+    "deleted": null
+  },
+  "xivary.sync:[\"pm\",\"2401.00001\",\"paper-collection:saved-papers\"]": {
+    "v": 1,
+    "rev": [
+      5,
+      "legacy"
+    ],
+    "value": {
+      "addedAt": "2026-10-03T00:00:00.000Z",
+      "updatedAt": "2026-10-03T00:00:00.000Z",
+      "generation": null
+    },
+    "deleted": null
+  },
+  "xivary.sync:[\"am\",\"arxiv-author:name:v1:alex%20kim\",\"collection:legacy\"]": {
+    "v": 1,
+    "rev": [
+      5,
+      "legacy"
+    ],
+    "value": {
+      "addedAt": "2026-10-03T00:00:00.000Z",
+      "updatedAt": "2026-10-03T00:00:00.000Z",
+      "generation": null
+    },
+    "deleted": null
+  }
+}

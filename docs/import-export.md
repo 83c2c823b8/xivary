@@ -65,8 +65,8 @@ imported tags and categories union and imported values fill appropriate empty
 fields. Earliest creation/add/save dates and latest update dates are retained.
 An existing collection ID keeps its local name, except for the pristine built-in
 Saved Papers seed during a fresh restore. Distinct IDs with colliding names both
-survive with deterministic ` (2)`, ` (3)` suffixes from the shared Chrome Sync
-collection-name policy. Bookmarks imports leave Following, preferences, caches and
+survive with deterministic ` (2)`, ` (3)` suffixes from the shared local
+collection-name helper. Bookmarks imports leave Following, preferences, caches and
 local-only settings untouched; Following imports likewise leave Bookmarks,
 preferences, caches and local-only settings untouched.
 
@@ -90,15 +90,16 @@ Files exclude author-feed caches, last-used collection pointers, unknown storage
 fields, queues, and all Sync replica IDs, revisions, generations, tombstones,
 bootstrap snapshots and retry state. Never use the raw schema-5 envelope or Sync
 records as the portable format. Xivary does not upload these files. Imported
-Bookmarks and Following changes reach Chrome Sync only through the ordinary
-LocalRepository/SyncStorage projection. The Sync representation and conflict
-semantics are unchanged. Firefox remains local-only.
+Bookmarks and Following changes remain local. The SyncStorage decorator projects
+only designated preferences, so category imports acquire no Sync registers or
+revisions. The Sync v1 preference representation/conflict rules are unchanged.
+Firefox remains local-only.
 
 ## Release verification
 
 Fifteen deterministic portable-file tests preserve scoped classification,
 restoration, category isolation, repeat merge, malformed-file atomicity, collection
-collisions, legacy combined v1, earlier unscoped v2 and ordinary Sync projection.
+collisions, legacy combined v1, earlier unscoped v2 and no library Sync projection.
 Preference Sync tests additionally verify imports leave preference values/revisions
 unchanged. New files contain no Preferences.
 

@@ -8,10 +8,11 @@
   disabled; disclose final-membership unfollow consequences. No data migration.
 - Add a native browser API boundary and generate Firefox's module event-page
   manifest from the shared Chromium source. Application files remain identical.
-- Synchronize small saved/followed intent, collections/memberships and the two
-  boolean preferences through existing Chrome extension Sync v1. Retain logical
-  revisions, collection generations, tombstones, pending writes and local-first
-  failure behavior. Seed missing preferences in older replicas compatibly.
+- Synchronize only `openArxivLinksInNewTab` and
+  `organizeFollowedAuthorsIntoCollections` through Chrome Sync v1 preferences.
+  Keep Bookmarks, Following, collections and memberships local. Ignore legacy
+  library Sync records without deleting remote history or current local data.
+  Retain preference conflict/retry behavior and inert old replica bookkeeping.
 - Keep full local metadata, feed caches and both last-used collection pointers local;
   Firefox continues to use local-only persistence. Schema 5/migrations are unchanged.
 - Add scoped Bookmarks and Following JSON Import/Export, with All/collection

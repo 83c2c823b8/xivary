@@ -156,7 +156,7 @@ exposes collection membership controls without changing this schema.
 The two boolean preferences below synchronize through the existing Chrome Sync v1
 registers. Both last-used pointers remain browser-local convenience state. Unknown
 retained settings are excluded, as are runtime/derived/cache and replica fields.
-See [settings policy](../../docs/chrome-sync.md#settings-policy-and-compatibility)
+See [settings policy](../../docs/chrome-sync.md#bootstrap-failure-and-recovery)
 for existing-local/fresh/old-replica bootstrap and conflict behavior. Schema 5 and
 all migrations remain unchanged; Preferences have no portable-file actions.
 
@@ -190,8 +190,8 @@ Schema 5 records that omit it are treated as `false` without a write-on-read.
 The `arxivResearchLibrary` key in the browser's extension-local `storage.local`
 area holds the same schema in Chromium and Firefox. Each browser/profile has an
 independent local view. Chrome installations with matching extension IDs and an
-enabled shared Chrome sync account additionally merge small durable intent through
-the separate sync representation below. Firefox remains independent and local-only.
+enabled shared Chrome sync account synchronize only the two designated boolean
+preferences through the separate representation below. All library data remains local. Firefox remains independent and local-only.
 The platform boundary selects the native API, and `BrowserLocalStorage` performs
 the same single-key reads/writes in either browser:
 
@@ -241,42 +241,32 @@ Import validates and normalizes it before merging through LocalRepository. See
 [import/export](../../docs/import-export.md) for the exact policy and evolution
 rules; never derive this format by serializing either storage representation.
 
-### Chrome sync representation v1 (not schema 6)
+### Chrome settings Sync v1 (not schema 6)
 
-The domain schema, migrations and PaperRepository methods above are unchanged.
-The Chrome adapter adds `_chromeSync` to the local envelope: `version: 1`, replica
-`id`, logical `counter`, `bootstrapped`, a map of retained winning `records`,
-`retryAt`, `lastError`, and `bootstrapSnapshot` (migrated user data, without feed
-caches). `_chromeSyncError` records a read/validation failure without resetting
-data. These fields remain local and commit with domain writes. Unknown existing
-fields on retained records remain preserved; cache normalization keeps its existing
-exceptions. Chrome bootstrap persists the validated/defaulted envelope on its first
-read; plain LocalRepository/Firefox retains its previous write-on-read behavior.
+The domain schema, migrations and PaperRepository methods remain unchanged. Only
+`openArxivLinksInNewTab` and `organizeFollowedAuthorsIntoCollections` synchronize.
+Both last-used pointers and every library record/collection/membership/cache stay
+local. Category imports/exports remain independent portable operations.
 
-Sync keys are `xivary.sync:` followed by a JSON array identifying one register:
+Active keys are `xivary.sync:` plus `["s", preferenceName]` for exactly those two
+names. Values remain `{v:1, rev:[counter,replicaId], value:boolean, deleted}` with
+logical revision/replica ordering and retained winners. No null preference/toggle
+operation or wall-clock ordering is introduced. Unknown preferences are ignored;
+malformed/unsupported known registers pause Sync without resetting data.
 
-| Key tuple | Non-null value |
-| --- | --- |
-| `["p", arxivId]` | Complete title, ordered author-name strings, savedAt, updatedAt |
-| `["a", authorId]` | displayName, followedAt, updatedAt |
-| `["pc", collectionId]` / `["ac", collectionId]` | name, createdAt, updatedAt |
-| `["pm", arxivId, collectionId]` / `["am", authorId, collectionId]` | addedAt, updatedAt, generation |
-| `["s", preferenceName]` | Boolean, for either implemented boolean preference |
+The local `_chromeSync` envelope retains version 1, replica ID, logical counter,
+bootstrapped flag, records, retryAt and lastError. New bootstrap snapshots contain
+only eligible preferences; old full-library snapshots remain untouched. Old
+`p/a/pc/ac/pm/am` records, generations and tombstones may still exist in local
+bookkeeping and remote Sync. They are inert: never merged, materialized, validated
+as active registers, republished or deleted by this version. Local data already
+restored by older versions is preserved; fresh installations receive no library
+from Sync. These policy changes need no schema/portable-format migration.
 
-Every value is wrapped as `{v:1, rev:[counter,replicaId], value, deleted}`.
-`deleted` is null or the maximum deletion revision observed for that register.
-Collections and memberships may have null `value` (tombstone). A membership's
-`generation` is the collection's deletion revision when that membership was added,
-or null before any deletion. It must match the live collection's deletion revision
-to materialize. Neither the revision nor generation enters domain membership arrays.
-
-Saved/followed intent remains derived from valid memberships. Remote paper rows
-are constructed with existing domain constructors and minimal display metadata;
-full existing local favorite metadata is never overwritten. Last-used collection
-IDs remain local (and are repaired only when a non-null reference becomes invalid).
-Both boolean settings synchronize. Local caches and ephemeral state never enter
-the wire model. Refer to [Chrome sync design](../../docs/chrome-sync.md) for bootstrap,
-ordering, observed-membership removals, collision names, quotas and recovery.
+Local state and pending preferences commit together before best-effort upload.
+`_chromeSyncError` retains read/validation diagnostics. Existing local schema
+validation and migrations still run first. See [Chrome settings Sync](../../docs/chrome-sync.md)
+and the [nondestructive cutover](../../docs/settings-only-sync-migration.md).
 
 ## AuthorPaperCache
 
@@ -363,6 +353,6 @@ new key format. No manual clearing or re-following is necessary.
 - Paper-note editing, only if a demonstrated workflow need justifies the added UI.
 
 Domain hard deletes and device-clock `updatedAt` values are not the Sync conflict
-protocol. The implemented independent Sync v1 registers above supply logical
-ordering, deletion retention and collection generations. A future backend would
+protocol. The active preference Sync v1 registers above supply logical ordering and retained
+winners; old library deletion/generation metadata is inert. A future backend would
 need an explicit compatible contract; keep primary keys stable.

@@ -1,7 +1,7 @@
 # Browser support and verification
 
 One application tree produces Chromium and Firefox manifests. Chrome uses native
-extension Sync for small durable intent; Firefox remains local-only. No Xivary
+extension Sync only for two designated user preferences; Firefox remains local-only. No Xivary
 account, OAuth, backend or external sync provider is implemented.
 
 ## Current evidence — 2026-10-08
@@ -14,8 +14,9 @@ account, OAuth, backend or external sync provider is implemented.
 | Chrome 154.0.8037.57 | Original geometry/UI suite plus both Settings gears, author entry and full Following collection workflow; fresh disposable profile | VERIFIED IN REAL BROWSER, fixtures |
 | Firefox 157.0 / geckodriver 0.37.1 | Generated temporary add-on, content Save/Follow/unfollow, reloads, RPC, Library, Following, author feeds, popup-page navigation, preferences, both gears and full Following collection workflow | VERIFIED IN REAL BROWSER, fixtures |
 | Chrome transfer UI | All and collection exports for both categories, actual downloads/native file input, collection restoration, repeat import, other-category preservation, Cancel, malformed feedback, no Preferences transfer UI | VERIFIED IN REAL BROWSER |
-| Chrome Sync integration | Actual sync area, onChanged reconciliation, Settings focus refresh, durable pending publication, real alarm delivery after worker stop/recreation, extension reload, full test-profile restart and restored Following collection browsing | VERIFIED IN REAL BROWSER, one unsigned-in profile with test-authored peer records |
+| Chrome Sync integration | Actual sync area, onChanged reconciliation, Settings focus refresh, durable pending publication, real alarm delivery after worker stop/recreation, extension reload, full test-profile restart and restored Following collection browsing | VERIFIED IN REAL BROWSER, unsigned-in disposable profiles with test-authored peer records |
 | Live arXiv | Three real abstracts; five author views with current name-matched paper rows, ordinary/Enter/Ctrl/middle and unrelated navigation | VERIFIED IN REAL BROWSER, network |
+| Settings-only cutover | Chrome existing/fresh profiles ignore legacy live/malformed library records, keep remote history and imported library state local | VERIFIED IN REAL BROWSER, test-authored peer records |
 | Independent device conflicts/failures | Separate repositories/disks and shared fake transport, replay/delay/restart/quota/failures | SIMULATED |
 | Earlier combined transfer UI | User reported successful Chrome file selection/download before the collection selector refactor | VERIFIED MANUALLY, historical flow only |
 | Google-account delivery | No dedicated signed-in matching-ID test installations provided or used; credentials and normal profiles untouched | NOT YET VERIFIED |
@@ -139,17 +140,19 @@ Use dedicated installations A/B with the same extension ID and browser sync enab
 on the same account, set up by the developer. Record versions, IDs and observations.
 Do not use two unsigned-in profiles as evidence of account transport.
 
-1. Save on A, observe on B; follow on B, observe on A.
-2. Create/rename collections, add/remove memberships on both, observe stable IDs.
-3. Unsave/unfollow/delete a collection; confirm the remote visible state and no
-   stale resurrection. An unseen concurrent membership in another collection may
-   survive under the documented policy.
-4. Change each boolean preference on A then B; refocus Settings and observe both.
-5. Choose different last-used paper/author collections locally; confirm these
-   choices and caches do not propagate and have no Sync registers.
-6. Edit independently offline, reconnect and inspect conflict/convergence; import a
-   category file and confirm only ordinary projected records propagate.
-7. Check unavailable/disabled/quota-failing Sync leaves local operations intact.
+1. Change each boolean preference on A then B; refocus Settings/Following and
+   observe the desired value on the other installation.
+2. Save/follow/create/rename/move/delete locally; verify the other installation's
+   Bookmarks/Following/collections/memberships stay unchanged after reload/restart.
+3. Import an All/collection file on A; verify local restoration and no library
+   upload/restore on B. Preferences still propagate independently.
+4. Use distinct local last-used paper/author pointers and caches; verify they do
+   not propagate. Unknown/device settings have no active Sync registers.
+5. Upgrade with existing local and remote legacy v1 state; retain local data and
+   leave remote legacy records unchanged. A fresh installation receives only
+   preferences, even with legacy live/tombstone/malformed records present.
+6. Verify offline preference conflicts/retry, disabled/unavailable Sync and legacy
+   quota occupancy. Never erase history to manufacture a successful test.
 
 ## Pending manual Firefox and distribution checks
 

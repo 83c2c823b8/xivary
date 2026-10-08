@@ -72,7 +72,8 @@ test("actual Chrome background wires sync events, alarms, startup and repository
   // Simulate a later alarm wake-up without sleeping or changing application code.
   local[STORAGE_KEY]._chromeSync.retryAt = 0;
   alarmHandler({ name: SYNC_ALARM }); await client.listFavorites();
-  assert.equal(synced[syncKey("p", "2401.00001")].value.title, "Synced title");
+  assert.equal(synced[syncKey("p", "2401.00001")], undefined);
+  assert.ok(Object.keys(synced).every(key => key === syncKey("s", "openArxivLinksInNewTab") || key === syncKey("s", "organizeFollowedAuthorsIntoCollections")));
   const key = syncKey("s", "openArxivLinksInNewTab");
   const oldValue = synced[key];
   synced[key] = { v: 1, rev: [100, "remote"], value: true, deleted: null };

@@ -23,18 +23,24 @@ lifecycle.
 
 ## Data synchronized by Chrome
 
-The Chromium package also writes small records to Chrome's extension `storage.sync`:
-saved arXiv IDs, full titles and author names, save/follow dates, followed-author
-identities, paper/author collection names and memberships, both boolean preferences,
-logical revision identifiers and deletion markers. Google Chrome handles propagation
-through its sync infrastructure when enabled for the same extension ID and account.
-Xivary does not receive your Google credentials and has no account or server.
-Other Chromium distributions' sync infrastructure is not verified or promised.
+The Chromium package writes only two explicitly designated boolean preferences to
+Chrome's extension `storage.sync`: `openArxivLinksInNewTab` and
+`organizeFollowedAuthorsIntoCollections`, with their logical revision/replica metadata.
+Google Chrome handles propagation when enabled for the same extension ID/account.
+Xivary receives no Google credentials and operates no account or server. Other
+Chromium distributions' sync infrastructure is not verified or promised.
 
-Abstracts, categories, publication metadata, notes/tags/read fields, unknown local
-metadata, author-feed caches and last-used choices are not uploaded by this layer.
-Firefox does not access its sync storage. Disabling Chrome sync is controlled by
-Chrome; the extension sync area then behaves locally.
+Bookmarks, Following records, collection names and memberships, paper metadata,
+author-feed caches, unknown settings and both last-used collection pointers remain
+local. Firefox does not access its sync storage; its preferences remain local.
+Disabling Chrome sync is controlled by Chrome, not by Xivary.
+
+Previous versions uploaded small library records. Updated installations ignore
+those legacy remote records and never upload or restore them, but do not erase or
+rewrite them. Existing local data, including earlier downloads and inert replica
+bookkeeping/snapshots, is preserved. This is not a claim of retroactive remote
+purging. Older extension versions may continue syncing library data themselves.
+See [migration strategy](docs/settings-only-sync-migration.md).
 
 ## User-controlled backup files
 
@@ -52,16 +58,13 @@ Xivary does not upload backup files. A downloaded file is governed by the user's
 device, browser download settings, backup software, and any transfer service the
 user chooses. Import reads a file only after the user selects it, validates the
 whole file, and merges it into local data through the same repository used by
-ordinary saves/follows. In Chrome, that resulting user-owned state may then enter
-Chrome Sync normally; the file itself and its export timestamp are not synchronized
-as backup objects.
+ordinary saves/follows. Imported library data stays local; it does not enter
+Chrome Sync. New portable files continue to exclude preferences.
 
-Removing a paper or unfollowing changes visible library intent. Display records
-and deletion markers remain in sync storage to avoid stale resurrection. Local
-replica bookkeeping and a one-time pre-sync user-data snapshot also remain; that
-snapshot excludes feed caches. There is no automatic purge/compaction or data-reset
-UI. Do not treat removing a row as erasing all historical metadata from browser
-storage or Google's sync infrastructure. See [sync design](docs/chrome-sync.md).
+Local deletion follows the existing membership rules and does not remove remote
+legacy records. Retained author metadata and old local replica snapshots are not
+purged automatically. New preference replicas snapshot only those preferences.
+See [Sync design](docs/chrome-sync.md).
 
 ## Network use
 
@@ -79,7 +82,7 @@ No remote JavaScript, CSS, fonts, or other executable code is loaded at runtime.
 ## Permissions and site access
 
 - `storage`: stores the local library, collections, cached author-feed results, and
-  settings, and accesses Chrome extension sync storage for the small durable subset.
+  settings, and accesses Chrome extension sync storage for the two designated preferences.
 - `alarms` (Chromium package only): resumes deferred sync writes and failure recovery.
 - `https://arxiv.org/abs/*` content-script access: reads public title and author
   metadata on arXiv abstract pages, inserts Save and Follow controls, and opens
