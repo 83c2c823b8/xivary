@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { ChromiumTestSession, waitFor } from "./chromium-test-session.mjs";
@@ -43,12 +43,49 @@ export async function polishSmoke() {
     assert.equal(requests, 1, "focus/refresh do not duplicate the in-flight request");
     hold = false; for (const [session, params] of pending.splice(0)) await fulfill(session, params, atom);
     await chrome.until(author, "document.querySelectorAll('.paper-row').length===1 && !document.querySelector('#refresh').disabled");
+    const reference = await page("https://arxiv.org/abs/2401.00001");
+    await chrome.until(reference, "document.querySelector('.authors .arxiv-library-button')?.getAttribute('aria-pressed')==='false' && !document.querySelector('.authors .arxiv-library-button').disabled");
+    async function compareFollowPresentation(state) {
+      await chrome.evaluate(reference, "window.dispatchEvent(new Event('focus'))");
+      await chrome.until(reference, `document.querySelector('.authors .arxiv-library-button')?.getAttribute('aria-pressed')==='${state}' && !document.querySelector('.authors .arxiv-library-button').disabled`);
+      const presentation = selector => `(() => {
+        const b=document.querySelector(${JSON.stringify(selector)}), s=getComputedStyle(b), svg=b.querySelector('svg');
+        return { label:b.textContent, action:b.getAttribute('aria-label'), title:b.title, pressed:b.getAttribute('aria-pressed'),
+          icon:svg.querySelector('path').getAttribute('d'), hidden:svg.getAttribute('aria-hidden'),
+          style:['backgroundColor','color','borderColor','borderRadius','fontFamily','fontSize','fontWeight','lineHeight','padding','gap','minHeight','boxSizing'].map(key=>s[key]),
+          iconSize:[getComputedStyle(svg).width,getComputedStyle(svg).height] };
+      })()`;
+      const internal=await chrome.evaluate(author,presentation('#follow-author'));
+      assert.deepEqual(internal, await chrome.evaluate(reference,presentation('.authors .arxiv-library-button')));
+      assert.equal(internal.label,state ? 'Following' : 'Follow');
+      assert.equal(internal.action,`${state ? 'Unfollow' : 'Follow'}: Alex Kim`);
+      for (const [session, name] of [[author,'author'],[reference,'arxiv']]) {
+        await chrome.send('Page.bringToFront',{},session);
+        const capture=await chrome.send('Page.captureScreenshot',{format:'png'},session);
+        await writeFile(`/tmp/xivary-follow-${name}-${state ? 'following' : 'follow'}.png`,Buffer.from(capture.data,'base64'));
+      }
+    }
+    await compareFollowPresentation(false);
     assert.deepEqual(await rpc(author, "repo.listFollowing()"), []);
     await chrome.evaluate(author, "document.querySelector('#follow-author').click();document.querySelector('#follow-author').click()");
-    await chrome.until(author, "document.querySelector('#follow-author').textContent==='Unfollow' && !document.querySelector('#follow-author').disabled");
+    await chrome.until(author, "document.querySelector('#follow-author').textContent==='Following' && !document.querySelector('#follow-author').disabled");
     assert.equal((await rpc(author, "repo.listFollowing()")).length, 1);
     const original = await rpc(author, "repo.getAuthorLibrary()");
-    await chrome.click(author, "#follow-author");
+    await compareFollowPresentation(true);
+    await chrome.send('Page.bringToFront',{},author);
+    await rpc(author, "repo.setOrganizeFollowedAuthorsIntoCollections(true)");
+    await chrome.evaluate(author, "window.dispatchEvent(new Event('focus'))");
+    await chrome.until(author, "!document.querySelector('#author-collections').hidden && !document.querySelector('#follow-author').disabled");
+    // Native keyboard activation retains the direct Unfollow action, even organized.
+    await chrome.evaluate(author, "document.querySelector('#follow-author').focus()");
+    await chrome.send('Input.dispatchKeyEvent',{type:'keyDown',key:'Tab',code:'Tab',windowsVirtualKeyCode:9},author);
+    await chrome.send('Input.dispatchKeyEvent',{type:'keyUp',key:'Tab',code:'Tab',windowsVirtualKeyCode:9},author);
+    await chrome.send('Input.dispatchKeyEvent',{type:'keyDown',key:'Tab',code:'Tab',windowsVirtualKeyCode:9,modifiers:8},author);
+    await chrome.send('Input.dispatchKeyEvent',{type:'keyUp',key:'Tab',code:'Tab',windowsVirtualKeyCode:9,modifiers:8},author);
+    assert.equal(await chrome.evaluate(author, "document.activeElement.id==='follow-author' && document.activeElement.matches(':focus-visible') && getComputedStyle(document.activeElement).outlineWidth==='3px'"),true);
+    await chrome.send('Input.dispatchKeyEvent',{type:'keyDown',key:' ',code:'Space',windowsVirtualKeyCode:32},author);
+    await chrome.send('Input.dispatchKeyEvent',{type:'keyUp',key:' ',code:'Space',windowsVirtualKeyCode:32},author);
+
     await chrome.until(author, "document.querySelector('#follow-author').textContent==='Follow' && document.querySelector('.xivary-undo button')");
     // One simulated rejected RPC verifies the toast's retry path; Node tests
     // separately exercise actual repository write failure and durable state.
@@ -66,10 +103,17 @@ export async function polishSmoke() {
     await chrome.until(author, "document.querySelector('.xivary-undo').textContent.includes('Temporary storage failure') && !document.querySelector('.xivary-undo button').disabled");
     assert.deepEqual(await rpc(author, "repo.listFollowing()"), []);
     await chrome.click(author, ".xivary-undo button");
-    await chrome.until(author, "document.querySelector('#follow-author').textContent==='Unfollow' && !document.querySelector('.xivary-undo')");
+    await chrome.until(author, "document.querySelector('#follow-author').textContent==='Following' && !document.querySelector('.xivary-undo')");
     assert.deepEqual((await rpc(author, "repo.getAuthorLibrary()")).memberships, original.memberships);
     await chrome.send("Page.reload", {}, author);
-    await chrome.until(author, "document.querySelector('#follow-author').textContent==='Unfollow'");
+    await chrome.until(author, "document.querySelector('#follow-author').textContent==='Following'");
+    await chrome.send('Emulation.setDeviceMetricsOverride',{width:320,height:800,deviceScaleFactor:1,mobile:false},author);
+    assert.equal(await chrome.evaluate(author, `(() => {
+      const nodes=[...document.querySelector('.author-heading').children].filter(n=>!n.hidden), rects=nodes.map(n=>n.getBoundingClientRect());
+      return document.documentElement.scrollWidth<=innerWidth && rects.every((a,i)=>rects.every((b,j)=>i===j || a.right<=b.left || b.right<=a.left || a.bottom<=b.top || b.bottom<=a.top));
+    })()`),true,'heading wraps without overlap at 320px');
+    await chrome.send('Emulation.clearDeviceMetricsOverride',{},author);
+    await rpc(author, "repo.setOrganizeFollowedAuthorsIntoCollections(false)");
     // Unexpected HTTP-200 HTML is an error, never a genuine empty feed/cache.
     response = '<html><body>Temporarily unavailable</body></html>';
     await chrome.click(author, "#refresh");

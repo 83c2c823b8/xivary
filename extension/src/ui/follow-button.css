@@ -1,0 +1,24 @@
+.xivary-follow-button {
+  box-sizing: border-box;
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  gap: 5px;
+  min-height: 30px;
+  padding: 4px 9px;
+  border: 1px solid #454e57;
+  border-radius: 5px;
+  background: #191a1b;
+  color: #fff;
+  font: 600 13px/1.2 "IBM Plex Sans", system-ui, sans-serif;
+  cursor: pointer;
+  vertical-align: middle;
+}
+.xivary-follow-button svg { flex: 0 0 auto; width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.xivary-follow-button:hover { background: #303234; border-color: #303234; }
+.xivary-follow-button:active { background: #111; transform: translateY(1px); }
+.xivary-follow-button[aria-pressed="true"] { color: #30353a; background: #e6e8ea; border-color: #aeb3b8; }
+.xivary-follow-button[aria-pressed="true"]:hover { background: #dadddf; border-color: #91979d; }
+.xivary-follow-button[aria-pressed="true"]:active { background: #cfd2d5; }
+.xivary-follow-button:focus-visible { outline: 3px solid #1475bc; outline-offset: 2px; }
+.xivary-follow-button:disabled { opacity: 0.6; cursor: wait; }

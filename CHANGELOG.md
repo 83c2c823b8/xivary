@@ -2,6 +2,10 @@
 
 ## Unreleased — Author Navigation and Interaction Polish
 
+- Share the arXiv Follow button presentation with author headings: dark + Follow,
+  gray ✓ Following, action labels/tooltips, focus rings and responsive alignment.
+  Existing Unfollow, Undo and collection behavior is unchanged.
+
 - Add explicit Follow/Unfollow and optional collection assignment beside author names.
 - Add default-new-tab inbound author navigation preference, separate from outbound
   arXiv link behavior; synchronize this third designated preference only.

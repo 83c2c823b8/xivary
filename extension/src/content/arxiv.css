@@ -12,30 +12,7 @@
   font-weight: 600;
   font-display: swap;
 }
-.arxiv-library-button {
-  display: inline-flex;
-  justify-content: center;
-  align-items: center;
-  gap: 5px;
-  min-height: 30px;
-  margin: 0 0.3rem;
-  padding: 4px 9px;
-  border: 1px solid #454e57;
-  border-radius: 5px;
-  background: #191a1b;
-  color: #fff;
-  font: 600 13px/1.2 "IBM Plex Sans", system-ui, sans-serif;
-  cursor: pointer;
-  vertical-align: middle;
-}
-.arxiv-library-button svg { flex: 0 0 auto; width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
-.arxiv-library-button:hover { background: #303234; border-color: #303234; }
-.arxiv-library-button:active { background: #111; transform: translateY(1px); }
-.arxiv-library-button[aria-pressed="true"] { color: #30353a; background: #e6e8ea; border-color: #aeb3b8; }
-.arxiv-library-button[aria-pressed="true"]:hover { background: #dadddf; border-color: #91979d; }
-.arxiv-library-button[aria-pressed="true"]:active { background: #cfd2d5; }
-.arxiv-library-button:focus-visible { outline: 3px solid #1475bc; outline-offset: 2px; }
-.arxiv-library-button:disabled { opacity: 0.6; cursor: wait; }
+.arxiv-library-button { margin: 0 0.3rem; }
 .arxiv-library-bookmark {
   float: right; display: inline-grid; place-items: center; width: 36px; height: 36px;
   margin: -0.15rem 0 0.15rem 0.75rem; padding: 6px;

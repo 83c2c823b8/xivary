@@ -48,5 +48,7 @@
   .custom-dates { flex-wrap: wrap; }
 }
 
-.author-heading { display: flex; gap: 12px; align-items: center; }
-.author-heading button { padding: 6px 12px; font: inherit; }
+.author-heading { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; }
+.author-heading h1 { min-width: 0; overflow-wrap: anywhere; }
+.author-heading .xivary-follow-button { flex: 0 0 auto; }
+.author-heading #author-collections { padding: 6px 12px; font: inherit; }

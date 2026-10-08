@@ -1,3 +1,4 @@
+import { setFollowButton } from "../ui/follow-button.js";
 import { showUndo } from "../ui/undo.js";
 import { RepositoryClient } from "../repository/repository-client.js";
 import { normalizeAuthorName } from "../domain/author.js";
@@ -38,7 +39,7 @@ export async function mountArxivPage() {
     const index = unused.findIndex(author => author.normalizedName === normalizeAuthorName(link.textContent));
     if (index < 0) continue;
     const [author] = unused.splice(index, 1);
-    const button = makeButton("Follow", author.displayName);
+    const button = makeButton(author.displayName);
     link.after(button);
     followingButtons.push({ author, button });
     button.addEventListener("click", () => {
@@ -51,7 +52,7 @@ export async function mountArxivPage() {
         const followed = button.getAttribute("aria-pressed") === "true";
         const record = followed ? (showUndo(repository, await repository.unfollowAuthor(author.id), `Unfollowed ${author.displayName}.`, refresh), null) : await repository.followAuthor(author);
         followingButtons.filter(item => item.author.id === author.id).forEach(item => {
-          setPressed(item.button, Boolean(record), "Follow", "Following", item.author.displayName, organizeAuthorCollections);
+          setFollowButton(item.button, Boolean(record), item.author.displayName, organizeAuthorCollections);
         });
         return followed ? `No longer following ${author.displayName}.` : `Following ${author.displayName}.`;
       });
@@ -99,7 +100,7 @@ export async function mountArxivPage() {
       setBookmarkState(favorite, favorites.some(item => item.arxivId === paper.arxivId), paper.title);
       const ids = new Set(following.map(item => item.id));
       followingButtons.forEach(({ author, button }) => {
-        setPressed(button, ids.has(author.id), "Follow", "Following", author.displayName, organizeAuthorCollections);
+        setFollowButton(button, ids.has(author.id), author.displayName, organizeAuthorCollections);
       });
       status.textContent = "";
     } catch (error) { status.textContent = `Library unavailable: ${error.message}`; }
@@ -107,7 +108,7 @@ export async function mountArxivPage() {
       const preferences = await repository.getPreferences();
       organizeAuthorCollections = preferences.organizeFollowedAuthorsIntoCollections === true;
       followingButtons.forEach(({ author, button }) => {
-        setPressed(button, button.getAttribute("aria-pressed") === "true", "Follow", "Following", author.displayName, organizeAuthorCollections);
+        setFollowButton(button, button.getAttribute("aria-pressed") === "true", author.displayName, organizeAuthorCollections);
       });
     } catch (error) { status.textContent = `Could not load collection preference: ${error.message}`; }
     finally { refreshing = false; disable(false); }
@@ -118,11 +119,11 @@ export async function mountArxivPage() {
   await refresh();
 }
 
-function makeButton(label, name) {
+function makeButton(name) {
   const button = document.createElement("button");
   button.type = "button";
   button.className = "arxiv-library-button";
-  setPressed(button, false, label, label, name);
+  setFollowButton(button, false, name);
   return button;
 }
 
@@ -144,29 +145,6 @@ function setBookmarkState(button, saved, name) {
   else { button.removeAttribute("aria-haspopup"); button.removeAttribute("aria-expanded"); }
 }
 
-function setPressed(button, pressed, off, on, name, organizeCollections = false) {
-  button.replaceChildren();
-  const icon = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-  icon.setAttribute("viewBox", "0 0 16 16");
-  icon.setAttribute("aria-hidden", "true");
-  icon.innerHTML = pressed ? '<path d="m2.75 8 3.1 3.1 7.4-7.4"/>' : '<path d="M8 3v10M3 8h10"/>';
-  button.append(icon);
-  const label = document.createElement("span");
-  label.textContent = pressed ? on : off;
-  button.append(label);
-  button.setAttribute("aria-pressed", String(pressed));
-  if (pressed && organizeCollections) {
-    button.setAttribute("aria-haspopup", "dialog");
-    if (!button.hasAttribute("aria-expanded")) button.setAttribute("aria-expanded", "false");
-    button.setAttribute("aria-label", `Organize collections for: ${name}`);
-    button.title = `Organize ${name}`;
-  } else {
-    button.removeAttribute("aria-haspopup");
-    button.removeAttribute("aria-expanded");
-    button.setAttribute("aria-label", `${pressed ? "Unfollow" : "Follow"}: ${name}`);
-    button.title = pressed ? `Unfollow ${name}` : `Follow ${name}`;
-  }
-}
 
 let navigationMounted = false;
 function mountAuthorNavigation() {

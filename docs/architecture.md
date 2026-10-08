@@ -220,6 +220,11 @@ tracks entity and collection-generation changes under its queue, and restores on
 unchanged affected state. It does not roll back a library snapshot, settings or
 last-used choices. Restarts/expiry safely invalidate receipts; no history schema.
 
+`ui/follow-button.js` and `ui/follow-button.css` share icons, Follow/Following labels,
+accessible action descriptions and presentation between arXiv and author headings.
+The helper owns no persistence or click handling: organized arXiv buttons still
+open their picker, while headings retain direct Unfollow and a separate picker.
+
 The author heading rereads actual membership state and submits Follow/Unfollow
 with a busy guard. It exposes the existing optional collection picker. Fetching is
 single-flight per author view; a focus read cannot reveal an initial empty state

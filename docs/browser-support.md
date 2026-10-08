@@ -4,7 +4,17 @@ One application tree produces Chromium and Firefox manifests. Chrome uses native
 extension Sync only for three designated user preferences; Firefox remains local-only. No Xivary
 account, OAuth, backend or external sync provider is implemented.
 
-## Current evidence — 2026-10-09
+## Latest Follow presentation evidence — 2026-10-09
+
+151/151 Node tests and both browser smoke suites pass. Chromium additionally
+compares both Follow/Following states against arXiv, exercises keyboard Unfollow/
+Undo and collection visibility, and checks 320px heading wrapping. Both states
+were captured and visually inspected on fixture pages. Release lifecycle/transfer
+checks pass; 66-file packages remain version 0.2.0 with unchanged permissions.
+See [scope and regression record](unified-follow-button.md). External/manual
+release requirements below remain unchanged.
+
+## Previous author-navigation evidence — 2026-10-09
 
 - **149/149 Node tests pass**, including 41 independent-repository Sync simulations,
   15 portable-file tests and 9 Undo tests. New boolean defaults/upgrades/validation,

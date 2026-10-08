@@ -1,3 +1,4 @@
+import { setFollowButton } from "../ui/follow-button.js";
 import { showUndo } from "../ui/undo.js";
 import { openAuthorCollectionPicker } from "../ui/author-collection-picker.js";
 import { RepositoryClient } from "../repository/repository-client.js";
@@ -29,8 +30,7 @@ element("author-collections").addEventListener("click", () => void openAuthorCol
 
 function renderFollowing(library) {
   followed = library.memberships.some(item => item.authorId === author.id);
-  element("follow-author").textContent = followed ? "Unfollow" : "Follow";
-  element("follow-author").setAttribute("aria-pressed", String(followed));
+  setFollowButton(element("follow-author"), followed, author.displayName);
   element("follow-author").disabled = followBusy;
   element("author-collections").hidden = !followed || !library.settings.organizeFollowedAuthorsIntoCollections;
   element("author-collections").disabled = followBusy;
