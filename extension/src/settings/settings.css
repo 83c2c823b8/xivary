@@ -17,3 +17,7 @@ dialog select { width: 100%; min-height: 36px; }
 .toggle-input:focus-visible + .toggle { outline: 2px solid var(--focus); outline-offset: 2px; }
 .toggle-input:disabled + .toggle { opacity: .55; }
 @media (max-width: 600px) { .settings-page { width: min(100% - 24px, 760px); } }
+
+#latex-macros { display: block; width: 100%; max-width: 64ch; resize: vertical; padding: 8px; font: 14px/1.5 ui-monospace, monospace; border: 1px solid var(--border); border-radius: var(--radius-control); }
+#macros-help { margin-top: 6px; }
+#latex-macros[aria-invalid="true"] { border-color: #b3261e; }

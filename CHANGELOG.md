@@ -1,5 +1,15 @@
 # Release notes
 
+## Unreleased (development after 0.3.0 preparation)
+
+- Render abstract mathematics optionally with locally bundled KaTeX. Rendering is
+  on by default; unsupported, malformed or ambiguous expressions remain raw.
+- Define validated zero-argument custom macros in Settings. Both new preferences
+  stay local; existing Chrome Sync and portable-library formats are unchanged.
+- Preserve paragraph breaks and internal whitespace in newly retrieved abstracts.
+  Titles, author names, saved abstracts and existing Library layout remain unchanged.
+
+
 ## 0.3.0 — 2026-10-09 (prepared; not submitted)
 
 - Filter Library and Author Results by publication date with rolling one/three-year

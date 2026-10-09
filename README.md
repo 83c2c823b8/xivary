@@ -47,6 +47,9 @@ account, project-owned backend, or analytics.
   **Settings → General → Open Xivary from toolbar launcher in a new tab** defaults
   to enabled. Disable it to replace the active tab when choosing a popup row;
   the toolbar icon still opens the popup, and its Settings gear is unchanged.
+- Optional local KaTeX rendering in abstracts, enabled by default, with a compact
+  custom macro editor. Unknown or invalid expressions retain their original LaTeX.
+  [Syntax, safety and limitations](docs/latex-rendering.md).
 - Settings for opening arXiv links in a new tab and optionally organizing followed
   authors into collections.
 - Explicit JSON export/import for backing up or transferring Library and Following
@@ -61,8 +64,8 @@ Saved papers, followed authors, collections, preferences, and cached author-feed
 results have a browser-local view in `storage.local`. In the Chromium package,
 only `openArxivLinksInNewTab`, `organizeFollowedAuthorsIntoCollections`,
 `openAuthorResultsInNewTab` and `openXivaryFromToolbarInNewTab` use
-`storage.sync`. Both last-used collection pointers, all library records and feed
-caches remain local. Chrome and Firefox installations have independent libraries;
+`storage.sync`. The LaTeX rendering toggle and custom macro definitions, both last-used collection
+pointers, all library records and feed caches remain local. Chrome and Firefox installations have independent libraries;
 Firefox settings remain local too. Filters and pickers remain ephemeral.
 
 Existing local data is preserved, including anything restored by older versions.
@@ -123,7 +126,7 @@ npm run package:firefox
 `dist/xivary-0.3.0-firefox.zip`. Unpacked artifacts are also generated under
 `dist/chromium/` and `dist/firefox/`. Only the generated manifests differ;
 application files are copied unchanged. Archives contain runtime files and the
-bundled font license, with `manifest.json` at the root.
+bundled font and KaTeX licenses, with `manifest.json` at the root.
 
 Chrome smoke testing uses `CHROME_BIN` (default `/usr/bin/google-chrome`).
 Firefox smoke testing needs geckodriver, Firefox, OpenSSL, and permission to bind
@@ -177,3 +180,7 @@ for current verification, additive preference compatibility and the bounded API 
 See [Xivary UI design](docs/UI_DESIGN.md) for implemented compact sidebars,
 collection menus, the 300px popup and keyboard conventions, and
 [reusable design principles](docs/DESIGN_PRINCIPLES.md) for guidance across projects.
+
+Bundled [KaTeX](https://katex.org/) 0.19.0 retains its MIT license in
+[`extension/vendor/katex/LICENSE`](extension/vendor/katex/LICENSE). JavaScript, CSS
+and math fonts are packaged locally; no CDN or extra permissions are used.

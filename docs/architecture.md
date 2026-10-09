@@ -252,3 +252,25 @@ keeps independent repository methods, membership rules, selection and inline ren
 The helper owns only ephemeral DOM/menu focus and dismissal; no storage access or
 new collection model is introduced. Library filter clearing is view state only.
 See [implemented UI conventions](UI_DESIGN.md).
+
+## Optional abstract mathematics
+
+`domain/latex.js` scans only bounded math delimiters and validates macro definitions
+with KaTeX's supported rendering API. `ui/abstract.js` builds literal text nodes
+and uses `katex.render` for recognized expressions. `paper-row.js` shares it across
+Author Results and direct Search. Library still hides abstracts; Following still
+lists authors. Native arXiv pages are not rewritten. Stored paper abstracts are
+never typeset or replaced. API normalization now retains internal whitespace and
+paragraph breaks on new retrievals, keeping the existing edge trimming convention.
+
+Author Results caches paper DOM rows per source/bookmark/link configuration; math
+settings invalidate that view-local cache. Filtering reuses rendered expressions.
+Search applies the same renderer and refreshes configuration on focus. Both views
+reread settings through RepositoryClient; no UI storage listener is introduced.
+Each expression receives a fresh macro map. Nothing is shared between abstracts.
+
+`setRenderLatexInAbstracts` and `setCustomLatexMacros` cross the existing contract,
+client and background allowlist. LocalRepository validates macro drafts before a
+write. Schema 5 gets additive default-true/empty-string settings on reads; no schema
+bump or rewriting of existing abstracts is needed. Sync's four-key projection and
+portable v1/v2 formats stay unchanged. See [policy and limits](latex-rendering.md).

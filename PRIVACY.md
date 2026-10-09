@@ -12,7 +12,7 @@ contain:
 - saved-paper titles, arXiv identifiers, author names, categories, abstracts, and dates;
 - followed author names and normalized name identifiers;
 - paper and author collection names and memberships;
-- the four user settings shown on the Settings page;
+- user preferences, including the local LaTeX rendering toggle and custom macro definitions;
 - cached public arXiv results for viewed author feeds, including non-followed
   names and their retrieval times.
 
@@ -32,7 +32,7 @@ Xivary receives no Google credentials and operates no account or server. Other
 Chromium distributions' sync infrastructure is not verified or promised.
 
 Bookmarks, Following records, collection names and memberships, paper metadata,
-author-feed caches, unknown settings and both last-used collection pointers remain
+author-feed caches, LaTeX rendering/macros, unknown settings and both last-used collection pointers remain
 local. Firefox does not access its sync storage; its preferences remain local.
 Disabling Chrome sync is controlled by Chrome, not by Xivary.
 

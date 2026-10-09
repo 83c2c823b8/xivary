@@ -271,3 +271,21 @@ Set `ARXIV_SCREENSHOT_DIR=/tmp/xivary-ui` with either fixture smoke command to
 capture visual review artifacts. Firefox prefixes its extension-page images with
 `firefox-`; its popup-page screenshot is not a native toolbar-popup claim. Chrome
 captures its actual action popup. Screenshots are not packaged or committed.
+
+## Optional LaTeX milestone
+
+179/179 Node tests, Chrome 154.0.8037.57 full fixture/polish suites and Firefox
+157.0 full fixture suite pass with real locally bundled KaTeX/fonts/MathML. Reviewed
+math-heavy, ordinary prose, custom/unknown macros, disabled rendering, Settings
+validation and narrow screenshots in both browsers. Chromium uses 360px; Firefox's
+native minimum is 500px in this environment. Source, security, compatibility,
+package evidence and exact reproduction commands are in
+[the LaTeX record](latex-rendering.md#verification-record--2026-10-09).
+
+Firefox required direct `FIREFOX_BIN` and `GECKODRIVER_BIN` paths because the Snap
+launchers could not create the disposable profile. Chromium's geometry assertions
+retain their values and now wait for font loading. The Firefox click harness scrolls
+targets into view before native pointer input, including controls lower in Settings.
+No geometry coverage was weakened. Screen-reader behavior, physical keyboard
+scrolling of wide equations, installed/signed lifetime, minimum versions and the
+existing account/transfer/distribution checklist remain manual checks.

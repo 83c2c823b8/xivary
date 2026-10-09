@@ -36,7 +36,7 @@ export function normalizeApiEntry(entry) {
     arxivId,
     title: entry.title.replace(/\s+/gu, " ").trim(),
     authors,
-    abstract: entry.abstract.replace(/\s+/gu, " ").trim(),
+    abstract: entry.abstract.trim(),
     publishedAt: new Date(entry.publishedAt).toISOString(),
     categories: [...new Set(entry.categories)],
     absUrl: `https://arxiv.org/abs/${arxivId}`,

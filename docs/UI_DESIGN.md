@@ -363,3 +363,18 @@ them with `ARXIV_SCREENSHOT_DIR` and the browser suites; representative images a
 `following-folder-trigger.png` and `firefox-folder-picker.png`. These checks do not
 prove every live arXiv layout, physical touch, screen-reader behavior or a
 store-installed update. Existing manual release checks remain applicable.
+
+## Abstract math and Settings
+
+Abstracts retain the existing 14px prose typography, with locally bundled KaTeX
+at 1.1em and accessible HTML/MathML output. Internal whitespace and paragraph breaks
+use `pre-wrap`; display math has a bounded horizontal scrolling surface. There are
+no per-paper math controls, badges or persistent status indicators. Library still
+hides abstracts, and native arXiv pages retain their own rendering.
+
+Settings adds the existing switch style under Abstracts and one multiline editor
+under Custom LaTeX macros. Save macros validates the whole draft; line-numbered
+feedback appears in a live status region, invalid drafts stay editable and the
+last saved configuration remains effective. Focus refresh preserves drafts. Native
+Tab/textarea editing and the existing control tokens remain in use. Both settings
+are device-local. See [syntax and fallback](latex-rendering.md).

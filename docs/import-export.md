@@ -5,7 +5,8 @@ opens a native dialog with **All** and the existing collections for that categor
 The selection is made through the repository, so Settings does not read browser
 storage or manipulate raw IDs. Import merges the chosen file through the repository.
 Preferences have no manual Import or Export action; the four boolean preferences
-continue to use the existing Chrome Sync mechanism.
+continue to use the existing Chrome Sync mechanism. The LaTeX toggle and macro
+definitions stay local and are excluded from both portable categories.
 
 ## Portable format
 

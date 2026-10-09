@@ -66,3 +66,16 @@ test("both ZIP artifacts contain identical runtime sources and their generated m
     }
   } finally { await rm(temporary, { recursive: true, force: true }); }
 });
+
+test("bundled KaTeX CSS uses only packaged local fonts and includes notices", async () => {
+  const base = new URL('../extension/vendor/katex/', import.meta.url);
+  const css = await readFile(new URL('katex.min.css', base), 'utf8');
+  const urls = [...css.matchAll(/url\(([^)]+)\)/gu)].map(match => match[1]);
+  assert.ok(urls.length > 0);
+  for (const url of urls) {
+    assert.match(url, /^fonts\/KaTeX_[A-Za-z0-9_-]+\.(woff2?|ttf)$/u);
+    assert.ok((await readFile(new URL(url, base))).length > 0);
+  }
+  assert.match(await readFile(new URL('LICENSE', base), 'utf8'), /MIT License/);
+  assert.match(await readFile(new URL('fonts/LICENSE', base), 'utf8'), /Copyright \(c\) 2018 Khan Academy/);
+});

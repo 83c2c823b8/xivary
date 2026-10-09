@@ -1,3 +1,4 @@
+import { latexSettingsWorkflow, latexAuthorWorkflow } from "./latex-workflow.mjs";
 import { libraryDateWorkflow } from './library-date-workflow.mjs';
 import { authorFilterWorkflow, authorHeaderWorkflow } from './author-filter-workflow.mjs';
 import assert from "node:assert/strict";
@@ -57,6 +58,7 @@ async function screenshot(name) {
   await writeFile(join(screenshotDir, `firefox-${name}`), Buffer.from(data, 'base64'));
 }
 async function pickerClick(selector, {button='left',double=false}={}) {
+  await evaluate(`document.querySelector(${JSON.stringify(selector)}).scrollIntoView({block:'nearest'})`);
   const element = await command('/element', {using:'css selector', value:selector});
   await command('/actions',{actions:[{type:'pointer',id:'mouse',parameters:{pointerType:'mouse'},actions:[{type:'pointerMove',origin:element,x:0,y:0,duration:0}]}]});
   if (button==='left'&&!double) await command(`/element/${element['element-6066-11e4-a52e-4f735466cecf']}/click`);
@@ -212,6 +214,7 @@ try {
   await evaluate("document.querySelector('.author-row a').click()");
   await until("document.querySelectorAll('.paper-row').length === 1");
   assert.equal(await evaluate("document.querySelector('.paper-row h2').textContent"), "Firefox feed fixture");
+  await latexAuthorWorkflow({evaluate:evaluateAsync,until,reload:()=>command('/refresh'),resize:(width,height)=>command('/window/rect',{width,height:height+100}),screenshot});
   await until("document.querySelector('#follow-author').textContent==='Following' && !document.querySelector('#follow-author').disabled");
   await evaluate("(()=>{document.querySelector('#follow-author').click();document.querySelector('#follow-author').click()})()");
   await until("document.querySelector('#follow-author').textContent==='Follow' && document.querySelector('.xivary-undo button')");
@@ -257,6 +260,8 @@ try {
   await openAuthorFromArxiv();
   await navigateExtension("popup/popup.html");
   await until("document.querySelector('#saved-count')?.textContent === '1' && document.querySelector('#following-count')?.textContent === '0'");
+  await navigateExtension("settings/settings.html");
+  await latexSettingsWorkflow({evaluate:evaluateAsync,until,click:pickerClick,reload:()=>command('/refresh'),resize:(width,height)=>command('/window/rect',{width,height:height+100}),screenshot});
   console.log("FIREFOX SMOKE PASS: generated package, background messaging, content save/follow, local-only storage, reloads, feeds, transient author entry, popup navigation, settings and both contextual gears");
 } catch (error) {
   console.error(log.slice(-5000));

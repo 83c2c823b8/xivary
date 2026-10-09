@@ -1,4 +1,5 @@
 import { PaperRepository } from "./paper-repository.js";
+import { parseLatexMacros } from "../domain/latex.js";
 import { createPaper } from "../domain/paper.js";
 import { createAuthor } from "../domain/author.js";
 import { cleanText, normalizeArxivId } from "../domain/identifiers.js";
@@ -274,6 +275,8 @@ export class LocalRepository extends PaperRepository {
 
   getPreferences() {
     return this.run(state => structuredClone({
+      renderLatexInAbstracts: state.settings.renderLatexInAbstracts,
+      customLatexMacros: state.settings.customLatexMacros,
       openXivaryFromToolbarInNewTab: state.settings.openXivaryFromToolbarInNewTab,
       openAuthorResultsInNewTab: state.settings.openAuthorResultsInNewTab,
       openArxivLinksInNewTab: state.settings.openArxivLinksInNewTab,
@@ -287,6 +290,24 @@ export class LocalRepository extends PaperRepository {
       state.settings.openXivaryFromToolbarInNewTab = enabled;
       await this.storage.write(state);
       return { openXivaryFromToolbarInNewTab: enabled };
+    });
+  }
+
+  setRenderLatexInAbstracts(enabled) {
+    if (typeof enabled !== "boolean") return Promise.reject(new TypeError("The LaTeX rendering preference must be true or false."));
+    return this.run(async state => {
+      state.settings.renderLatexInAbstracts = enabled;
+      await this.storage.write(state);
+      return { renderLatexInAbstracts: enabled };
+    });
+  }
+
+  setCustomLatexMacros(text) {
+    return this.run(async state => {
+      parseLatexMacros(text); // Validate before changing state or writing anything.
+      state.settings.customLatexMacros = text;
+      await this.storage.write(state);
+      return { customLatexMacros: text };
     });
   }
 
@@ -505,6 +526,10 @@ export function prepareState(stored, now) {
     throw new Error("Invalid author collection data.");
   }
   if (state.settings.openXivaryFromToolbarInNewTab === undefined) state.settings.openXivaryFromToolbarInNewTab = true;
+  if (state.settings.renderLatexInAbstracts === undefined) state.settings.renderLatexInAbstracts = true;
+  if (typeof state.settings.renderLatexInAbstracts !== "boolean") throw new Error("Invalid LaTeX rendering preference.");
+  if (state.settings.customLatexMacros === undefined) state.settings.customLatexMacros = "";
+  if (typeof state.settings.customLatexMacros !== "string") throw new Error("Invalid LaTeX macro preference.");
   if (typeof state.settings.openXivaryFromToolbarInNewTab !== "boolean") throw new Error("Invalid toolbar navigation preference.");
   if (state.settings.openAuthorResultsInNewTab === undefined) state.settings.openAuthorResultsInNewTab = true;
   if (typeof state.settings.openAuthorResultsInNewTab !== "boolean") throw new Error("Invalid author navigation preference.");

@@ -1,3 +1,4 @@
+import { createAbstractRenderer } from "../ui/abstract.js";
 import { authorFilters } from './author-filters.js';
 import { setCollectionButton } from "../ui/collection-button.js";
 import { setFollowButton } from "../ui/follow-button.js";
@@ -14,6 +15,18 @@ import { resolveAuthorRoute } from "./author-route.js";
 const repository = new RepositoryClient();
 const element = id => document.getElementById(id);
 let author;
+let renderAbstract = createAbstractRenderer();
+let mathSettingsSignature;
+const paperRows = new Map();
+function configureMath(settings) {
+  const signature = JSON.stringify([settings.renderLatexInAbstracts, settings.customLatexMacros]);
+  if (signature !== mathSettingsSignature) {
+    mathSettingsSignature = signature;
+    renderAbstract = createAbstractRenderer(settings);
+    paperRows.clear();
+  }
+}
+
 let savedIds = new Set();
 let query;
 let openArxivLinksInNewTab = false;
@@ -70,6 +83,7 @@ async function refreshLocalState() {
     const preferences = library.settings;
     if (revision !== localStateRevision) return;
     renderFollowing(library);
+    configureMath(library.settings);
     savedIds = new Set(papers.map(p => p.arxivId));
     openArxivLinksInNewTab = preferences.openArxivLinksInNewTab;
     configureArxivLink(element("open-search"), openArxivLinksInNewTab);
@@ -84,6 +98,7 @@ async function init() {
     author = route.author;
     query = buildAuthorQuery(author);
     renderFollowing(library);
+    configureMath(library.settings);
     element("name").textContent = author.displayName;
     element("identity").textContent = "Matched by author name; namesakes may share results.";
     document.title = `${author.displayName} — Xivary`;
@@ -127,6 +142,8 @@ async function refresh(manual) {
 function render(papers, fetchedAt) {
   loadedPapers = papers.filter(paper => paperMatchesAuthor(paper, author));
   loadedAt = fetchedAt;
+  const live = new Set(loadedPapers.map(paper => paper.arxivId));
+  for (const id of paperRows.keys()) if (!live.has(id)) paperRows.delete(id);
   renderFiltered();
 }
 
@@ -153,11 +170,18 @@ function renderFiltered() {
     section.setAttribute("aria-labelledby", heading.id);
     const list = document.createElement("ul");
     list.className = "year-list";
-    list.append(...items.map(paper => paperRow(paper, {
-      saved: savedIds.has(paper.arxivId),
-      onToggle: button => save(paper, button),
-      openArxivLinksInNewTab,
-    })));
+    list.append(...items.map(paper => {
+      const signature = JSON.stringify([paper, savedIds.has(paper.arxivId), openArxivLinksInNewTab]);
+      let cached = paperRows.get(paper.arxivId);
+      if (cached?.signature !== signature) {
+        cached = { signature, node: paperRow(paper, {
+          saved: savedIds.has(paper.arxivId), onToggle: button => save(paper, button),
+          openArxivLinksInNewTab, renderAbstract,
+        }) };
+        paperRows.set(paper.arxivId, cached);
+      }
+      return cached.node;
+    }));
     section.append(heading, list);
     fragment.append(section);
   }

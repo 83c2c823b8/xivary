@@ -1,8 +1,10 @@
+import { parseLatexMacros } from "../domain/latex.js";
 import { RepositoryClient } from "../repository/repository-client.js";
 
 const repository = new RepositoryClient();
 const element = id => document.getElementById(id);
 const controls = {
+  "render-latex": { key: "renderLatexInAbstracts", save: enabled => repository.setRenderLatexInAbstracts(enabled) },
   "open-toolbar-new-tab": { key: "openXivaryFromToolbarInNewTab", save: enabled => repository.setOpenXivaryFromToolbarInNewTab(enabled) },
   "open-author-new-tab": { key: "openAuthorResultsInNewTab", save: enabled => repository.setOpenAuthorResultsInNewTab(enabled) },
   "open-arxiv-new-tab": {
@@ -36,6 +38,11 @@ element("cancel-export").addEventListener("click", () => element("export-dialog"
 element("confirm-export").addEventListener("click", () => void exportData());
 element("export-dialog").addEventListener("cancel", event => { if (exportInProgress) event.preventDefault(); });
 element("export-dialog").addEventListener("close", () => exportTrigger?.focus());
+let macrosLoaded = false;
+let macrosDirty = false;
+let macrosBusy = false;
+element("latex-macros").addEventListener("input", () => { macrosDirty = true; });
+element("macros-form").addEventListener("submit", event => { event.preventDefault(); void saveMacros(); });
 void load();
 window.addEventListener("focus", () => {
   if (!Object.keys(controls).some(id => element(id).disabled)) void load();
@@ -46,9 +53,16 @@ async function load() {
   try {
     const preferences = await repository.getPreferences();
     for (const [id, preference] of Object.entries(controls)) element(id).checked = preferences[preference.key];
+    if (!macrosLoaded || (!macrosDirty && !macrosBusy)) {
+      element("latex-macros").value = preferences.customLatexMacros;
+      macrosLoaded = true;
+    }
     setStatus("");
   } catch (error) { setStatus(error.message, true); }
-  finally { setDisabled(false); }
+  finally {
+    setDisabled(false);
+    if (macrosLoaded && !macrosBusy) element("save-macros").disabled = element("latex-macros").disabled = false;
+  }
 }
 
 async function update(input, preference) {
@@ -129,3 +143,27 @@ async function importData(input) {
 }
 
 function label(category) { return category[0].toUpperCase() + category.slice(1); }
+
+async function saveMacros() {
+  if (macrosBusy || !macrosLoaded) return;
+  const input = element("latex-macros");
+  const status = element("macros-status");
+  try {
+    parseLatexMacros(input.value);
+    macrosBusy = true;
+    element("save-macros").disabled = input.disabled = true;
+    const saved = await repository.setCustomLatexMacros(input.value);
+    input.value = saved.customLatexMacros;
+    macrosDirty = false;
+    input.removeAttribute("aria-invalid");
+    status.textContent = "Macros saved.";
+    status.classList.remove("error");
+  } catch (error) {
+    input.setAttribute("aria-invalid", "true");
+    status.textContent = error.message;
+    status.classList.add("error");
+  } finally {
+    macrosBusy = false;
+    element("save-macros").disabled = input.disabled = false;
+  }
+}

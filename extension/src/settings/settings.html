@@ -11,6 +11,20 @@
     <label class="setting-row"><span>Open arXiv links in a new tab</span><input id="open-arxiv-new-tab" class="toggle-input" type="checkbox" role="switch"><span class="toggle" aria-hidden="true"></span></label>
     <label class="setting-row"><span>Open arXiv author names in Xivary in a new tab</span><input id="open-author-new-tab" class="toggle-input" type="checkbox" role="switch"><span class="toggle" aria-hidden="true"></span></label>
   </section>
+  <section aria-labelledby="abstracts-heading"><h2 id="abstracts-heading">Abstracts</h2>
+    <p id="latex-description" class="section-description">Display mathematical expressions in abstracts using KaTeX.</p>
+    <label class="setting-row"><span>Render LaTeX in abstracts</span><input id="render-latex" disabled aria-describedby="latex-description" class="toggle-input" type="checkbox" role="switch"><span class="toggle" aria-hidden="true"></span></label>
+  </section>
+  <section aria-labelledby="macros-heading"><h2 id="macros-heading">Custom LaTeX macros</h2>
+    <p id="macros-description" class="section-description">Define LaTeX commands used when rendering abstracts.</p>
+    <form id="macros-form">
+      <label class="visually-hidden" for="latex-macros">Macro definitions</label>
+      <textarea id="latex-macros" disabled rows="4" maxlength="16384" spellcheck="false" autocapitalize="off" aria-describedby="macros-description macros-help macros-status" placeholder="\Stab = \operatorname{Stab}"></textarea>
+      <p id="macros-help" class="section-description">One \Command = replacement per line. Letters only; no arguments or built-in overrides. Saved only in this browser.</p>
+      <button type="submit" id="save-macros" disabled>Save macros</button>
+      <p id="macros-status" class="status" role="status" aria-live="polite"></p>
+    </form>
+  </section>
   <section aria-labelledby="following-heading"><h2 id="following-heading">Following</h2>
     <label class="setting-row"><span>Organize followed authors into collections</span><input id="organize-author-collections" class="toggle-input" type="checkbox" role="switch"><span class="toggle" aria-hidden="true"></span></label>
   </section>

@@ -12,6 +12,7 @@ account, OAuth, backend or alternative provider.
 | State | Policy |
 | --- | --- |
 | Four designated boolean user preferences | Chrome Sync v1 desired-state registers |
+| LaTeX rendering toggle and custom macro definitions | Local only |
 | Both last-used collection pointers | Device-local interaction context |
 | Papers, followed authors, collections, memberships, full metadata | Local only |
 | Author-feed caches, unknown settings/fields, queries and freshness | Local only |

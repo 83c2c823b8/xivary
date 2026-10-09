@@ -1,6 +1,7 @@
 import { REPOSITORY_CHANNEL } from "../repository/repository-client.js";
 
 const methods = new Map([
+  ["setRenderLatexInAbstracts", 1], ["setCustomLatexMacros", 1],
   ["listFavorites", 0], ["getPaperLibrary", 0], ["savePaper", 1],
   ["listFollowing", 0], ["toggleFavorite", 1], ["removeFavorite", 1],
   ["createPaperCollection", 2], ["renamePaperCollection", 2], ["deletePaperCollection", 1],

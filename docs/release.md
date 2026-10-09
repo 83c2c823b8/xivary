@@ -466,3 +466,19 @@ metadata are included. Generated archives remain ignored.
 | --- | --- | --- |
 | Chromium | 213806 | `1b39e014c0f927c0c1c61f15fd5b690f5112f27e6b36f1ff80e82d6db8429b6a` |
 | Firefox | 213872 | `0dc74423f145917380e83b80c4b9fda372810bcb97665cd6f7ce852e4f3eec8d` |
+
+## Optional LaTeX rendering — development after 0.3.0 preparation
+
+Started clean on `master` at `8bbf3fdd22d40327486d41f0f63de2e9d1efd5b1`.
+179/179 Node tests, complete Chromium 154 and Firefox 157 fixture suites, native
+release-transfer/Chrome Sync lifecycle checks and both 143-file packages pass.
+The release harness additionally verifies local LaTeX toggle/macros across a full
+Chrome profile restart without any new Sync keys. Screenshot review covers all
+requested rendering/Settings cases and narrow scrolling. See
+[architecture, changed files, safety/limits and verification](latex-rendering.md).
+
+No version or permission bump, store upload, signing or push. These same-version
+packages remain development verification artifacts. Existing account propagation,
+Firefox native transfer/signed lifetime, minimum-version and assistive/manual
+checks remain open; passing fixtures does not replace them. Git integration is
+permitted by the existing passing-automated-gates policy above.

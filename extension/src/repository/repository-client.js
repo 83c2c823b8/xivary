@@ -11,6 +11,8 @@ export class RepositoryClient extends PaperRepository {
   }
 
   get available() { return this.runtime.available !== false; }
+  setRenderLatexInAbstracts(enabled) { return this.request("setRenderLatexInAbstracts", [enabled]); }
+  setCustomLatexMacros(text) { return this.request("setCustomLatexMacros", [text]); }
 
   async request(method, args = []) {
     const response = await this.runtime.sendMessage({ channel: REPOSITORY_CHANNEL, method, args });

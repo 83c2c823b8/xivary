@@ -4,6 +4,8 @@
  * Author entities persist independently of their many-to-many memberships.
  */
 export class PaperRepository {
+  async setRenderLatexInAbstracts(enabled) { throw new Error("Not implemented"); }
+  async setCustomLatexMacros(text) { throw new Error("Not implemented"); }
   async listFavorites() { throw new Error("Not implemented"); }
   async getPaperLibrary() { throw new Error("Not implemented"); }
   async savePaper(paper) { throw new Error("Not implemented"); }

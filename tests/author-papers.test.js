@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { buildAuthorQuery, buildApiQuery, isAuthorCacheFresh, normalizeCachedAuthorResults, paperMatchesAuthor } from "../extension/src/services/arxiv-paper-service.js";
+import { buildAuthorQuery, buildApiQuery, isAuthorCacheFresh, normalizeCachedAuthorResults, normalizeApiEntry, paperMatchesAuthor } from "../extension/src/services/arxiv-paper-service.js";
 import { expandQuery } from "../extension/src/search/expand-query.js";
 
 const paper = { id:"https://arxiv.org/abs/2401.00001v2", title:"  A  paper\n", authors:["Alex Kim"], abstract:" An abstract. ", publishedAt:"2026-09-20T00:00:00Z", categories:["math.AG","math.AG"] };
@@ -14,4 +14,9 @@ test("HTTP/network failures reject instead of producing an empty author feed", a
   const { fetchArxivPapers } = await import("../extension/src/services/arxiv-paper-service.js");
   await assert.rejects(fetchArxivPapers('au:"Alex Kim"', async () => ({ ok: false, status: 503 })), /arXiv returned 503/);
   await assert.rejects(fetchArxivPapers('au:"Alex Kim"', async () => { throw new Error("network interrupted"); }), /network interrupted/);
+});
+
+test("abstract normalization preserves internal whitespace and paragraph breaks", () => {
+  const abstract = "Prose  with spaces.\n\nMath $M$ then \\(N\\).";
+  assert.equal(normalizeApiEntry({ ...paper, abstract }).abstract, abstract);
 });
