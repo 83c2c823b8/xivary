@@ -1,3 +1,4 @@
+import { followingSearchWorkflow } from "./following-search-workflow.mjs";
 import { latexSettingsWorkflow, latexAuthorWorkflow } from "./latex-workflow.mjs";
 import { libraryDateWorkflow } from './library-date-workflow.mjs';
 import { authorFilterWorkflow, authorHeaderWorkflow } from './author-filter-workflow.mjs';
@@ -252,6 +253,7 @@ try {
     key: pickerKey,
   });
 
+  await followingSearchWorkflow({evaluate:evaluateAsync,until,click:pickerClick,key:pickerKey,type:async text=>{const element=await command('/element',{using:'css selector',value:'#filter'});await command(`/element/${element['element-6066-11e4-a52e-4f735466cecf']}/value`,{text})},reload:()=>command('/refresh'),resize:(width,height)=>command('/window/rect',{width,height:height+100}),screenshot});
   await authorPositionRowsWorkflow({evaluate:evaluateAsync,until,click:pickerClick,resize:(width,height)=>command('/window/rect',{width,height:height+100}),screenshot});
   await navigate("https://arxiv.org/abs/2401.00001");
   await until("document.querySelector('.authors .arxiv-library-button')?.getAttribute('aria-pressed') === 'true'");

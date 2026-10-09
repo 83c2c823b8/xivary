@@ -1,4 +1,5 @@
 import { collectionSidebarRow, closeCollectionMenu, updateSidebarSelection } from "../ui/collection-sidebar.js";
+import { filterFollowedAuthors } from "./filter-authors.js";
 import { setFollowButton } from "../ui/follow-button.js";
 import { setCollectionButton } from "../ui/collection-button.js";
 import { bindCollectionRenameOutside } from "../ui/collection-rename.js";
@@ -16,6 +17,8 @@ let busy = false;
 let editingId = null;
 let loadRevision = 0;
 let renderedCollections;
+let following = [];
+let scopedAuthors = [];
 
 bindCollectionRenameOutside({
   getForm: () => document.querySelector("[data-rename-id]")?.closest("form"),
@@ -31,6 +34,7 @@ const closeCreate = bindCollectionCreate({
   create: name => mutate(async () => { const collection = await repository.createAuthorCollection(name); selected = collection.id; }, { propagateError: true }),
 });
 window.addEventListener("focus", () => { if (!busy) void load(); });
+element("filter").addEventListener("input", renderAuthors);
 void load();
 
 async function load() {
@@ -39,6 +43,7 @@ async function load() {
     const snapshot = await repository.getAuthorLibrary();
     if (revision !== loadRevision) return;
     library = snapshot;
+    following = followedAuthors();
     if (!organized() || !library.collections.some(collection => collection.id === selected)) selected = "";
     if (!organized()) {
       closeAuthorCollectionPicker();
@@ -60,30 +65,41 @@ function render() {
   if (!library) return;
   element("following-layout").classList.toggle("library-layout", organized());
   element("collection-sidebar").hidden = !organized();
-  element("collection-toolbar").hidden = !organized();
   if (renderedOrganization !== organized()) { rows.clear(); renderedOrganization = organized(); }
   if (organized()) renderCollections();
   else { closeCollectionMenu(); renderedCollections = undefined; element("collection-list").replaceChildren(); }
   const ids = selected ? new Set(library.memberships.filter(item => item.collectionId === selected).map(item => item.authorId)) : null;
-  const authors = followedAuthors().filter(author => !ids || ids.has(author.id));
+  scopedAuthors = following.filter(author => !ids || ids.has(author.id));
+  const live = new Set(following.map(author => author.id));
+  for (const id of rows.keys()) if (!live.has(id)) rows.delete(id);
+  renderAuthors();
+}
+
+function renderAuthors() {
+  if (!library) return;
+  const query = element("filter").value;
+  const authors = filterFollowedAuthors(scopedAuthors, query);
   // Keep each visible row/anchor connected while the membership picker updates.
   // An author can leave the selected collection while that picker stays open.
-  const live = new Set(authors.map(author => author.id));
-  for (const id of rows.keys()) if (!live.has(id)) rows.delete(id);
+  const visibleIds = new Set(authors.map(author => author.id));
   const visible = authors.map(author => {
     if (!rows.has(author.id)) rows.set(author.id, authorRow(author));
     const row = rows.get(author.id);
-    row.querySelector("h2 a").textContent = author.displayName;
+    const link = row.querySelector("h2 a");
+    if (link.textContent !== author.displayName) link.textContent = author.displayName;
     return row;
   });
   // Avoid moving an unchanged row so a focus refresh retains keyboard focus.
-  for (const row of [...element("authors").children]) if (rows.get(row.dataset.authorId) !== row) row.remove();
+  for (const row of [...element("authors").children]) if (!visibleIds.has(row.dataset.authorId) || rows.get(row.dataset.authorId) !== row) row.remove();
   visible.forEach((row, index) => {
     const current = element("authors").children[index];
     if (current !== row) element("authors").insertBefore(row, current || null);
   });
-  element("count").textContent = `${authors.length} ${authors.length === 1 ? "author" : "authors"}`;
-  element("empty").textContent = selected ? "No authors in this collection." : "No followed researchers.";
+  element("count").textContent = query.trim() && scopedAuthors.length
+    ? `${authors.length} of ${scopedAuthors.length} authors`
+    : `${authors.length} ${authors.length === 1 ? "author" : "authors"}`;
+  element("empty").textContent = query.trim() && scopedAuthors.length ? "No matching authors."
+    : selected ? "No authors in this collection." : "No followed researchers.";
   element("empty").hidden = authors.length > 0;
   setDisabled(busy);
 }
@@ -127,7 +143,7 @@ function focusSelection() {
 
 function renderCollections(preserveRows = false) {
   const entries = [
-    { id: "", name: "All Following", count: followedAuthors().length },
+    { id: "", name: "All Following", count: following.length },
     ...library.collections.map(collection => ({
       ...collection,
       count: library.memberships.filter(item => item.collectionId === collection.id).length,

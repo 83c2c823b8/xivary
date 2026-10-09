@@ -2,6 +2,9 @@
 
 ## Unreleased (development after 0.3.0 preparation)
 
+- Search Following by author name with immediate local matching, filtered counts
+  and a distinct no-match state. Preserve ordering, collection browsing and Undo;
+  queries stay temporary and never enter storage, Sync or Import/Export.
 - Render abstract mathematics optionally with locally bundled KaTeX. Rendering is
   on by default; unsupported, malformed or ambiguous expressions remain raw.
 - Define validated zero-argument custom macros in Settings. Both new preferences

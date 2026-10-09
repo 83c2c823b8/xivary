@@ -15,9 +15,13 @@
 .author-row .manage-collections.collection-trigger-icon:hover { background: #f1f3f4; color: var(--text); }
 .delete-confirmation { flex-wrap: wrap; }
 
-.following-content .toolbar { margin-bottom: 8px; }
+.following-toolbar { display: grid; grid-template-columns: minmax(0, 340px) minmax(0, 1fr); align-items: center; gap: 4px 14px; margin-bottom: 12px; }
+.following-toolbar label { grid-column: 1 / -1; font-size: 13px; font-weight: 600; }
+.following-toolbar .metadata { justify-self: end; font-variant-numeric: tabular-nums; }
 .following-content .author-row { padding-top: 12px; padding-bottom: 12px; }
 .following-content .actions { gap: 8px; }
 @media (max-width: 480px) {
+  .following-toolbar { grid-template-columns: minmax(0, 1fr); }
+  .following-toolbar .metadata { justify-self: start; }
   .following-content .author-row { grid-template-columns: minmax(0, 1fr); gap: 8px; }
 }

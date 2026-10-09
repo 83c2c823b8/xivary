@@ -1,3 +1,4 @@
+import { followingSearchWorkflow } from "./following-search-workflow.mjs";
 import { latexSettingsWorkflow, latexAuthorWorkflow } from "./latex-workflow.mjs";
 import { libraryDateWorkflow } from './library-date-workflow.mjs';
 import { authorFilterWorkflow, authorHeaderWorkflow } from './author-filter-workflow.mjs';
@@ -305,6 +306,7 @@ try{
     },
     key: key => sidebarKey(authors,key),
   });
+  await followingSearchWorkflow({evaluate:expression=>evaluate(authors,expression),until:expression=>until(authors,expression),click:selector=>sidebarClick(authors,selector),key:key=>sidebarKey(authors,key),type:text=>send('Input.insertText',{text},authors),reload:()=>send('Page.reload',{},authors),resize:(width,height)=>send('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile:false},authors),screenshot:name=>screenshot(authors,name)});
   await authorPositionRowsWorkflow({evaluate:expression=>evaluate(authors,expression),until:expression=>until(authors,expression),click:(selector,options)=>sidebarClick(authors,selector,options),resize:(width,height)=>send('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile:false},authors),screenshot:name=>screenshot(authors,`following-${name}`)});
   for(const session of [library,authors]){
     assert.equal(await evaluate(session,"document.querySelector('.settings-link')?.getAttribute('aria-label')"),"Settings");

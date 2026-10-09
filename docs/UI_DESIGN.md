@@ -272,6 +272,38 @@ with `author-custom-years.png` confirms shared presentation. Screen readers, phy
 touch, minimum browser versions and store-installed rendering remain manual checks;
 these fixture profiles do not demonstrate account-mediated Sync delivery.
 
+## Following author search
+
+Following reuses Library's rounded 44px search field, restrained magnifier and
+340px maximum width, with the label and placeholder Search followed authors.
+Keep the existing heading and Settings gear. The existing count is visible with
+organization enabled or disabled: show the total in the current collection scope,
+or matching of total authors while searching. Sidebar membership counts stay
+unfiltered. At widths up to 480px the count moves below the full-width field.
+
+Search matches a substring of the existing normalized author name, ignoring case
+and leading/trailing whitespace. Empty or whitespace-only queries show the full
+scope in its existing followed-date order. Accents remain significant; there is
+no fuzzy matching, ranking or discovery. A populated scope with no matches shows
+No matching authors. Genuine empty Following/collection states retain their
+existing messages. Clearing restores the list.
+
+Typing filters the loaded snapshot without repository reads or network requests.
+Hidden author rows are reused when restored. Collection navigation, focus refresh,
+unfollow and Undo preserve the query; fresh reload starts empty. The query never
+enters repository preferences, Chrome Sync or portable backups. The label, native
+Tab navigation and shared focus outline provide keyboard access; no new shortcuts.
+
+Verification: 182/182 Node tests pass, including normalization, unchanged input
+records/order and a 3,000-author fixture. Chromium 154 and Firefox 157 workflows
+cover matching/counts/clearing, empty versus no-match states, native Tab/typing,
+row reuse, unchanged repository snapshots, unfollow/Undo, collection composition,
+links and reload. Release transfer/Sync lifecycle tests also pass. Inspected
+`following-search-{normal,matching,no-matches,empty,keyboard,narrow}.png` captures
+and Firefox equivalents show consistent spacing and no clipping. Chromium covers
+360px; Firefox's native minimum limits its narrow capture to 500px. Screen-reader
+output and minimum-browser-version rendering remain manual checks.
+
 ## Toolbar popup
 
 The actual Chrome action popup is **300px wide** with a 51px header including its

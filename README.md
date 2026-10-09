@@ -32,6 +32,8 @@ account, project-owned backend, or analytics.
 
 - Compact **Follow** and **Following** controls beside authors on arXiv abstract pages.
 - A Following list and per-author paper feeds retrieved from arXiv's public Atom API.
+- Search followed authors by part of their name, locally and case-insensitively.
+  The temporary query combines with collection browsing and clears on page reload.
 - Paper saving from arXiv pages and author feeds.
 - Named paper collections with inline creation, double-click/F2 rename, context-menu deletion, and membership controls.
 - Optional Following collections with the same sidebar management and collection
