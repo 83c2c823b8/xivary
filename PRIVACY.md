@@ -23,6 +23,10 @@ lifecycle.
 
 ## Data synchronized by Chrome
 
+The [library synchronization audit](docs/library-sync-audit.md) uses synthetic data
+and disposable test profiles. It adds no runtime library uploads or external
+service. The behavior below remains the implemented policy.
+
 The Chromium package writes only four explicitly designated boolean preferences to
 Chrome's extension `storage.sync`: `openArxivLinksInNewTab`,
 `organizeFollowedAuthorsIntoCollections`, `openAuthorResultsInNewTab` and `openXivaryFromToolbarInNewTab`, with

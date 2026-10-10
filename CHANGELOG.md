@@ -2,6 +2,9 @@
 
 ## Unreleased (development after 0.3.0 preparation)
 
+- Audit optional library synchronization with realistic capacity fixtures and
+  native Chrome quota checks. Document the strict operation-arrival-order blocker;
+  retain the existing local library and preference-only Sync implementation.
 - Search Following by author name with immediate local matching, filtered counts
   and a distinct no-match state. Preserve ordering, collection browsing and Undo;
   queries stay temporary and never enter storage, Sync or Import/Export.

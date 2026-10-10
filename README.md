@@ -28,6 +28,11 @@ remain local to each installation. Real account/device propagation remains
 unverified. Xivary has no
 account, project-owned backend, or analytics.
 
+Optional library synchronization was [audited](docs/library-sync-audit.md).
+Chrome Sync exposes no authoritative operation-acceptance log; strict arrival-order
+library synchronization is blocked. The audit includes reproducible capacity
+measurements and safety counterexamples. It does not enable library uploads.
+
 ## Features
 
 - Compact **Follow** and **Following** controls beside authors on arXiv abstract pages.

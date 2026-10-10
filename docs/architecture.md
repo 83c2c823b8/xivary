@@ -135,6 +135,10 @@ support and the distinction between fixture, live-network and account evidence.
 
 ## Chrome synchronization
 
+See the [optional library-sync audit](library-sync-audit.md) for measured capacity
+and the unresolved authoritative operation-ordering requirement. No new library
+protocol, toggle, outbox or materialization path has been implemented by that audit.
+
 The background chooses a `SyncStorage` decorator beneath `LocalRepository` only
 for the Chromium service-worker package. UI/RPC/domain operations are unchanged.
 The decorator reuses exported `prepareState` for existing migrations/validation;
