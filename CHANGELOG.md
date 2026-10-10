@@ -2,6 +2,8 @@
 
 ## Unreleased (development after 0.3.0 preparation)
 
+- Add the optional Support Xivary text and official Buy Me a Coffee link at the
+  bottom of Settings; no donation banner or feature gating.
 - Audit optional library synchronization with realistic capacity fixtures and
   native Chrome quota checks. Document the strict operation-arrival-order blocker;
   retain the existing local library and preference-only Sync implementation.

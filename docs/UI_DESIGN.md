@@ -304,6 +304,23 @@ and Firefox equivalents show consistent spacing and no clipping. Chromium covers
 360px; Firefox's native minimum limits its narrow capture to 500px. Screen-reader
 output and minimum-browser-version rendering remain manual checks.
 
+## Settings support footer
+
+Support Xivary appears only at the bottom of the existing Settings page, after
+Data and its status feedback. Use the existing section heading, muted paragraph
+typography and subtle divider. The copy describes future server synchronization
+and makes support optional; it does not claim an existing synchronization service.
+The simple Buy Me a Coffee ↗ link opens the official project URL
+(`https://buymeacoffee.com/83c2c823b8`) in a new tab with `noopener noreferrer`.
+Use native keyboard activation and shared visible focus styling; the accessible
+name announces the new tab. No banner, popup, toolbar control or feature gating.
+
+Native Tab/Enter verification passes in Chromium 154 and Firefox 157: visible
+focus, correct new-tab destination, no opener and no referrer. Destination loading
+is intercepted by local fixtures; no donation action is performed. Inspected
+footer captures cover 360px Chromium and Firefox's 500px native minimum without
+clipping or horizontal overflow.
+
 ## Toolbar popup
 
 The actual Chrome action popup is **300px wide** with a 51px header including its
