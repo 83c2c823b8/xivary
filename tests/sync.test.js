@@ -79,6 +79,24 @@ function network(initial = {}) {
 
 // Settings-only isolation and nondestructive legacy cutover regressions.
 
+test("Vim Mode stays local across two-device delivery, restarts and portable imports", async () => {
+  const n = network(), a = n.device("a"), b = n.device("b");
+  await a.repo.savePaper(paper); await a.repo.followAuthor(author); await n.settle();
+  const remote = clone(n.server), before = library(await a.local.read());
+  await a.repo.setVimMode(true); await n.settle();
+  assert.deepEqual(n.server, remote);
+  a.restart(); b.restart();
+  assert.equal((await a.repo.getPreferences()).vimMode, true);
+  assert.equal((await b.repo.getPreferences()).vimMode, false);
+  await b.repo.setOpenArxivLinksInNewTab(true); await n.settle();
+  assert.equal((await a.repo.getPreferences()).vimMode, true);
+  assert.deepEqual(library(await a.local.read()), before);
+  for (const category of ["bookmarks", "following"]) {
+    await b.repo.importCategory(JSON.stringify(await a.repo.exportCategory(category)), category);
+  }
+  assert.equal((await b.repo.getPreferences()).vimMode, false);
+});
+
 test("LaTeX settings remain device-local across sync delivery, restarts and portable imports", async () => {
   const n = network(), a = n.device("a"), b = n.device("b");
   await a.repo.savePaper(paper); await a.repo.followAuthor(author);
@@ -447,7 +465,7 @@ test("pre-settings Sync v1 replicas seed missing preferences without revising li
   }
   const net = network(remote), a = net.device("old", disk); await net.settle();
   const b = net.device("new"); await net.settle();
-  assert.deepEqual(await b.repo.getPreferences(), { openArxivLinksInNewTab: true, organizeFollowedAuthorsIntoCollections: true, openAuthorResultsInNewTab: true, openXivaryFromToolbarInNewTab: true, renderLatexInAbstracts: true, customLatexMacros: "" });
+  assert.deepEqual(await b.repo.getPreferences(), { openArxivLinksInNewTab: true, organizeFollowedAuthorsIntoCollections: true, openAuthorResultsInNewTab: true, openXivaryFromToolbarInNewTab: true, vimMode: false, renderLatexInAbstracts: true, customLatexMacros: "" });
   assert.deepEqual((await a.local.read()).favorites, disk.favorites);
   assert.deepEqual((await a.local.read()).memberships, disk.memberships);
   for (const [key, value] of Object.entries(remote)) assert.deepEqual(net.server[key], value);
@@ -476,10 +494,10 @@ test("preferences propagate both ways without changing bookmarks, follows, cache
   const before = await a.local.read();
   await a.repo.setOpenArxivLinksInNewTab(true);
   await b.repo.setOrganizeFollowedAuthorsIntoCollections(true); await net.settle();
-  for (const d of [a, b]) assert.deepEqual(await d.repo.getPreferences(), { openArxivLinksInNewTab: true, organizeFollowedAuthorsIntoCollections: true, openAuthorResultsInNewTab: true, openXivaryFromToolbarInNewTab: true, renderLatexInAbstracts: true, customLatexMacros: "" });
+  for (const d of [a, b]) assert.deepEqual(await d.repo.getPreferences(), { openArxivLinksInNewTab: true, organizeFollowedAuthorsIntoCollections: true, openAuthorResultsInNewTab: true, openXivaryFromToolbarInNewTab: true, vimMode: false, renderLatexInAbstracts: true, customLatexMacros: "" });
   await b.repo.setOpenArxivLinksInNewTab(false);
   await a.repo.setOrganizeFollowedAuthorsIntoCollections(false); await net.settle();
-  for (const d of [a, b]) assert.deepEqual(await d.repo.getPreferences(), { openArxivLinksInNewTab: false, organizeFollowedAuthorsIntoCollections: false, openAuthorResultsInNewTab: true, openXivaryFromToolbarInNewTab: true, renderLatexInAbstracts: true, customLatexMacros: "" });
+  for (const d of [a, b]) assert.deepEqual(await d.repo.getPreferences(), { openArxivLinksInNewTab: false, organizeFollowedAuthorsIntoCollections: false, openAuthorResultsInNewTab: true, openXivaryFromToolbarInNewTab: true, vimMode: false, renderLatexInAbstracts: true, customLatexMacros: "" });
   const after = await a.local.read();
   for (const field of ["favorites", "authors", "paperCollections", "collections", "paperMemberships", "memberships", "authorPaperCaches"]) assert.deepEqual(after[field], before[field]);
   assert.equal(after.settings.lastUsedAuthorCollectionId, ac.id);
@@ -519,7 +537,7 @@ test("concurrent preferences use logical counters and replica ties while indepen
   await b.repo.setOpenArxivLinksInNewTab(true);
   await b.repo.setOpenArxivLinksInNewTab(false);
   await net.settle();
-  for (const d of [a, b]) assert.deepEqual(await d.repo.getPreferences(), { openArxivLinksInNewTab: false, organizeFollowedAuthorsIntoCollections: true, openAuthorResultsInNewTab: true, openXivaryFromToolbarInNewTab: true, renderLatexInAbstracts: true, customLatexMacros: "" });
+  for (const d of [a, b]) assert.deepEqual(await d.repo.getPreferences(), { openArxivLinksInNewTab: false, organizeFollowedAuthorsIntoCollections: true, openAuthorResultsInNewTab: true, openXivaryFromToolbarInNewTab: true, vimMode: false, renderLatexInAbstracts: true, customLatexMacros: "" });
   assert.deepEqual(net.server[syncKey("s", "openArxivLinksInNewTab")].rev, [2, "b"]);
 });
 
@@ -545,7 +563,7 @@ test("failed preference publication remains local and recovers after retry and r
   assert.equal((await b.repo.getPreferences()).openArxivLinksInNewTab, false);
   const revision = clone(disk._chromeSync.records[syncKey("s", "openArxivLinksInNewTab")].rev);
   a.restart(); a.fail = false; await net.settle();
-  assert.deepEqual(await b.repo.getPreferences(), { openArxivLinksInNewTab: true, organizeFollowedAuthorsIntoCollections: true, openAuthorResultsInNewTab: true, openXivaryFromToolbarInNewTab: true, renderLatexInAbstracts: true, customLatexMacros: "" });
+  assert.deepEqual(await b.repo.getPreferences(), { openArxivLinksInNewTab: true, organizeFollowedAuthorsIntoCollections: true, openAuthorResultsInNewTab: true, openXivaryFromToolbarInNewTab: true, vimMode: false, renderLatexInAbstracts: true, customLatexMacros: "" });
   assert.deepEqual(net.server[syncKey("s", "openArxivLinksInNewTab")].rev, revision);
   assert.equal((await a.local.read())._chromeSync.lastError, null);
 });
@@ -557,7 +575,7 @@ test("malformed or unsupported remote preferences pause sync without resetting l
     const net = network({ [key]: bad }), a = net.device("a", state);
     await a.repo.savePaper(paper); await a.repo.followAuthor(author);
     await a.repo.setOrganizeFollowedAuthorsIntoCollections(true);
-    assert.deepEqual(await a.repo.getPreferences(), { openArxivLinksInNewTab: true, organizeFollowedAuthorsIntoCollections: true, openAuthorResultsInNewTab: true, openXivaryFromToolbarInNewTab: true, renderLatexInAbstracts: true, customLatexMacros: "" });
+    assert.deepEqual(await a.repo.getPreferences(), { openArxivLinksInNewTab: true, organizeFollowedAuthorsIntoCollections: true, openAuthorResultsInNewTab: true, openXivaryFromToolbarInNewTab: true, vimMode: false, renderLatexInAbstracts: true, customLatexMacros: "" });
     assert.equal((await a.repo.listFavorites()).length, 1);
     assert.equal((await a.repo.listFollowing()).length, 1);
     assert.match((await a.local.read())._chromeSyncError, /sync.*(?:version|record)/i);
@@ -573,7 +591,7 @@ test("unavailable sync retains preference edits and a local-only repository need
   assert.ok(a.schedules.length);
   a.failRead = false; await net.settle();
   const b = net.device("b"); await net.settle();
-  assert.deepEqual(await b.repo.getPreferences(), { openArxivLinksInNewTab: true, organizeFollowedAuthorsIntoCollections: true, openAuthorResultsInNewTab: true, openXivaryFromToolbarInNewTab: true, renderLatexInAbstracts: true, customLatexMacros: "" });
+  assert.deepEqual(await b.repo.getPreferences(), { openArxivLinksInNewTab: true, organizeFollowedAuthorsIntoCollections: true, openAuthorResultsInNewTab: true, openXivaryFromToolbarInNewTab: true, vimMode: false, renderLatexInAbstracts: true, customLatexMacros: "" });
   let disk;
   const local = new LocalRepository({ read: async () => clone(disk), write: async value => { disk = clone(value); } });
   await local.setOpenArxivLinksInNewTab(true);
@@ -594,7 +612,7 @@ test("portable category imports remain local and leave preference values and rev
     const file = await source.exportCategory(category);
     assert.equal(Object.hasOwn(file, "preferences"), false);
     await a.repo.importCategory(JSON.stringify(file), category); await net.settle();
-    assert.deepEqual(await b.repo.getPreferences(), { openArxivLinksInNewTab: true, organizeFollowedAuthorsIntoCollections: true, openAuthorResultsInNewTab: true, openXivaryFromToolbarInNewTab: true, renderLatexInAbstracts: true, customLatexMacros: "" });
+    assert.deepEqual(await b.repo.getPreferences(), { openArxivLinksInNewTab: true, organizeFollowedAuthorsIntoCollections: true, openAuthorResultsInNewTab: true, openXivaryFromToolbarInNewTab: true, vimMode: false, renderLatexInAbstracts: true, customLatexMacros: "" });
   }
   for (const [key, value] of Object.entries(before)) assert.deepEqual(net.server[key], value);
   assert.equal((await b.repo.listFavorites()).length, 0);

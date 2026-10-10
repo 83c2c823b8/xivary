@@ -2,6 +2,9 @@
 
 ## Unreleased (development after 0.3.0 preparation)
 
+- Add optional, default-off Vim Mode on Library, Following and Author Results:
+  document scrolling, internal tab navigation, temporary action hints and shortcut
+  help. Keep editing, IME, menus and dialogs native; store the preference locally.
 - Add the optional Support Xivary text and official Buy Me a Coffee link at the
   bottom of Settings; no donation banner or feature gating.
 - Audit optional library synchronization with realistic capacity fixtures and

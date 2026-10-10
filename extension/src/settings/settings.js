@@ -4,6 +4,7 @@ import { RepositoryClient } from "../repository/repository-client.js";
 const repository = new RepositoryClient();
 const element = id => document.getElementById(id);
 const controls = {
+  "vim-mode": { key: "vimMode", save: enabled => repository.setVimMode(enabled) },
   "render-latex": { key: "renderLatexInAbstracts", save: enabled => repository.setRenderLatexInAbstracts(enabled) },
   "open-toolbar-new-tab": { key: "openXivaryFromToolbarInNewTab", save: enabled => repository.setOpenXivaryFromToolbarInNewTab(enabled) },
   "open-author-new-tab": { key: "openAuthorResultsInNewTab", save: enabled => repository.setOpenAuthorResultsInNewTab(enabled) },
@@ -44,11 +45,16 @@ let macrosBusy = false;
 element("latex-macros").addEventListener("input", () => { macrosDirty = true; });
 element("macros-form").addEventListener("submit", event => { event.preventDefault(); void saveMacros(); });
 void load();
+const unsubscribe = repository.subscribePreferences(() => {
+  if (!Object.keys(controls).some(id => element(id).disabled)) void load();
+});
+window.addEventListener("pagehide", event => { if (!event.persisted) unsubscribe(); });
 window.addEventListener("focus", () => {
   if (!Object.keys(controls).some(id => element(id).disabled)) void load();
 });
 
 async function load() {
+  const focused = document.activeElement;
   setDisabled(true);
   try {
     const preferences = await repository.getPreferences();
@@ -61,11 +67,13 @@ async function load() {
   } catch (error) { setStatus(error.message, true); }
   finally {
     setDisabled(false);
+    restoreToggleFocus(focused);
     if (macrosLoaded && !macrosBusy) element("save-macros").disabled = element("latex-macros").disabled = false;
   }
 }
 
 async function update(input, preference) {
+  const focused = document.activeElement;
   const requested = input.checked;
   input.disabled = true;
   try {
@@ -75,7 +83,11 @@ async function update(input, preference) {
   } catch (error) {
     input.checked = !requested;
     setStatus(error.message, true);
-  } finally { input.disabled = false; }
+  } finally { input.disabled = false; restoreToggleFocus(focused); }
+}
+
+function restoreToggleFocus(input) {
+  if (input?.matches(".toggle-input") && input.isConnected && !input.disabled && document.activeElement === document.body) input.focus({ preventScroll: true });
 }
 
 function setDisabled(value) { Object.keys(controls).forEach(id => { element(id).disabled = value; }); }

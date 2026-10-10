@@ -1,6 +1,7 @@
 import { REPOSITORY_CHANNEL } from "../repository/repository-client.js";
 
 const methods = new Map([
+  ["setVimMode", 1],
   ["setRenderLatexInAbstracts", 1], ["setCustomLatexMacros", 1],
   ["listFavorites", 0], ["getPaperLibrary", 0], ["savePaper", 1],
   ["listFollowing", 0], ["toggleFavorite", 1], ["removeFavorite", 1],
@@ -16,7 +17,7 @@ const methods = new Map([
   ["exportCategory", 2], ["importCategory", 2],
 ]);
 
-export function createRepositoryHandler(repository, extensionId) {
+export function createRepositoryHandler(repository, extensionId, preferencesChanged = () => {}) {
   return (message, sender, sendResponse) => {
     if (message?.channel !== REPOSITORY_CHANNEL) return false;
     if (sender.id !== extensionId || !methods.has(message.method)
@@ -25,7 +26,13 @@ export function createRepositoryHandler(repository, extensionId) {
       return false;
     }
     Promise.resolve().then(() => repository[message.method](...message.args)).then(
-      result => sendResponse({ ok: true, result: result ?? null }),
+      result => {
+        // Persistence succeeds independently of best-effort view notification.
+        if (message.method === "setVimMode") {
+          Promise.resolve().then(preferencesChanged).catch(() => {});
+        }
+        sendResponse({ ok: true, result: result ?? null });
+      },
       error => sendResponse({ ok: false, error: error.message || "Unable to update the library." }),
     );
     // Keep the MV3 message channel alive until the storage operation completes.

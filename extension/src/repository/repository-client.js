@@ -2,6 +2,7 @@ import { PaperRepository } from "./paper-repository.js";
 import { getBrowserApi } from "../platform/browser-api.js";
 
 export const REPOSITORY_CHANNEL = "arxiv-library:repository:v1";
+export const PREFERENCES_CHANGED_CHANNEL = "xivary:preferences-changed:v1";
 
 /** Transport adapter; UI never knows whether the worker uses local or HTTP data. */
 export class RepositoryClient extends PaperRepository {
@@ -11,6 +12,17 @@ export class RepositoryClient extends PaperRepository {
   }
 
   get available() { return this.runtime.available !== false; }
+  setVimMode(enabled) { return this.request("setVimMode", [enabled]); }
+
+  /** Notifications invalidate a view; fresh values still cross the repository. */
+  subscribePreferences(changed) {
+    const listener = (message, sender) => {
+      if (message?.channel === PREFERENCES_CHANGED_CHANNEL && sender.id === this.runtime.id) changed();
+      return false;
+    };
+    this.runtime.onMessage.addListener(listener);
+    return () => this.runtime.onMessage.removeListener(listener);
+  }
   setRenderLatexInAbstracts(enabled) { return this.request("setRenderLatexInAbstracts", [enabled]); }
   setCustomLatexMacros(text) { return this.request("setCustomLatexMacros", [text]); }
 

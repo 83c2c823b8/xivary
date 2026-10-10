@@ -70,6 +70,16 @@ browser storage areas. The handler validates a method allowlist and
 argument counts. LocalRepository serializes reads, migrations, and writes to avoid
 local read-modify-write races.
 
+Vim Mode is a default-false, device-local schema-5 setting, excluded from the four
+Chrome Sync registers and portable backups. Its successful repository commit sends
+a best-effort runtime invalidation to extension pages; `RepositoryClient` verifies
+the sender and exposes subscription/unsubscription. Views reread through the same
+repository contract, with revision guards for overlapping reads. Notification
+failure does not fail a local save. Focus/pageshow refresh covers missed messages;
+an unavailable repository disables shortcuts. No UI module accesses storage.
+Only Library, Following and Author Results import `ui/vim-mode.js`. See
+[keyboard behavior and lifecycle](vim-mode.md).
+
 The internal `favorites` array remains the canonical paper-record compatibility
 layer. Schema v5 adds `paperCollections` and `paperMemberships`; membership is the
 single definition of saved state. Schema migrations validate the complete result

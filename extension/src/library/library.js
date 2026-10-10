@@ -1,3 +1,4 @@
+import { bindVimMode } from "../ui/vim-mode.js";
 import { filterPublicationDates } from "../domain/publication-date.js";
 import { publicationTimeFilter } from "../ui/publication-time-filter.js";
 import { collectionSidebarRow, closeCollectionMenu, updateSidebarSelection } from "../ui/collection-sidebar.js";
@@ -9,6 +10,7 @@ import { paperRow } from "../ui/paper-row.js";
 import { openPaperCollectionPicker } from "../ui/paper-collection-picker.js";
 
 const repository = new RepositoryClient();
+bindVimMode(repository);
 const element = id => document.getElementById(id);
 let library;
 let selected = "";

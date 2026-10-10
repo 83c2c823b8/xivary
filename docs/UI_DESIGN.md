@@ -304,6 +304,29 @@ and Firefox equivalents show consistent spacing and no clipping. Chromium covers
 360px; Firefox's native minimum limits its narrow capture to 500px. Screen-reader
 output and minimum-browser-version rendering remain manual checks.
 
+## Optional Vim Mode
+
+Settings uses one existing switch under Keyboard navigation, labeled Vim Mode
+with “Enable Vim-style keyboard navigation on Xivary pages.” It starts off and
+stays device-local. Library, Following and Author Results share document scrolling,
+horizontal Library → Following navigation, temporary link/control hints and a
+compact native shortcut dialog. Author Results is in the Following tab. No row
+selection, browser-tab switching, permanent indicator or arXiv shortcuts are added.
+
+Hints use small neutral bordered labels, blue native focus remains intact, and
+the help dialog reuses existing typography and dialog tokens. Labels support dark
+and forced-colors preferences. Editing/IME, visible forms, menus and dialogs
+suspend shortcuts. Layout changes dismiss hints. `F` opens links in a new tab;
+buttons keep ordinary actions and existing confirmation safeguards. See
+[shortcut and lifecycle details](vim-mode.md).
+
+201/201 Node tests, installed Chromium 154 and generated Firefox 157 workflows,
+release integration, both package builds and whitespace checks pass. Inspected
+native-page/expanded-target hints, help and Settings screenshots retain compact
+controls; labels fit 360px Chromium and Firefox's 500px native minimum. Settings
+switches retain keyboard focus through asynchronous saves. Physical Japanese IME,
+screen readers, minimum versions and store-installed packages remain manual checks.
+
 ## Settings support footer
 
 Support Xivary appears only at the bottom of the existing Settings page, after

@@ -1,3 +1,4 @@
+import { bindVimMode } from "../ui/vim-mode.js";
 import { createAbstractRenderer } from "../ui/abstract.js";
 import { authorFilters } from './author-filters.js';
 import { setCollectionButton } from "../ui/collection-button.js";
@@ -13,6 +14,7 @@ import { filterAuthorPapers } from "./filter-papers.js";
 import { resolveAuthorRoute } from "./author-route.js";
 
 const repository = new RepositoryClient();
+bindVimMode(repository);
 const element = id => document.getElementById(id);
 let author;
 let renderAbstract = createAbstractRenderer();

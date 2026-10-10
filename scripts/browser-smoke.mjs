@@ -1,3 +1,4 @@
+import { vimWorkflow } from "./vim-workflow.mjs";
 import { followingSearchWorkflow } from "./following-search-workflow.mjs";
 import { latexSettingsWorkflow, latexAuthorWorkflow } from "./latex-workflow.mjs";
 import { libraryDateWorkflow } from './library-date-workflow.mjs';
@@ -16,7 +17,7 @@ const chrome=spawn(process.env.CHROME_BIN||"/usr/bin/google-chrome",["--headless
 let nextId=0,buffer="",errors="",apiRequests=0;const pending=new Map(),listeners=[],runtimeErrors=[],asyncErrors=[];chrome.stderr.on("data",d=>errors+=d);
 for(const stream of [chrome.stdio[3],chrome.stdio[4]])stream.on("error",e=>asyncErrors.push(e.message));
 chrome.stdio[4].on("data",data=>{buffer+=data;let index;while((index=buffer.indexOf("\0"))>=0){const message=JSON.parse(buffer.slice(0,index));buffer=buffer.slice(index+1);if(message.id){const callback=pending.get(message.id);pending.delete(message.id);message.error?callback?.reject(new Error(JSON.stringify(message.error))):callback?.resolve(message.result)}else listeners.forEach(listener=>listener(message))}});
-function send(method,params={},sessionId){return new Promise((resolve,reject)=>{const id=++nextId;const timer=setTimeout(()=>{pending.delete(id);reject(new Error(`Timeout: ${method}\n${errors.slice(-2000)}`))},15000);pending.set(id,{resolve:value=>{clearTimeout(timer);resolve(value)},reject:error=>{clearTimeout(timer);reject(error)}});chrome.stdio[3].write(JSON.stringify({id,method,params,sessionId})+"\0")})}
+function send(method,params={},sessionId){return new Promise((resolve,reject)=>{const id=++nextId;const timer=setTimeout(()=>{pending.delete(id);reject(new Error(`Timeout: ${method} ${params.expression?.slice(0,240) || ""}\n${errors.slice(-2000)}`))},15000);pending.set(id,{resolve:value=>{clearTimeout(timer);resolve(value)},reject:error=>{clearTimeout(timer);reject(error)}});chrome.stdio[3].write(JSON.stringify({id,method,params,sessionId})+"\0")})}
 async function evaluate(sessionId,expression){const result=await send("Runtime.evaluate",{expression,returnByValue:true,awaitPromise:true},sessionId);if(result.exceptionDetails)throw new Error(JSON.stringify(result.exceptionDetails));return result.result.value}
 async function until(sessionId,expression){for(let i=0;i<80;i++){if(await evaluate(sessionId,expression))return;await new Promise(resolve=>setTimeout(resolve,100))}throw new Error(`Condition not met: ${expression}\n${await evaluate(sessionId,"document.body.innerText")}\nRuntime errors: ${JSON.stringify(runtimeErrors)}`)}
 async function page(){const {targetId}=await send("Target.createTarget",{url:"about:blank"});const {sessionId}=await send("Target.attachToTarget",{targetId,flatten:true});await send("Page.enable",{},sessionId);await send("Runtime.enable",{},sessionId);return{targetId,sessionId}}
@@ -33,7 +34,7 @@ async function sidebarKey(session, key) {
   for(const type of ['keyDown','keyUp']) await send('Input.dispatchKeyEvent',{type,key:actual,code:actual===' '?'Space':actual,windowsVirtualKeyCode:code,modifiers:shifted?8:0,...(type==='keyDown'&&['Enter',' '].includes(actual)?{text:actual==='Enter'?'\r':' '}: {})},session);
 }
 async function createdTarget(operation,predicate=()=>true){const before=new Set((await send("Target.getTargets")).targetInfos.map(target=>target.targetId));await operation();for(let i=0;i<40;i++){const targets=await send("Target.getTargets");const target=targets.targetInfos.find(item=>item.type==="page"&&!before.has(item.targetId)&&predicate(item));if(target)return target;await new Promise(resolve=>setTimeout(resolve,100))}throw new Error("Expected click to create a browser target")}
-async function screenshot(sessionId,name){if(!screenshotDir)return;await send("Page.bringToFront",{},sessionId);await evaluate(sessionId,"document.fonts.ready.then(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))))");await mkdir(screenshotDir,{recursive:true});const {data}=await send("Page.captureScreenshot",{format:"png",captureBeyondViewport:false,fromSurface:false},sessionId);await writeFile(join(screenshotDir,name),Buffer.from(data,"base64"))}
+async function screenshot(sessionId,name,{focus=true}={}){if(!screenshotDir)return;if(focus)await send("Page.bringToFront",{},sessionId);await evaluate(sessionId,"document.fonts.ready.then(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))))");await mkdir(screenshotDir,{recursive:true});const {data}=await send("Page.captureScreenshot",{format:"png",captureBeyondViewport:false,fromSurface:false},sessionId);await writeFile(join(screenshotDir,name),Buffer.from(data,"base64"))}
 const fixture=(await readFile(join(root,"tests/fixtures/arxiv-abstract.html"),"utf8")).replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi,"");
 const namedAuthorFixture=await readFile(join(root,"tests/fixtures/arxiv-nakago-takahashi.html"),"utf8");
 const atom=`<?xml version="1.0"?><feed xmlns="http://www.w3.org/2005/Atom"><entry><id>https://arxiv.org/abs/2609.01234v1</id><title>Recent mirror symmetry paper</title><summary>A normalized result for browser verification.</summary><published>2026-09-20T00:00:00Z</published><author><name>Alex Kim</name></author><category term="math.AG"/></entry></feed>`;
@@ -158,6 +159,7 @@ try{
   await libraryDateWorkflow({evaluate:expression=>evaluate(library,expression),click:selector=>sidebarClick(library,selector),key:key=>sidebarKey(library,key),until:expression=>until(library,expression),reload:()=>send('Page.reload',{},library),resize:(width,height)=>send('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile:false},library),screenshot:name=>screenshot(library,name)});
   await send("Emulation.clearDeviceMetricsOverride", {}, library);
   await evaluate(library, "window.scrollTo(0, 0)");
+  await evaluate(library, "new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))");
   await collectionMenuWorkflow({ evaluate: expression => evaluate(library, expression), click: (selector,options)=>sidebarClick(library,selector,options), key: key=>sidebarKey(library,key), screenshot: name=>screenshot(library,`library-${name}`) });
   assert.equal(await evaluate(library,"Boolean(document.querySelector('aside nav')) && !document.querySelector('select')"),true);
   assert.equal(await evaluate(library,"!document.querySelector('#show-manage')&&!document.querySelector('#manage-form')"),true);
@@ -308,6 +310,20 @@ try{
   });
   await followingSearchWorkflow({evaluate:expression=>evaluate(authors,expression),until:expression=>until(authors,expression),click:selector=>sidebarClick(authors,selector),key:key=>sidebarKey(authors,key),type:text=>send('Input.insertText',{text},authors),reload:()=>send('Page.reload',{},authors),resize:(width,height)=>send('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile:false},authors),screenshot:name=>screenshot(authors,name)});
   await authorPositionRowsWorkflow({evaluate:expression=>evaluate(authors,expression),until:expression=>until(authors,expression),click:(selector,options)=>sidebarClick(authors,selector,options),resize:(width,height)=>send('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile:false},authors),screenshot:name=>screenshot(authors,`following-${name}`)});
+  // Cross-context notification: no focus refresh or reload of Following.
+  await evaluate(library,"import('../repository/repository-client.js').then(({RepositoryClient})=>new RepositoryClient().setVimMode(true))");
+  await until(authors,"(()=>{if(document.querySelector('[data-vim-overlay=hints]'))return true;document.activeElement.blur();document.body.dispatchEvent(new KeyboardEvent('keydown',{key:'f',bubbles:true,cancelable:true}));return Boolean(document.querySelector('[data-vim-overlay=hints]'))})()");
+  assert.equal(await evaluate(arxiv,"(()=>{const event=new KeyboardEvent('keydown',{key:'f',bubbles:true,cancelable:true});document.body.dispatchEvent(event);return event.defaultPrevented||Boolean(document.querySelector('[data-vim-overlay]'))})()"),false,'Vim Mode never installs on arXiv');
+  await evaluate(library,"import('../repository/repository-client.js').then(({RepositoryClient})=>new RepositoryClient().setVimMode(false))");
+  await until(authors,"!document.querySelector('[data-vim-overlay=hints]')");
+  await vimWorkflow({
+    evaluate:expression=>evaluate(library,expression), until:expression=>until(library,expression),
+    click:selector=>sidebarClick(library,selector),
+    key:async key=>{const special={Escape:27,Enter:13,Tab:9}; const shifted=/^[A-Z?]$/.test(key); for(const type of ['keyDown','keyUp']) await send('Input.dispatchKeyEvent',{type,key,code:key===' '?'Space':key.length===1?'Key'+key.toUpperCase():key,windowsVirtualKeyCode:special[key]||key.toUpperCase().charCodeAt(0),modifiers:shifted?8:0,...(type==='keyDown'&&key.length===1?{text:key}:{})},library)},
+    navigate:async path=>{await send('Page.bringToFront',{},library);await send('Page.navigate',{url:extensionUrl(path)},library)}, reload:()=>send('Page.reload',{},library),
+    resize:(width,height)=>send('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile:false},library), screenshot:name=>screenshot(library,name,{focus:false}),
+    openLink:async operation=>{const target=await createdTarget(operation,target=>target.url===extensionUrl('settings/settings.html')); const {sessionId}=await send('Target.attachToTarget',{targetId:target.targetId,flatten:true}); await until(sessionId,'document.querySelector("#vim-mode")'); assert.equal(await evaluate(sessionId,'window.opener===null'),true); await send('Target.closeTarget',{targetId:target.targetId}); await send('Page.bringToFront',{},library)},
+  });
   for(const session of [library,authors]){
     assert.equal(await evaluate(session,"document.querySelector('.settings-link')?.getAttribute('aria-label')"),"Settings");
     await nativeClick(session,".settings-link");

@@ -1,3 +1,4 @@
+import { bindVimMode } from "../ui/vim-mode.js";
 import { collectionSidebarRow, closeCollectionMenu, updateSidebarSelection } from "../ui/collection-sidebar.js";
 import { filterFollowedAuthors } from "./filter-authors.js";
 import { setFollowButton } from "../ui/follow-button.js";
@@ -10,6 +11,7 @@ import { RepositoryClient } from "../repository/repository-client.js";
 import { openAuthorCollectionPicker, closeAuthorCollectionPicker } from "../ui/author-collection-picker.js";
 
 const repository = new RepositoryClient();
+bindVimMode(repository);
 const element = id => document.getElementById(id);
 let library;
 let selected = "";

@@ -275,6 +275,7 @@ export class LocalRepository extends PaperRepository {
 
   getPreferences() {
     return this.run(state => structuredClone({
+      vimMode: state.settings.vimMode,
       renderLatexInAbstracts: state.settings.renderLatexInAbstracts,
       customLatexMacros: state.settings.customLatexMacros,
       openXivaryFromToolbarInNewTab: state.settings.openXivaryFromToolbarInNewTab,
@@ -299,6 +300,15 @@ export class LocalRepository extends PaperRepository {
       state.settings.renderLatexInAbstracts = enabled;
       await this.storage.write(state);
       return { renderLatexInAbstracts: enabled };
+    });
+  }
+
+  setVimMode(enabled) {
+    if (typeof enabled !== "boolean") return Promise.reject(new TypeError("Vim Mode must be true or false."));
+    return this.run(async state => {
+      state.settings.vimMode = enabled;
+      await this.storage.write(state);
+      return { vimMode: enabled };
     });
   }
 
@@ -527,6 +537,8 @@ export function prepareState(stored, now) {
   }
   if (state.settings.openXivaryFromToolbarInNewTab === undefined) state.settings.openXivaryFromToolbarInNewTab = true;
   if (state.settings.renderLatexInAbstracts === undefined) state.settings.renderLatexInAbstracts = true;
+  if (state.settings.vimMode === undefined) state.settings.vimMode = false;
+  if (typeof state.settings.vimMode !== "boolean") throw new Error("Invalid Vim Mode preference.");
   if (typeof state.settings.renderLatexInAbstracts !== "boolean") throw new Error("Invalid LaTeX rendering preference.");
   if (state.settings.customLatexMacros === undefined) state.settings.customLatexMacros = "";
   if (typeof state.settings.customLatexMacros !== "string") throw new Error("Invalid LaTeX macro preference.");

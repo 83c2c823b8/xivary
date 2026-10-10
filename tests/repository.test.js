@@ -37,7 +37,7 @@ test("empty library and favorites toggle persist through a new repository instan
 
 test("preferences use documented defaults, validate, and persist through the repository contract", async () => {
   const { repository, storage } = fixture();
-  const defaults = { openArxivLinksInNewTab: false, organizeFollowedAuthorsIntoCollections: false, openAuthorResultsInNewTab: true, openXivaryFromToolbarInNewTab: true, renderLatexInAbstracts: true, customLatexMacros: "" };
+  const defaults = { openArxivLinksInNewTab: false, organizeFollowedAuthorsIntoCollections: false, openAuthorResultsInNewTab: true, openXivaryFromToolbarInNewTab: true, vimMode: false, renderLatexInAbstracts: true, customLatexMacros: "" };
   assert.deepEqual(await repository.getPreferences(), defaults);
   await repository.savePaper(paper);
   const prePreferenceSchema5 = await storage.read();
@@ -52,12 +52,12 @@ test("preferences use documented defaults, validate, and persist through the rep
   assert.deepEqual(await repository.setOpenArxivLinksInNewTab(true), { openArxivLinksInNewTab: true });
   assert.deepEqual(await repository.setOrganizeFollowedAuthorsIntoCollections(true), { organizeFollowedAuthorsIntoCollections: true });
   assert.deepEqual(await new LocalRepository(storage).getPreferences(), {
-    openArxivLinksInNewTab: true, organizeFollowedAuthorsIntoCollections: true, openAuthorResultsInNewTab: true, openXivaryFromToolbarInNewTab: true, renderLatexInAbstracts: true, customLatexMacros: "",
+    openArxivLinksInNewTab: true, organizeFollowedAuthorsIntoCollections: true, openAuthorResultsInNewTab: true, openXivaryFromToolbarInNewTab: true, vimMode: false, renderLatexInAbstracts: true, customLatexMacros: "",
   });
   const handler = createRepositoryHandler(repository, "test-extension");
   const client = new RepositoryClient({ sendMessage: message => new Promise(resolve => handler(message, { id: "test-extension" }, resolve)) });
   assert.deepEqual(await client.getPreferences(), {
-    openArxivLinksInNewTab: true, organizeFollowedAuthorsIntoCollections: true, openAuthorResultsInNewTab: true, openXivaryFromToolbarInNewTab: true, renderLatexInAbstracts: true, customLatexMacros: "",
+    openArxivLinksInNewTab: true, organizeFollowedAuthorsIntoCollections: true, openAuthorResultsInNewTab: true, openXivaryFromToolbarInNewTab: true, vimMode: false, renderLatexInAbstracts: true, customLatexMacros: "",
   });
   await client.setOpenArxivLinksInNewTab(false);
   await client.setOrganizeFollowedAuthorsIntoCollections(false);
