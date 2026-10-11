@@ -2,6 +2,9 @@
 
 ## Unreleased (development after 0.3.0 preparation)
 
+- Anchor Settings Vim hints beside visible switches rather than entire rows;
+  activate switches/buttons once without transferring focus, while preserving
+  intentional editor/dialog focus and immediate Normal Mode navigation.
 - Add optional, default-off Vim Mode on Library, Following and Author Results:
   responsive document scrolling, browser history (`h/l`), browser tabs left/right
   (`J/K`, with wraparound), temporary action hints and shortcut help. `gi` focuses

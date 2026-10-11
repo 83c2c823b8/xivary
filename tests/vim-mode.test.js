@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { hintTargets, hintLabels, HINT_ALPHABET, editable, unsafeKey, scrollDestination, bindVimMode, SEQUENCE_TIMEOUT, createScrollAnimator, SCROLL_DURATION, escapeAlias, inputTarget } from '../extension/src/ui/vim-mode.js';
+import { hintTargets, hintAnchor, hintPosition, hintLabels, HINT_ALPHABET, editable, unsafeKey, scrollDestination, bindVimMode, SEQUENCE_TIMEOUT, createScrollAnimator, SCROLL_DURATION, escapeAlias, inputTarget } from '../extension/src/ui/vim-mode.js';
 import { LocalRepository } from '../extension/src/repository/local-repository.js';
 import { RepositoryClient, PREFERENCES_CHANGED_CHANNEL } from '../extension/src/repository/repository-client.js';
 import { createRepositoryHandler } from '../extension/src/background/repository-handler.js';
@@ -91,6 +91,32 @@ test('input guards cover modified keys, IME, prior handlers and editable ancesto
   assert.equal(unsafeKey({ key: 'G', shiftKey: true }), false);
   assert.equal(editable({ closest: selector => selector.includes('[role="textbox"]') }), true);
   assert.equal(editable({}), false);
+});
+
+test('styled switches use explicit visible geometry with one semantic target and preserve availability guards', () => {
+  const proxy = { isConnected: true, hasAttribute: name => name === 'data-vim-control',
+    matches: () => false, parentElement: { closest: () => null }, contains: () => false,
+    getClientRects: () => [{left:300,right:338,top:100,bottom:122}] };
+  let disabled = false, hidden = false, hit = proxy;
+  const control = { isConnected: true, nextElementSibling: proxy, contains: () => false,
+    closest: () => hidden ? {} : null,
+    matches: selector => selector.includes('type="checkbox"') || selector === ':disabled' && disabled };
+  const doc = { querySelectorAll: selector => { assert.ok(!selector.includes('label.setting-row')); return [control]; },
+    documentElement: {clientWidth:360}, elementFromPoint: () => hit };
+  const view = {innerHeight:650,getComputedStyle: () => ({display:'inline',visibility:'visible',opacity:'1'})};
+  assert.equal(hintAnchor(control),proxy);
+  assert.deepEqual(hintTargets(doc,view),[control]);
+  disabled=true;assert.deepEqual(hintTargets(doc,view),[]);disabled=false;
+  hidden=true;assert.deepEqual(hintTargets(doc,view),[]);hidden=false;
+  hit={};assert.deepEqual(hintTargets(doc,view),[]);
+  control.nextElementSibling={hasAttribute:()=>false};assert.equal(hintAnchor(control),control,'unassociated siblings never supply geometry');
+});
+
+test('switch hints sit beside the actual switch and measured labels stay within narrow viewports', () => {
+  const rect={left:300,top:100,height:22};
+  assert.deepEqual(hintPosition(rect,24,22,360,650,true),{left:272,top:100});
+  assert.deepEqual(hintPosition({left:-5,top:-10,height:22},24,22,360,650,true),{left:2,top:2});
+  assert.deepEqual(hintPosition({left:355,top:645,height:22},24,22,360,650),{left:334,top:626});
 });
 
 // Tiny event surfaces test the controller lifecycle without imitating a DOM renderer.

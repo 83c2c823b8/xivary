@@ -306,6 +306,12 @@ output and minimum-browser-version rendering remain manual checks.
 
 ## Optional Vim Mode
 
+Hints use each interactive control's geometry. Settings' styled switches expose
+their visible geometry to the shared engine while retaining one checkbox target;
+compact labels sit beside the switch, not beside the row text. Hint activation
+does not focus switches/buttons, so Normal Mode remains available after saving.
+Editor hints still focus the field, and newly opened dialogs retain native focus.
+
 Settings retains one default-off, device-local Vim Mode switch. Library, Following,
 Author Results and Settings reuse the same document-scrolling controller, browser
 history (`h/l`), browser-tab navigation (`J` left, `K` right, wrapping), temporary

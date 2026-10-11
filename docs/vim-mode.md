@@ -61,10 +61,19 @@ Hints use deterministic DOM order and equal-length, prefix-free labels from
 activation requires a complete label. Default labels remain compact monochrome;
 remaining partial matches have a subtle pale-yellow/olive accent in light/dark
 styles. Hidden, disabled, inert, offscreen and occluded targets are excluded.
-Settings includes sidebar links, switch labels and ordinary buttons/editors.
+Settings includes sidebar links, switches and ordinary buttons/editors. A styled
+checkbox remains the single semantic target; its explicitly marked visible switch
+supplies geometry. Labels sit immediately beside switches and use measured hint
+dimensions to stay inside the viewport, including narrow layouts. Fresh sessions
+recalculate geometry; scrolling, resizing or document changes dismiss stale hints.
 `F` opens HTTP(S) or extension links with `noopener noreferrer`; buttons and
 checkbox/radio actions retain normal activation and confirmations. Download and
 nonnavigational links retain normal activation. Text-field hints focus native editing.
+Noneditable hints click without first focusing the control, so switches/buttons
+do not leave focus behind or interrupt Normal Mode. Focus intentionally opened in
+a new editor or dialog is preserved; native Tab focus and visible outlines are
+unchanged. Disabling Vim Mode through its own hint removes the session and keeps
+shortcuts disabled.
 Escape/Ctrl+[, outside activation, scrolling, resizing, blur, editing focus or DOM
 changes remove hints, highlights and observers. Page exit removes listeners and
 subscriptions; cached history pages refresh preferences when shown again.
@@ -93,6 +102,19 @@ TOC clicks and scroll-spy never rewrite history, discard drafts or remount contr
 The existing Author Results `/` shortcut remains independent.
 
 ## Verification and limits
+
+The Settings hint correction starts from clean `master` at `787831c` (214 baseline
+Node tests). The focused regression suite passes 216 Node tests, Chrome 154 and
+Firefox 157 installed-extension workflows, release integration, both browser
+packages and whitespace checks. Native Settings keys exercise switch geometry
+and one-target ownership, exactly-once changes, unchanged scroll/focus after
+saving, `f → switch → j/k → f`, own-switch disabling/re-enabling, macro-editor
+hint focus/Escape/Ctrl+[, button and TOC activation. Geometry is measured on the
+actual Settings document at desktop and narrow widths, including viewport-edge
+clamping; labels are remeasured as fonts settle. Test setup waits for native TOC
+scrolling to finish before starting another hint session. Before/after desktop hint screenshots
+and updated narrow screenshots were inspected. These are headless, disposable
+installed-extension profiles, not substitute Settings fixtures or store installs.
 
 Starting tree: clean `master` at `c6919ac`; baseline Node tests passed 201/201.
 The baseline Chromium workflow exposed a focused-fixture hint issue; the harness

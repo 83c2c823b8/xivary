@@ -3,7 +3,7 @@ import { activateAdjacentTab } from '../platform/tab-navigation.js';
 export const HINT_ALPHABET = "asdfghjk";
 export const SEQUENCE_TIMEOUT = 650;
 const EDITABLE = 'input,textarea,select,[contenteditable]:not([contenteditable="false"]),[role="textbox"],[role="combobox"],[role="spinbutton"],[role="slider"]';
-const ACTIONABLE = 'a[href],button,input:not([type="hidden"]),textarea,select,[contenteditable="true"],[role="button"][tabindex],[role="link"][tabindex],label.setting-row';
+const ACTIONABLE = 'a[href],button,input:not([type="hidden"]),textarea,select,[contenteditable="true"],[role="button"][tabindex],[role="link"][tabindex]';
 
 /** Equal-length base-N labels are prefix-free, including beyond one alphabet. */
 export function hintLabels(count) {
@@ -27,10 +27,35 @@ export function unsafeKey(event) {
   return event.defaultPrevented || event.ctrlKey || event.altKey || event.metaKey || event.isComposing || event.keyCode === 229;
 }
 
-function rendered(node, view) {
-  if (!node.isConnected || node.closest('[hidden],[inert],[aria-hidden="true"],[aria-disabled="true"]') || node.matches(':disabled')) return false;
+function rendered(node, view, presentation = false) {
+  // An explicitly associated visual proxy may itself be aria-hidden; its
+  // semantic input and all ancestors must still be available to the user.
+  const hidden = '[hidden],[inert],[aria-hidden="true"],[aria-disabled="true"]';
+  if (!node.isConnected || node.matches(':disabled') || (presentation
+    ? node.matches('[hidden],[inert],[aria-disabled="true"]') || node.parentElement?.closest(hidden)
+    : node.closest(hidden))) return false;
   const style = view.getComputedStyle(node);
   return style.display !== "none" && style.visibility === "visible" && style.opacity !== "0" && node.getClientRects().length > 0;
+}
+
+/** Styled native controls opt into geometry only, never a second click target. */
+export function hintAnchor(target) {
+  return target.matches('input[type="checkbox"],input[type="radio"]') &&
+    target.nextElementSibling?.hasAttribute('data-vim-control') ? target.nextElementSibling : target;
+}
+
+function hintRendered(target, view) {
+  const anchor = hintAnchor(target);
+  return target.isConnected && !target.matches(':disabled') &&
+    !target.closest('[hidden],[inert],[aria-hidden="true"],[aria-disabled="true"]') &&
+    rendered(anchor, view, anchor !== target);
+}
+
+export function hintPosition(rect, width, height, viewportWidth, viewportHeight, beside = false) {
+  return {
+    left: Math.max(2, Math.min(beside ? rect.left - width - 4 : rect.left, viewportWidth - width - 2)),
+    top: Math.max(2, Math.min(beside ? rect.top + (rect.height - height) / 2 : rect.top, viewportHeight - height - 2)),
+  };
 }
 
 /** Offscreen editors are eligible; focus must not scroll the document. */
@@ -62,16 +87,16 @@ function focusInput(doc, view) {
 
 export function hintTargets(doc, view) {
   return [...doc.querySelectorAll(ACTIONABLE)].filter(node => {
-    if (node.matches('label.setting-row') && node.querySelector('input')?.disabled) return false;
-    if (!rendered(node, view) || node.closest('[data-vim-overlay]')) return false;
+    if (!hintRendered(node, view) || node.closest('[data-vim-overlay]')) return false;
+    const anchor = hintAnchor(node);
     // Test actual fragments: a wrapped link's bounding-box center can be prose
     // whitespace, even when the link itself is visible and actionable.
-    return [...node.getClientRects()].some(rect => {
+    return [...anchor.getClientRects()].some(rect => {
       const left = Math.max(0, rect.left), right = Math.min(doc.documentElement.clientWidth, rect.right);
       const top = Math.max(0, rect.top), bottom = Math.min(view.innerHeight, rect.bottom);
       if (right <= left || bottom <= top) return false;
       const hit = doc.elementFromPoint((left + right) / 2, (top + bottom) / 2);
-      return hit === node || node.contains(hit);
+      return hit === node || node.contains(hit) || hit === anchor || anchor.contains(hit);
     });
   });
 }
@@ -136,13 +161,14 @@ export function createScrollAnimator(doc, view) {
 
 export function bindVimMode(repository, doc = document, view = window, switchTab = activateAdjacentTab) {
   let enabled = false, disposed = false, composing = false, sequenceTimer = null;
-  let hints = null, prefix = "", newTab = false, observer = null, help = null;
+  let hints = null, prefix = "", newTab = false, observer = null, geometryObserver = null, help = null;
   let revision = 0;
   let switchingTab = false;
   const scrolling = createScrollAnimator(doc, view);
   const resetSequence = () => { view.clearTimeout(sequenceTimer); sequenceTimer = null; };
   const cancelHints = () => {
     observer?.disconnect(); observer = null;
+    geometryObserver?.disconnect(); geometryObserver = null;
     hints?.overlay.remove(); hints = null; prefix = "";
   };
   const cancel = () => { scrolling.cancel(); resetSequence(); cancelHints(); help?.close(); };
@@ -173,13 +199,28 @@ export function bindVimMode(repository, doc = document, view = window, switchTab
     const entries = targets.map((target, index) => {
       const node = doc.createElement("span");
       node.className = "vim-hint"; node.dataset.hint = labels[index]; node.textContent = labels[index];
-      const rect = target.getBoundingClientRect();
-      node.style.left = `${Math.max(2, Math.min(rect.left, doc.documentElement.clientWidth - labels[index].length * 10 - 12))}px`;
-      node.style.top = `${Math.max(2, Math.min(rect.top, view.innerHeight - 24))}px`;
       overlay.append(node);
       return { target, label: labels[index], node };
     });
     doc.body.append(overlay); hints = { overlay, entries };
+    const positionHints = () => {
+      if (hints?.overlay !== overlay) return;
+      for (const { target, node } of entries) {
+        const anchor = hintAnchor(target), size = node.getBoundingClientRect();
+        const position = hintPosition(anchor.getBoundingClientRect(), size.width, size.height,
+          doc.documentElement.clientWidth, view.innerHeight, anchor !== target);
+        node.style.left = `${position.left}px`; node.style.top = `${position.top}px`;
+      }
+    };
+    positionHints();
+    // Font loading can change measured label dimensions without a DOM mutation.
+    // Observe only this session's labels/anchors; teardown releases all targets.
+    if (view.ResizeObserver) {
+      geometryObserver = new view.ResizeObserver(positionHints);
+      for (const { target, node } of entries) {
+        geometryObserver.observe(node); geometryObserver.observe(hintAnchor(target));
+      }
+    }
     observer = new view.MutationObserver(records => {
       if (records.some(record => !overlay.contains(record.target))) cancelHints();
     });
@@ -189,15 +230,21 @@ export function bindVimMode(repository, doc = document, view = window, switchTab
   function activate(target) {
     const openInNewTab = newTab;
     cancelHints();
-    if (!rendered(target, view) || transient(doc, view)) return;
-    target.focus({ preventScroll: true });
+    if (!hintRendered(target, view) || transient(doc, view)) return;
+    const editor = editable(target) && !target.matches('input[type="checkbox"],input[type="radio"],input[type="button"],input[type="submit"],input[type="reset"]');
+    if (editor) { target.focus({ preventScroll: true }); return; }
+    // Do not focus a control before clicking it: native label activation and
+    // asynchronous save/focus restoration can otherwise leave editing guards
+    // active. Keep intentional focus in newly opened editors/dialogs intact.
+    if (doc.activeElement === target) target.blur();
     // F overrides the link's tab choice; buttons retain their ordinary action.
     if (openInNewTab && target.matches('a[href]:not([download])') &&
         /^(https?:|chrome-extension:|moz-extension:)$/.test(new URL(target.href).protocol)) {
       const link = doc.createElement("a");
       link.href = target.href; link.target = "_blank"; link.rel = "noopener noreferrer";
       doc.body.append(link); link.click(); link.remove();
-    } else if (!editable(target) || target.matches('input[type="checkbox"],input[type="radio"],input[type="button"],input[type="submit"],input[type="reset"]')) target.click();
+    } else target.click();
+    if (doc.activeElement === target) target.blur();
   }
 
   function showHelp() {
