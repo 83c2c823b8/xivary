@@ -224,7 +224,7 @@ try {
   console.log("Chrome Sync PASS: alarm delivery, worker recreation and publication without repository/UI activity");
 
   const beforeReload = await chrome.evaluate(session, localState);
-  await chrome.send("Runtime.evaluate", { expression: "chrome.runtime.reload()" }, session);
+  await chrome.send("Runtime.evaluate", { expression: "setTimeout(() => chrome.runtime.reload(), 50)" }, session);
   // Chrome disables a CDP-loaded unpacked extension on runtime.reload(). Reenable
   // it through Chrome's own extensions page, in this disposable profile only.
   await waitFor(async () => (await chrome.send("Extensions.getExtensions")).extensions.some(item => item.id === extensionId && !item.enabled), "unpacked reload disabled the test extension");

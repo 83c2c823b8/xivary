@@ -266,7 +266,12 @@ try {
   await navigateExtension("settings/settings.html");
   await latexSettingsWorkflow({evaluate:evaluateAsync,until,click:pickerClick,reload:()=>command('/refresh'),resize:(width,height)=>command('/window/rect',{width,height:height+100}),screenshot});
   await vimWorkflow({evaluate:evaluateAsync,until,click:pickerClick,navigate:navigateExtension,reload:()=>command('/refresh'),
-    key:async key=>{const shifted=/^[A-Z?]$/.test(key);const value={Escape:'\uE00C',Enter:'\uE007',Tab:'\uE004'}[key]||key;await command('/actions',{actions:[{type:'key',id:'keyboard',actions:[...(shifted?[{type:'keyDown',value:'\uE008'}]:[]),{type:'keyDown',value},{type:'keyUp',value},...(shifted?[{type:'keyUp',value:'\uE008'}]:[])]}]})},
+    key:async key=>{const control=key==='Ctrl+[';const backTab=key==='Shift+Tab';if(control)key='[';if(backTab)key='Tab';const shifted=backTab||/^[A-Z?]$/.test(key);const value={Escape:'\uE00C',Enter:'\uE007',Tab:'\uE004',F2:'\uE032'}[key]||key;await command('/actions',{actions:[{type:'key',id:'keyboard',actions:[...(control?[{type:'keyDown',value:'\uE009'}]:[]),...(shifted?[{type:'keyDown',value:'\uE008'}]:[]),{type:'keyDown',value},{type:'keyUp',value},...(shifted?[{type:'keyUp',value:'\uE008'}]:[]),...(control?[{type:'keyUp',value:'\uE009'}]:[])]}]})},
+    media: async ({colorScheme='light',reducedMotion=false}) => {
+      await command('/moz/context',{context:'chrome'});
+      try { await command('/execute/sync',{script:`Services.prefs.setIntPref('ui.systemUsesDarkTheme',${colorScheme==='dark'?1:0});Services.prefs.setIntPref('ui.prefersReducedMotion',${reducedMotion?1:0});`,args:[]}); }
+      finally { await command('/moz/context',{context:'content'}); }
+    },
     resize:(width,height)=>command('/window/rect',{width,height:height+100}),screenshot,
     openLink:async operation=>{const source=await request('GET',`/session/${session}/window`);const handles=await request('GET',`/session/${session}/window/handles`);await operation();await switchToNewPage(handles);await until('document.querySelector("#vim-mode")');assert.equal(await evaluate('window.opener===null'),true);assert.equal(await evaluate('location.href'),extensionUrl('settings/settings.html'));await request('DELETE',`/session/${session}/window`);await command('/window',{handle:source})},
   });

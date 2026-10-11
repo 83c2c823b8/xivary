@@ -1,7 +1,11 @@
+import { bindVimMode } from "../ui/vim-mode.js";
+import { bindSettingsToc } from "../ui/settings-toc.js";
 import { parseLatexMacros } from "../domain/latex.js";
 import { RepositoryClient } from "../repository/repository-client.js";
 
 const repository = new RepositoryClient();
+bindVimMode(repository);
+bindSettingsToc();
 const element = id => document.getElementById(id);
 const controls = {
   "vim-mode": { key: "vimMode", save: enabled => repository.setVimMode(enabled) },

@@ -115,11 +115,17 @@ export async function polishSmoke() {
     await chrome.send('Emulation.clearDeviceMetricsOverride',{},author);
     await rpc(author, "repo.setOrganizeFollowedAuthorsIntoCollections(false)");
     // Unexpected HTTP-200 HTML is an error, never a genuine empty feed/cache.
+    await chrome.send('Page.bringToFront', {}, author);
+    await chrome.evaluate(author, 'new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))');
+    await chrome.until(author, "!document.querySelector('#refresh').disabled && document.querySelector('.paper-row')");
     response = '<html><body>Temporarily unavailable</body></html>';
+    const beforeInvalidRequest = requests;
     await chrome.click(author, "#refresh");
+    await waitFor(() => requests > beforeInvalidRequest, 'native Refresh starts the malformed-response request');
     await chrome.until(author, "document.querySelector('#status').textContent.includes('unexpected response')");
     assert.equal(await chrome.evaluate(author, "document.querySelector('#empty').hidden && document.querySelectorAll('.paper-row').length===1"), true);
     assert.equal((await rpc(author, "repo.getAuthorPaperCache('arxiv-author:name:v1:alex%20kim')")).papers.length, 1);
+    await chrome.until(author, "!document.querySelector('#refresh').disabled");
     response = emptyFeed; await chrome.click(author, "#refresh");
     await chrome.until(author, "!document.querySelector('#empty').hidden && !document.querySelector('#status').textContent");
     response = atom;

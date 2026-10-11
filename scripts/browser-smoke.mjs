@@ -1,4 +1,5 @@
 import { vimWorkflow } from "./vim-workflow.mjs";
+import { browserTabWorkflow } from './browser-tab-workflow.mjs';
 import { followingSearchWorkflow } from "./following-search-workflow.mjs";
 import { latexSettingsWorkflow, latexAuthorWorkflow } from "./latex-workflow.mjs";
 import { libraryDateWorkflow } from './library-date-workflow.mjs';
@@ -19,7 +20,7 @@ for(const stream of [chrome.stdio[3],chrome.stdio[4]])stream.on("error",e=>async
 chrome.stdio[4].on("data",data=>{buffer+=data;let index;while((index=buffer.indexOf("\0"))>=0){const message=JSON.parse(buffer.slice(0,index));buffer=buffer.slice(index+1);if(message.id){const callback=pending.get(message.id);pending.delete(message.id);message.error?callback?.reject(new Error(JSON.stringify(message.error))):callback?.resolve(message.result)}else listeners.forEach(listener=>listener(message))}});
 function send(method,params={},sessionId){return new Promise((resolve,reject)=>{const id=++nextId;const timer=setTimeout(()=>{pending.delete(id);reject(new Error(`Timeout: ${method} ${params.expression?.slice(0,240) || ""}\n${errors.slice(-2000)}`))},15000);pending.set(id,{resolve:value=>{clearTimeout(timer);resolve(value)},reject:error=>{clearTimeout(timer);reject(error)}});chrome.stdio[3].write(JSON.stringify({id,method,params,sessionId})+"\0")})}
 async function evaluate(sessionId,expression){const result=await send("Runtime.evaluate",{expression,returnByValue:true,awaitPromise:true},sessionId);if(result.exceptionDetails)throw new Error(JSON.stringify(result.exceptionDetails));return result.result.value}
-async function until(sessionId,expression){for(let i=0;i<80;i++){if(await evaluate(sessionId,expression))return;await new Promise(resolve=>setTimeout(resolve,100))}throw new Error(`Condition not met: ${expression}\n${await evaluate(sessionId,"document.body.innerText")}\nRuntime errors: ${JSON.stringify(runtimeErrors)}`)}
+async function until(sessionId,expression){for(let i=0;i<80;i++){if(await evaluate(sessionId,expression))return;await new Promise(resolve=>setTimeout(resolve,100))}throw new Error(`Condition not met: ${expression}\n${await evaluate(sessionId,"document.body.innerText")}\nScroll: ${await evaluate(sessionId,"JSON.stringify({y:scrollY,height:innerHeight,total:document.scrollingElement.scrollHeight})")}\nRuntime errors: ${JSON.stringify(runtimeErrors)}`)}
 async function page(){const {targetId}=await send("Target.createTarget",{url:"about:blank"});const {sessionId}=await send("Target.attachToTarget",{targetId,flatten:true});await send("Page.enable",{},sessionId);await send("Runtime.enable",{},sessionId);return{targetId,sessionId}}
 async function nativeClick(sessionId,selector,modifiers=0,button="left",clickCount=1){const point=await evaluate(sessionId,`(()=>{const node=document.querySelector(${JSON.stringify(selector)});node.scrollIntoView({block:'nearest'});const rect=node.getBoundingClientRect();return{x:rect.left+rect.width/2,y:rect.top+rect.height/2}})()`);await send("Input.dispatchMouseEvent",{type:"mousePressed",x:point.x,y:point.y,button,buttons:button==="middle"?4:button==="right"?2:1,clickCount,modifiers},sessionId);await send("Input.dispatchMouseEvent",{type:"mouseReleased",x:point.x,y:point.y,button,buttons:0,clickCount,modifiers},sessionId)}
 async function sidebarClick(session, selector, {button='left',double=false}={}) {
@@ -319,9 +320,11 @@ try{
   await vimWorkflow({
     evaluate:expression=>evaluate(library,expression), until:expression=>until(library,expression),
     click:selector=>sidebarClick(library,selector),
-    key:async key=>{const special={Escape:27,Enter:13,Tab:9}; const shifted=/^[A-Z?]$/.test(key); for(const type of ['keyDown','keyUp']) await send('Input.dispatchKeyEvent',{type,key,code:key===' '?'Space':key.length===1?'Key'+key.toUpperCase():key,windowsVirtualKeyCode:special[key]||key.toUpperCase().charCodeAt(0),modifiers:shifted?8:0,...(type==='keyDown'&&key.length===1?{text:key}:{})},library)},
+    key:async key=>{const control=key==='Ctrl+[';const backTab=key==='Shift+Tab';if(control)key='[';if(backTab)key='Tab';const special={Escape:27,Enter:13,Tab:9,F2:113,'[':219}; const shifted=/^[A-Z?]$/.test(key); for(const type of ['keyDown','keyUp']) await send('Input.dispatchKeyEvent',{type,key,code:key==='['?'BracketLeft':key===' '?'Space':key.length===1?'Key'+key.toUpperCase():key,windowsVirtualKeyCode:special[key]||key.toUpperCase().charCodeAt(0),modifiers:control?2:shifted||backTab?8:0,...(type==='keyDown'&&key.length===1&&!control?{text:key}:{})},library)},
     navigate:async path=>{await send('Page.bringToFront',{},library);await send('Page.navigate',{url:extensionUrl(path)},library)}, reload:()=>send('Page.reload',{},library),
     resize:(width,height)=>send('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile:false},library), screenshot:name=>screenshot(library,name,{focus:false}),
+    media: async ({colorScheme='light',reducedMotion=false}) => send('Emulation.setEmulatedMedia',{features:[{name:'prefers-color-scheme',value:colorScheme},{name:'prefers-reduced-motion',value:reducedMotion?'reduce':'no-preference'}]},library),
+    tabNavigation: async () => { await browserTabWorkflow({evaluateSource: expression=>evaluate(library,expression), evaluate, send, until, extensionUrl}); await send('Page.bringToFront',{},library); },
     openLink:async operation=>{const target=await createdTarget(operation,target=>target.url===extensionUrl('settings/settings.html')); const {sessionId}=await send('Target.attachToTarget',{targetId:target.targetId,flatten:true}); await until(sessionId,'document.querySelector("#vim-mode")'); assert.equal(await evaluate(sessionId,'window.opener===null'),true); await send('Target.closeTarget',{targetId:target.targetId}); await send('Page.bringToFront',{},library)},
   });
   for(const session of [library,authors]){
@@ -335,7 +338,7 @@ try{
   await until(arxiv,"document.querySelector('.arxiv-library-bookmark') && !document.querySelector('.arxiv-library-bookmark').disabled");
   await evaluate(arxiv,"document.querySelector('.arxiv-library-bookmark').click()");
   await until(arxiv,"document.querySelector('.arxiv-collection-picker')");
-  await send("Runtime.evaluate",{expression:"chrome.runtime.reload()"},library);
+  await send("Runtime.evaluate",{expression:"setTimeout(() => chrome.runtime.reload(), 50)"},library);
   for(let i=0;i<80;i++) {if ((await send("Extensions.getExtensions")).extensions.some(item=>item.id===extensionId&&!item.enabled)) break; await new Promise(resolve=>setTimeout(resolve,100));}
   await evaluate(arxiv,"window.dispatchEvent(new Event('focus'))");
   await until(arxiv,"document.querySelector('.arxiv-library-bookmark').disabled && document.querySelector('.arxiv-library-status').textContent==='Reload this page to reconnect Xivary.'");

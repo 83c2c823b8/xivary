@@ -3,8 +3,14 @@
 ## Unreleased (development after 0.3.0 preparation)
 
 - Add optional, default-off Vim Mode on Library, Following and Author Results:
-  document scrolling, internal tab navigation, temporary action hints and shortcut
-  help. Keep editing, IME, menus and dialogs native; store the preference locally.
+  responsive document scrolling, browser history (`h/l`), browser tabs left/right
+  (`J/K`, with wraparound), temporary action hints and shortcut help. `gi` focuses
+  search or an editor; Escape/Ctrl+[ leaves ordinary fields without changing text.
+  Keep native Tab order, IME, menus and dialogs; store the preference locally.
+- Keep Settings as a continuous document with a sticky table of contents, direct
+  fragments, scroll-spy and shared Vim Mode. Preserve unsaved macro drafts.
+- Retain monochrome hints; partial multi-letter matches use restrained pale-yellow
+  accents. Animate j/k with a short retargetable motion and honor reduced motion.
 - Add the optional Support Xivary text and official Buy Me a Coffee link at the
   bottom of Settings; no donation banner or feature gating.
 - Audit optional library synchronization with realistic capacity fixtures and

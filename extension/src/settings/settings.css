@@ -1,4 +1,9 @@
-.settings-page { width: min(760px, calc(100% - 48px)); }
+.settings-page { width: min(960px, calc(100% - 48px)); display: grid; grid-template-columns: 160px minmax(0, 1fr); gap: 24px; }
+.settings-content { min-width: 0; }
+.settings-toc { position: sticky; top: 16px; align-self: start; display: grid; gap: 2px; font-size: 14px; }
+.settings-toc a { display: block; padding: 5px 8px; border-left: 2px solid transparent; text-decoration: none; }
+.settings-toc a[aria-current="location"] { color: var(--text); background: var(--surface); border-color: var(--border-strong); font-weight: 600; }
+.settings-page [data-settings-section] { scroll-margin-top: var(--settings-scroll-offset, 16px); }
 .settings-page section { padding: 3px 0 24px; }
 .settings-page section ~ section { padding-top: 22px; border-top: 1px solid var(--border); }
 .settings-page h2 { margin: 0 0 8px; font-size: 16px; line-height: 1.4; font-weight: 600; }
@@ -16,7 +21,11 @@ dialog select { width: 100%; min-height: 36px; }
 .toggle-input:checked + .toggle::after { transform: translateX(16px); }
 .toggle-input:focus-visible + .toggle { outline: 2px solid var(--focus); outline-offset: 2px; }
 .toggle-input:disabled + .toggle { opacity: .55; }
-@media (max-width: 600px) { .settings-page { width: min(100% - 24px, 760px); } }
+@media (max-width: 700px) {
+  .settings-page { width: calc(100% - 24px); display: block; }
+  .settings-toc { top: 0; z-index: 10; display: flex; flex-wrap: wrap; gap: 2px 6px; padding: 6px 0; margin-bottom: 16px; background: var(--bg); border-bottom: 1px solid var(--border); }
+  .settings-toc a { padding: 4px 6px; }
+}
 
 #latex-macros { display: block; width: 100%; max-width: 64ch; resize: vertical; padding: 8px; font: 14px/1.5 ui-monospace, monospace; border: 1px solid var(--border); border-radius: var(--radius-control); }
 #macros-help { margin-top: 6px; }

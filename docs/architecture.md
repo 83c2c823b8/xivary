@@ -77,7 +77,11 @@ the sender and exposes subscription/unsubscription. Views reread through the sam
 repository contract, with revision guards for overlapping reads. Notification
 failure does not fail a local save. Focus/pageshow refresh covers missed messages;
 an unavailable repository disables shortcuts. No UI module accesses storage.
-Only Library, Following and Author Results import `ui/vim-mode.js`. See
+Library, Following, Author Results and Settings import `ui/vim-mode.js`. Browser
+history stays in the view; adjacent-tab activation crosses the platform adapter
+and the shared background entry point, with supported-sender/source-tab checks.
+Settings TOC scrolling is independent of routing and never replaces mounted forms
+or rewrites history. See
 [keyboard behavior and lifecycle](vim-mode.md).
 
 The internal `favorites` array remains the canonical paper-record compatibility

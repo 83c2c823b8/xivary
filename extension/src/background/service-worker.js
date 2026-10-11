@@ -4,6 +4,7 @@ import { LocalRepository } from "../repository/local-repository.js";
 import { SyncStorage } from "../repository/sync-storage.js";
 import { createRepositoryHandler } from "./repository-handler.js";
 import { createAuthorNavigationHandler } from "./author-navigation.js";
+import { createTabNavigationHandler } from "./tab-navigation.js";
 import { PREFERENCES_CHANGED_CHANNEL } from "../repository/repository-client.js";
 
 // Shared entry point: Chromium service worker or Firefox nonpersistent event page.
@@ -15,7 +16,8 @@ const { runtime } = api;
 const repositoryHandler = createRepositoryHandler(repository, runtime.id,
   () => runtime.sendMessage({ channel: PREFERENCES_CHANGED_CHANNEL }));
 const authorNavigationHandler = createAuthorNavigationHandler(api, repository);
-runtime.onMessage.addListener((...args) => repositoryHandler(...args) || authorNavigationHandler(...args));
+const tabNavigationHandler = createTabNavigationHandler(api, repository);
+runtime.onMessage.addListener((...args) => repositoryHandler(...args) || authorNavigationHandler(...args) || tabNavigationHandler(...args));
 
 if (transport) {
   const reconcile = () => repository.run(() => {}).catch(error => console.warn("Xivary library initialization:", error.message));

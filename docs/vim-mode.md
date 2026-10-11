@@ -1,93 +1,129 @@
 # Vim Mode
 
-Enable **Settings → Keyboard navigation → Vim Mode** for Library, Following and
-Author Results. It starts off, persists on this device, and updates open supported
-pages. Settings itself, the toolbar popup, the separate Search page and arXiv
+Enable **Settings → Keyboard navigation → Vim Mode** for Library, Following,
+Author Results and Settings. It starts off, persists on this device, and updates
+already-open supported pages. The toolbar popup, separate Search page and arXiv
 content scripts do not install Vim shortcuts. No permissions or dependencies change.
 
 | Key | Action |
 | --- | --- |
-| `j` / `k` | Scroll the document down / up by 80 CSS pixels |
+| `j` / `k` | Scroll down / up by 80 CSS pixels |
 | `d` / `u` | Scroll down / up by half the viewport |
 | `gg` / `G` | Top / bottom |
-| `h` / `l` | Previous / next Xivary navigation tab |
+| `gi` | Focus the main search field or an eligible editor |
+| `h` / `l` | Browser history backward / forward |
+| `J` / `K` | Browser tab to the **left / right**, wrapping at either end |
 | `f` | Show hints for visible links and controls |
-| `F` | Show hints; open selected navigational links in a new tab |
-| `Escape` | Cancel hints or a pending key sequence; dismiss help |
-| `?` | Open a compact native shortcut dialog |
+| `F` | Hints; open selected navigational links in a new tab |
+| `Escape` / `Ctrl+[` | Cancel an interaction or leave an ordinary text field |
+| `?` | Open compact shortcut help |
 
-The visible tab order is **Library → Following**, without wrapping. Author Results
-uses Following's current-tab marker: `h` goes to Library, and `l` does nothing.
-Collection sidebars and browser tabs are not this horizontal navigation. Native
-anchor activation preserves existing full-page routing; navigating starts the
-destination's normal view lifecycle, including its temporary filter defaults.
+## Navigation and focus
 
-The shared controller scrolls `document.scrollingElement` through immediate
-`window.scrollTo` calls. It never selects rows or queues smooth animations. Sidebar
-and picker scrolling remains native. `gg` requires a second `g` within 650ms;
-an isolated or expired `g` does nothing. Other handled keys reset the sequence.
+`h/l` call `window.history.back()/forward()`, including same-document entries;
+missing entries are no-ops. They never switch Xivary views directly. Leaving an
+extension page for an ordinary website also leaves Xivary's keyboard handler.
+
+`J` moves left (index -1), `K` right (index +1). The shared background handler
+queries indices in the source tab's window and activates the adjacent tab, including
+pinned tabs. It rechecks source activation, the enabled preference and supported
+internal sender before acting, handles closed tabs/API failures, and never explicitly
+opens, closes, reorders or reloads tabs. A single-tab window is a no-op. Chrome may
+restore a discarded tab on activation. No broad `tabs` permission is needed for
+indices/activation; that permission exposes sensitive tab metadata ([Chrome API
+documentation](https://developer.chrome.com/docs/extensions/reference/api/tabs)).
+The platform boundary uses the native Promise API in both browsers.
+
+`g` starts a 650ms sequence: `gg` scrolls to top; `gi` focuses an editor. An expired,
+cancelled or invalid sequence does not focus a field. Library/Following prefer
+`#filter`; Author Results prefers `#paper-query` when its search panel is visible;
+Settings prefers `#latex-macros`. Otherwise use the first visible, connected,
+enabled, writable text input, textarea or contenteditable in document order.
+Hidden/inert content, closed dialogs and nontext controls are excluded. `gi` never
+opens hidden search panels or cycles fields. It preserves values, focuses without
+scrolling, and places a newly focused caret at the end where supported. Existing
+focus/selection remains unchanged; contenteditable caret placement uses a DOM Range
+without modifying nodes. Native Tab and Shift+Tab remain unhandled, including
+buttons and other controls in the normal focus order.
+
+## Scrolling and hints
+
+All supported pages scroll `document.scrollingElement`. j/k use one 90ms RAF
+animation: repeated keys accumulate a clamped target and reversal starts from the
+current offset. It does not queue independent smooth animations. Reduced motion
+uses immediate scrolling. Editing, pointer/wheel input, composition, viewport or
+content changes, native scroll displacement, page exit and disabling cancel pending
+motion. Dedicated sidebar/picker scrolling stays native. Other scroll commands are
+immediate and never select individual rows.
 
 Hints use deterministic DOM order and equal-length, prefix-free labels from
-`asdfghjk`; larger visible target sets use multiple letters. Typing narrows the
-labels, and activation requires a complete matching label. Hidden, disabled,
-inert, offscreen and center-occluded controls are excluded. Text-field hints focus
-the field for native editing. `F` opens navigational HTTP(S) or extension links
-with `noopener noreferrer`; buttons and checkbox/radio actions activate normally.
-Download and nonnavigational links retain their normal activation. Existing
-confirmations remain in force; hints do not bypass repository operations or dialogs.
+`asdfghjk`; larger visible target sets use multiple letters. Typing narrows labels;
+activation requires a complete label. Default labels remain compact monochrome;
+remaining partial matches have a subtle pale-yellow/olive accent in light/dark
+styles. Hidden, disabled, inert, offscreen and occluded targets are excluded.
+Settings includes sidebar links, switch labels and ordinary buttons/editors.
+`F` opens HTTP(S) or extension links with `noopener noreferrer`; buttons and
+checkbox/radio actions retain normal activation and confirmations. Download and
+nonnavigational links retain normal activation. Text-field hints focus native editing.
+Escape/Ctrl+[, outside activation, scrolling, resizing, blur, editing focus or DOM
+changes remove hints, highlights and observers. Page exit removes listeners and
+subscriptions; cached history pages refresh preferences when shown again.
 
-Escape, outside pointer activation, scrolling, resizing, window blur, editing
-focus or DOM changes dismiss hints. Each dismissal disconnects its observer and
-removes the overlay. Page exit removes controller listeners/subscriptions; cached
-history pages dismiss interactions and refresh preferences when shown again.
-Light/dark and forced-colors hint styles are local to the temporary labels.
+## Escape, editing and IME
 
-Inputs, textareas, selects, contenteditable and editable ARIA widgets suspend
-shortcuts. Composition events, `isComposing` and legacy key code 229 guard IME
-typing. Ctrl, Alt and Meta shortcuts and previously prevented events stay native.
-Visible forms, menus, listboxes and dialogs suspend underlying-page shortcuts.
-The help dialog uses native modal focus, Escape, a Close button and focus return.
-No permanent Vim indicator or per-row control is added. The existing Author
-Results `/` search shortcut remains independent.
+Normal shortcuts suspend in editable widgets and during composition (`composition`
+events, `isComposing`, legacy key code 229). Ctrl/Alt/Meta shortcuts remain native
+except enabled Ctrl+[. That alias requires Ctrl alone and logical `[` or physical
+`BracketLeft` for practical layout fallback; extra modifiers are excluded.
+
+Ctrl+[ dispatches one semantic Escape through existing component handlers. Target,
+form and document cancellation take priority; ordinary editor blur runs afterward
+at window bubble only if the event was unclaimed and no transient UI is active.
+Collection creation/renaming retain cancellation and focus return, menus/dialogs
+retain dismissal, and native dialogs retain their cancel contract. Ordinary text,
+search and macro fields keep entered values without saving/submitting. IME prevents
+editor blur/alias dispatch. During composition, capture stops application Escape
+cancellation while leaving its native IME default available. Only handled aliases suppress browser defaults. An
+unclaimed Normal-mode Escape does not navigate or mutate data.
+
+Visible transient forms, menus/listboxes, dialogs and popovers suspend underlying
+shortcuts. The permanent Settings macro form is explicitly exempt; typing remains
+guarded by its textarea. Settings has one continuous document with a sticky TOC;
+TOC clicks and scroll-spy never rewrite history, discard drafts or remount controls.
+The existing Author Results `/` shortcut remains independent.
 
 ## Verification and limits
 
-Starting tree: clean `master` at `c738d70`; baseline 192/192 Node tests passed.
-Final verification passes 201/201 Node tests, the installed Chromium 154 suite
-(including the polish regression suite), generated Firefox 157 package workflows,
-release transfer/Chrome Sync lifecycle tests, both 146-file package builds and
-`git diff --check`. Version remains 0.3.0. The four Sync preferences, library
-synchronization blocker and official Settings support footer are unchanged.
+Starting tree: clean `master` at `c6919ac`; baseline Node tests passed 201/201.
+The baseline Chromium workflow exposed a focused-fixture hint issue; the harness
+now explicitly leaves editing and waits for focus-triggered rerenders. Final checks
+pass 214/214 Node tests, installed unpacked Chromium 154 (including polish), the
+generated Firefox 157 package workflow, release integration, both 149-file packages
+and `git diff --check`. Version remains 0.3.0; permissions and synchronization
+storage are unchanged. Native test setup waits for enabled controls and settled
+layout; runtime reload is deferred until its DevTools request returns, then actual
+reload/recovery is asserted. Screenshots were captured and inspected.
 
-The Node tests cover defaults/migration, local-only persistence, portable/Sync
-exclusion, notifications/failures, deterministic labels, scroll bounds, timed
-sequences, stale asynchronous reads and controller cleanup. The shared installed
-extension workflow runs native key input in Chromium and Firefox, covering live
-updates, reloads, scrolling, tab boundaries, hint filtering/actions/new tabs,
-dynamic dismissal, narrow labels, editable fields, menus and collection dialogs.
-It compares portable Library/Following snapshots before and after the workflow.
-Chromium also checks notification delivery to an already-open Following page from
-another extension context, without focus/reload, and absence of shortcuts on arXiv.
-Both browsers verify native Space toggling and retained visible switch focus.
+Tests cover local default/persistence/live updates, sequence bounds, target
+eligibility, caret preservation, deterministic hints, animated scroll retargeting,
+reduced motion, history, tab wraparound/stale-source errors, typing/IME guards and
+cleanup. Shared installed-extension workflows use native browser keys on Library,
+Following, Author Results and Settings; long-list/hint fixtures are temporary DOM
+additions. Portable Library/Following snapshots are compared before and after.
+Settings checks direct fragments, sticky/narrow layout, native Tab order, unsaved
+macros/validation, hints and immediate disabling. Chromium uses a disposable
+multi-tab window for native J/K, pinned tabs, both wrap boundaries and single-tab
+no-ops. Firefox uses the direct binaries in [browser support](browser-support.md).
 
-Captured and inspected screenshots cover native Library/Following hints, a larger
-multi-character target fixture, Author Results, help, Settings and narrow viewports.
-Reproduce with `ARXIV_SCREENSHOT_DIR` on the browser commands; examples are
-`vim-library-native-hints.png`, `vim-following-native-hints.png`,
-`vim-author-hints.png`, `vim-help.png`, `vim-settings.png` and `vim-hints-narrow.png`,
-plus Firefox-prefixed equivalents. Chromium covers 360px; Firefox's native window
-minimum limits its narrow capture to 500px. Expanded scrolling/target fixtures are
-temporary DOM additions, with no persistent data writes.
-
-Firefox uses the direct binaries documented in [browser support](browser-support.md),
-because the Snap launchers cannot initialize temporary test profiles here. Harness
-waits allow repository loads and deferred scroll/resize events to settle; they never
-wait for animation frames after a hint has put its source tab in the background.
-These fixture runs are not store-installed or account-mediated Sync verification.
-
-IME event tests simulate Japanese composition; they do not operate an OS Japanese
-IME. Physical IME, screen-reader output, minimum browser versions and store-installed
-packages remain manual checks. Hint selection is designed for sighted keyboard
-use; overlays are accessibility-hidden and native controls retain their semantics.
-Center-occlusion detection is conservative: a partly covered control may be omitted.
-Layout changes cancel hints rather than attempting to retain an old label map.
+Capture screenshots with `ARXIV_SCREENSHOT_DIR`, including `vim-hints-light.png`,
+`vim-hints-light-partial.png`, dark equivalents, `vim-settings-toc.png`,
+`vim-settings-toc-narrow.png`, help and native-page hints. Chromium covers 360px;
+Firefox's native minimum limits narrow screenshots to 500px. Physical Japanese IME,
+screen-reader output, keyboard-layout coverage and minimum browser versions remain
+manual checks. Native adjacent-tab switching was verified in Chromium; Firefox
+adjacent-tab switching remains a manual check. Composition tests dispatch events,
+not an OS IME. These temporary
+installed profiles do not prove store-installed behavior or Google-account Sync.
+Conservative occlusion may omit partly covered targets; layout changes dismiss
+hints. Offscreen gi fields are focused without automatic scrolling. Email/number
+inputs may lack a caret API. Native widgets may reserve Escape for their own UI.

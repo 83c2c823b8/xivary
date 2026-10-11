@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { hintTargets, hintLabels, HINT_ALPHABET, editable, unsafeKey, scrollDestination, bindVimMode, SEQUENCE_TIMEOUT } from '../extension/src/ui/vim-mode.js';
+import { hintTargets, hintLabels, HINT_ALPHABET, editable, unsafeKey, scrollDestination, bindVimMode, SEQUENCE_TIMEOUT, createScrollAnimator, SCROLL_DURATION, escapeAlias, inputTarget } from '../extension/src/ui/vim-mode.js';
 import { LocalRepository } from '../extension/src/repository/local-repository.js';
 import { RepositoryClient, PREFERENCES_CHANGED_CHANNEL } from '../extension/src/repository/repository-client.js';
 import { createRepositoryHandler } from '../extension/src/background/repository-handler.js';
@@ -106,7 +106,7 @@ function surface() {
 test('controller defaults off, responds live, bounds gg, suspends composition and cleans up on page exit', async () => {
   const doc = Object.assign(surface(), { querySelectorAll: () => [], scrollingElement: { scrollTop: 200, scrollHeight: 3000 } });
   let timer, timerDelay, reads = 0, changed, preference = false;
-  const view = Object.assign(surface(), { innerHeight: 600, setTimeout: (fn, delay) => { timer = fn; timerDelay = delay; return 1; }, clearTimeout: () => { timer = null; }, scrollTo: options => { doc.scrollingElement.scrollTop = options.top; assert.equal(options.behavior, 'instant'); } });
+  const view = Object.assign(surface(), { history: {back(){},forward(){}}, innerHeight: 600, performance: { now: () => 0 }, matchMedia: () => ({ matches: true }), setTimeout: (fn, delay) => { timer = fn; timerDelay = delay; return 1; }, clearTimeout: () => { timer = null; }, scrollTo: options => { doc.scrollingElement.scrollTop = options.top; assert.equal(options.behavior, 'instant'); } });
   const repo = { getPreferences: async () => { reads++; return { vimMode: preference }; }, subscribePreferences: fn => { changed = fn; return () => { changed = null; }; } };
   const dispose = bindVimMode(repo, doc, view);
   const flush = () => new Promise(resolve => setImmediate(resolve));
@@ -127,7 +127,7 @@ test('controller defaults off, responds live, bounds gg, suspends composition an
   assert.equal(press('k', { ctrlKey: true }), false);
   assert.equal(press('k', { target: { closest: () => ({}) } }), false);
   assert.equal(press('k'), true); assert.equal(doc.scrollingElement.scrollTop, 2320);
-  assert.equal(press('h'), false); assert.equal(press('l'), false, 'pages with no internal tabs stay native');
+  assert.equal(press('h'), true); assert.equal(press('l'), true, 'history works independently of internal tabs');
   assert.equal(reads, 2, 'scrolling does not read storage');
   press('g'); preference = false; changed(); await flush();
   assert.equal(timer, null); assert.equal(press('g'), false);
@@ -148,4 +148,163 @@ test('out-of-order preference reads cannot re-enable a disabled or disposed cont
   changed(); dispose(); pending[2]({ vimMode: true });
   await new Promise(resolve => setImmediate(resolve));
   assert.equal(doc.count() + view.count(), 0);
+});
+
+function animationSurface() {
+  let now = 0, next = 0, writes = 0;
+  const frames = new Map(), reduced = { matches: false };
+  const doc = Object.assign(surface(), { querySelectorAll: () => [], scrollingElement: { scrollTop: 200, scrollHeight: 3000 } });
+  const view = Object.assign(surface(), {
+    history: {back(){},forward(){}}, innerHeight: 600, performance: { now: () => now }, matchMedia: () => reduced,
+    requestAnimationFrame: fn => { frames.set(++next, fn); return next; }, cancelAnimationFrame: id => frames.delete(id),
+    scrollTo: ({ top }) => { writes++; doc.scrollingElement.scrollTop = top; },
+    setTimeout, clearTimeout,
+  });
+  const step = time => { now = time; const pending = [...frames.values()]; frames.clear(); pending.forEach(fn => fn(now)); };
+  return { doc, view, frames, reduced, step, writes: () => writes };
+}
+
+test('j/k uses one responsive frame chain, accumulates repeats and reverses immediately', () => {
+  const { doc, view, frames, step } = animationSurface();
+  const animation = createScrollAnimator(doc, view);
+  animation.move('j'); assert.equal(frames.size, 1);
+  step(16); assert.ok(doc.scrollingElement.scrollTop > 200 && doc.scrollingElement.scrollTop < 280);
+  animation.move('j'); animation.move('j'); assert.equal(frames.size, 1);
+  step(16 + SCROLL_DURATION); assert.equal(doc.scrollingElement.scrollTop, 440); assert.equal(frames.size, 0);
+  animation.move('j'); step(120); const midway = doc.scrollingElement.scrollTop;
+  animation.move('k'); step(136); assert.ok(doc.scrollingElement.scrollTop < midway, 'direction reverses on the next frame');
+  step(120 + SCROLL_DURATION); assert.equal(doc.scrollingElement.scrollTop, midway - 80);
+});
+
+test('scroll animation respects boundaries/reduced motion and cancels changed or native contexts', () => {
+  for (const change of [
+    ({ doc }) => { doc.scrollingElement.scrollTop += 20; },
+    ({ doc }) => { doc.scrollingElement.scrollHeight += 20; },
+    ({ view }) => { view.innerHeight += 20; },
+    ({ doc }) => { doc.scrollingElement = { scrollTop: 0, scrollHeight: 5000 }; },
+  ]) {
+    const context = animationSurface(), animation = createScrollAnimator(context.doc, context.view);
+    animation.move('j'); const initialWrites=context.writes(); change(context); context.step(16);
+    assert.equal(context.writes(), initialWrites); assert.equal(context.frames.size, 0);
+  }
+  const { doc, view, reduced, frames, step, writes } = animationSurface();
+  const animation = createScrollAnimator(doc, view);
+  reduced.matches = true; animation.move('j'); assert.equal(doc.scrollingElement.scrollTop, 280); assert.equal(frames.size, 0);
+  doc.scrollingElement.scrollTop = 0; const before = writes(); animation.move('k'); assert.equal(writes(), before);
+  reduced.matches = false; animation.move('j'); animation.cancel(); step(200); assert.equal(doc.scrollingElement.scrollTop, 0);
+  animation.move('j'); reduced.matches = true; step(216); assert.equal(doc.scrollingElement.scrollTop, 80); assert.equal(frames.size, 0);
+});
+
+test('live disabling, editing, pointer/wheel, resize, blur and composition cancel pending scrolling', async () => {
+  const { doc, view, frames } = animationSurface();
+  let changed, enabled = true;
+  const dispose = bindVimMode({ getPreferences: async () => ({ vimMode: enabled }), subscribePreferences: fn => { changed = fn; return () => {}; } }, doc, view);
+  await new Promise(resolve => setImmediate(resolve));
+  const press = () => doc.dispatch('keydown', { key: 'j', target: {}, preventDefault() {} });
+  for (const [surface, type, event] of [[doc,'wheel'],[doc,'touchstart'],[doc,'pointerdown'],[view,'resize'],[view,'blur'],[doc,'focusin',{target:{}}],[doc,'compositionstart']]) {
+    press(); assert.equal(frames.size, 1); surface.dispatch(type, event); assert.equal(frames.size, 0);
+    doc.dispatch('compositionend');
+  }
+  press(); enabled = false; changed(); await new Promise(resolve => setImmediate(resolve)); assert.equal(frames.size, 0);
+  dispose(); assert.equal(doc.count() + view.count(), 0);
+});
+
+test('editable Escape yields to component cancellation/IME and preserves values; J/K stay guarded', async () => {
+  const { doc, view } = animationSurface();
+  let enabled = true, transient = false, calls = [], blurred = 0;
+  const field = { value: 'Keep typed text', type: 'search', closest() { return this; }, matches: selector => selector === 'input', contains: () => false, blur: () => { blurred++; doc.activeElement = null; } };
+  doc.activeElement = field;
+  doc.querySelectorAll = () => transient ? [{ isConnected: true, closest: () => null, matches: () => false, getClientRects: () => [{}] }] : [];
+  view.getComputedStyle = () => ({ display: 'block', visibility: 'visible', opacity: '1' });
+  const dispose = bindVimMode({ getPreferences: async () => ({ vimMode: enabled }), subscribePreferences: () => () => {} }, doc, view, direction => calls.push(direction));
+  await new Promise(resolve => setImmediate(resolve));
+  const event = extra => ({ key: 'Escape', target: field, preventDefault() { this.defaultPrevented = true; }, ...extra });
+  for (const extra of [{defaultPrevented:true},{isComposing:true},{keyCode:229},{ctrlKey:true}]) view.dispatch('keydown', event(extra));
+  doc.dispatch('compositionstart'); view.dispatch('keydown', event()); doc.dispatch('compositionend');
+  transient = true; view.dispatch('keydown', event()); transient = false;
+  assert.equal(blurred, 0);
+  for (const key of ['J','K']) doc.dispatch('keydown', event({key})); assert.deepEqual(calls, []);
+  const escape = event(); view.dispatch('keydown', escape); assert.equal(blurred, 1); assert.equal(escape.defaultPrevented, true); assert.equal(field.value, 'Keep typed text');
+  for (const key of ['J','K']) {
+    doc.dispatch('keydown', event({key,target:{}})); await new Promise(resolve => setImmediate(resolve));
+  }
+  assert.deepEqual(calls, [-1,1]);
+  for (const extra of [{isComposing:true},{keyCode:229},{ctrlKey:true}]) doc.dispatch('keydown', event({key:'J',target:{},...extra}));
+  await new Promise(resolve => setImmediate(resolve)); assert.deepEqual(calls, [-1,1]);
+  enabled = false; dispose();
+});
+
+test('h/l invoke real history methods only in enabled Normal Mode', async () => {
+  const { doc, view } = animationSurface();
+  let enabled = false, changed, back = 0, forward = 0;
+  view.history = { back: () => back++, forward: () => forward++ };
+  const dispose = bindVimMode({getPreferences:async()=>({vimMode:enabled}),subscribePreferences:fn=>{changed=fn;return()=>{};}},doc,view);
+  await new Promise(resolve=>setImmediate(resolve));
+  const press = (key, extra={}) => {
+    const event={key,target:{},preventDefault(){this.defaultPrevented=true;},...extra};doc.dispatch('keydown',event);return event;
+  };
+  assert.equal(press('h').defaultPrevented,undefined); assert.equal(press('l').defaultPrevented,undefined);
+  enabled=true; changed(); await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(press('h').defaultPrevented,true);assert.equal(press('l').defaultPrevented,true);
+  for(const key of ['h','l']) for(const extra of [{target:{closest:()=>({})}},{isComposing:true},{keyCode:229},{ctrlKey:true},{defaultPrevented:true}]) press(key,extra);
+  doc.dispatch('compositionstart'); press('h'); press('l');doc.dispatch('compositionend');
+  assert.deepEqual([back,forward],[1,1]);dispose();
+});
+
+test('Ctrl+[ semantic Escape recognizes logical brackets and physical layout fallback, with strict IME/modifier guards', () => {
+  assert.equal(escapeAlias({key:'[',ctrlKey:true}),true);
+  assert.equal(escapeAlias({key:'@',code:'BracketLeft',ctrlKey:true}),true);
+  for(const extra of [{shiftKey:true},{altKey:true},{metaKey:true},{isComposing:true},{keyCode:229}]) assert.equal(escapeAlias({key:'[',ctrlKey:true,...extra}),false);
+  assert.equal(escapeAlias({key:'['}),false);assert.equal(escapeAlias({key:'Escape'}),false);
+});
+
+test('gi chooses stable primary editors, rejects hidden/disabled/readonly/nontext fields, and falls back in document order', () => {
+  const field = (type='text', extra={}) => ({isConnected:true,type,readOnly:false,
+    closest:()=>null,matches:selector=>selector==='input' || selector===':disabled'&&Boolean(extra.disabled),getClientRects:()=>[{}],...extra});
+  const first=field(), search=field('search'), macros=field('textarea',{matches:()=>false});
+  let preferred={'#filter':search,'#latex-macros':macros};let fields=[first,search,macros];
+  const doc={querySelector:selector=>preferred[selector],querySelectorAll:()=>fields};
+  const view={getComputedStyle:()=>({display:'block',visibility:'visible',opacity:'1'})};
+  assert.equal(inputTarget(doc,view),search);
+  search.readOnly=true;assert.equal(inputTarget(doc,view),macros);
+  preferred={'#paper-query':first,'#latex-macros':macros};assert.equal(inputTarget(doc,view),first,'visible author search takes priority over fallback editors');
+  preferred={};assert.equal(inputTarget(doc,view),first);
+  fields=[field('checkbox'),field('file'),field('text',{disabled:true}),field('text',{isConnected:false}),field('text',{readOnly:true}),field('text',{closest:()=>({})})];
+  assert.equal(inputTarget(doc,view),undefined);
+  fields=[field('text',{getClientRects:()=>[]}),first];assert.equal(inputTarget(doc,view),first);
+});
+
+test('gi uses the bounded g sequence, preserves value/caret, emits no edits, and leaves Tab native', async () => {
+  const {doc,view}=animationSurface();let timer,focuses=0,selection,changed,enabled=true;
+  const field={isConnected:true,type:'search',value:'日本 geometry',readOnly:false,closest:()=>null,
+    matches:s=>s==='input'||s==='input,textarea',getClientRects:()=>[{}],contains:()=>false,
+    focus:options=>{assert.deepEqual(options,{preventScroll:true});focuses++;doc.activeElement=field;},setSelectionRange:(...args)=>selection=args};
+  doc.querySelector=()=>field;view.getComputedStyle=()=>({display:'block',visibility:'visible',opacity:'1'});
+  view.setTimeout=fn=>{timer=fn;return 1;};view.clearTimeout=()=>{timer=null;};
+  const dispose=bindVimMode({getPreferences:async()=>({vimMode:enabled}),subscribePreferences:fn=>{changed=fn;return()=>{};}},doc,view);
+  await new Promise(resolve=>setImmediate(resolve));
+  const press=(key,extra={})=>{const e={key,target:{},preventDefault(){this.defaultPrevented=true;},...extra};doc.dispatch('keydown',e);return e;};
+  assert.equal(press('i').defaultPrevented,undefined);
+  press('g');press('i');assert.equal(focuses,1);assert.deepEqual(selection,[field.value.length,field.value.length]);assert.equal(field.value,'日本 geometry');
+  selection=[2,2];press('g');press('i');assert.equal(focuses,1);assert.deepEqual(selection,[2,2],'already-focused field retains caret');
+  doc.activeElement=null;press('g');press('Escape');press('i');assert.equal(focuses,1);
+  press('g');timer();press('i');assert.equal(focuses,1);
+  press('g');press('x');press('i');assert.equal(focuses,1);
+  for(const extra of [{isComposing:true},{keyCode:229},{ctrlKey:true},{altKey:true},{metaKey:true},{target:{closest:()=>field}}]) {press('g',extra);press('i',extra);}
+  assert.equal(focuses,1);assert.equal(press('Tab').defaultPrevented,undefined);assert.equal(press('Tab',{shiftKey:true}).defaultPrevented,undefined);
+  press('g');view.dispatch('scroll');press('i');assert.equal(focuses,2,'ordinary scroll events do not destroy a bounded g sequence');
+  enabled=false;changed();await new Promise(resolve=>setImmediate(resolve));press('g');press('i');assert.equal(focuses,2);
+  dispose();
+});
+
+test('IME Escape capture protects component cancellation without preventing native composition defaults', async () => {
+  const {doc,view}=animationSurface();let enabled=true,changed,stops=0;
+  const dispose=bindVimMode({getPreferences:async()=>({vimMode:enabled}),subscribePreferences:fn=>{changed=fn;return()=>{};}},doc,view);
+  await new Promise(resolve=>setImmediate(resolve));
+  const press=extra=>{const event={key:'Escape',target:{},stopPropagation(){stops++;},preventDefault(){assert.fail('native IME default must remain available');},...extra};doc.dispatch('keydown',event);};
+  doc.dispatch('compositionstart');press({});doc.dispatch('compositionend');
+  press({isComposing:true});press({keyCode:229});assert.equal(stops,3);
+  press({isComposing:true,ctrlKey:true});assert.equal(stops,3,'modified shortcuts remain unclaimed');
+  enabled=false;changed();await new Promise(resolve=>setImmediate(resolve));press({isComposing:true});assert.equal(stops,3);
+  dispose();
 });

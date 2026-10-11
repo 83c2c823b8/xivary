@@ -306,26 +306,31 @@ output and minimum-browser-version rendering remain manual checks.
 
 ## Optional Vim Mode
 
-Settings uses one existing switch under Keyboard navigation, labeled Vim Mode
-with “Enable Vim-style keyboard navigation on Xivary pages.” It starts off and
-stays device-local. Library, Following and Author Results share document scrolling,
-horizontal Library → Following navigation, temporary link/control hints and a
-compact native shortcut dialog. Author Results is in the Following tab. No row
-selection, browser-tab switching, permanent indicator or arXiv shortcuts are added.
+Settings retains one default-off, device-local Vim Mode switch. Library, Following,
+Author Results and Settings reuse the same document-scrolling controller, browser
+history (`h/l`), browser-tab navigation (`J` left, `K` right, wrapping), temporary
+hints and compact native shortcut dialog. `gi` focuses the main search field or
+Settings macro editor. Native Tab order remains intact. Escape/Ctrl+[ leaves an
+ordinary editor with its value unchanged; component cancellation takes priority.
 
-Hints use small neutral bordered labels, blue native focus remains intact, and
-the help dialog reuses existing typography and dialog tokens. Labels support dark
-and forced-colors preferences. Editing/IME, visible forms, menus and dialogs
-suspend shortcuts. Layout changes dismiss hints. `F` opens links in a new tab;
-buttons keep ordinary actions and existing confirmation safeguards. See
+Hints retain small neutral bordered labels. Only remaining partial multi-letter
+matches gain a subtle pale-yellow/olive accent, without moving or resizing labels.
+Light, dark and forced-colors styles remain legible. `F` opens links in a new tab;
+buttons retain normal actions and confirmations. A single short retargetable j/k
+animation accumulates repeats, reverses promptly and respects reduced motion.
+No row selection, permanent Vim indicator or arXiv shortcuts are added. See
 [shortcut and lifecycle details](vim-mode.md).
 
-201/201 Node tests, installed Chromium 154 and generated Firefox 157 workflows,
-release integration, both package builds and whitespace checks pass. Inspected
-native-page/expanded-target hints, help and Settings screenshots retain compact
-controls; labels fit 360px Chromium and Firefox's 500px native minimum. Settings
-switches retain keyboard focus through asynchronous saves. Physical Japanese IME,
-screen readers, minimum versions and store-installed packages remain manual checks.
+## Settings table of contents
+
+All Settings sections remain mounted in order in a single scrolling document.
+A compact sticky left table of contents becomes a wrapping top navigation below
+700px. Native anchor hrefs support direct fragments, including `#keyboard` and
+`#latex-macros`. Unmodified activation scrolls to headings with an offset for the
+sticky navigation and respects reduced motion; it does not add history entries.
+Scroll-spy uses `aria-current="location"` and never rewrites the URL. Vim scrolling
+and ordinary wheel, keyboard and scrollbar navigation update the same highlight.
+Controls, focus, unsaved macros and validation feedback survive TOC navigation.
 
 ## Settings support footer
 

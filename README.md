@@ -55,8 +55,10 @@ measurements and safety counterexamples. It does not enable library uploads.
   to enabled. Disable it to replace the active tab when choosing a popup row;
   the toolbar icon still opens the popup, and its Settings gear is unchanged.
 - Optional **Settings → Keyboard navigation → Vim Mode**, off by default, for
-  Library, Following and Author Results. Scroll with `j/k`, switch Xivary tabs with
-  `h/l`, show action hints with `f/F`, and press `?` for help. The preference stays
+  Library, Following, Author Results and Settings. Scroll with `j/k`, navigate
+  browser history with `h/l`, switch browser tabs left/right with `J/K`, focus
+  search or the macro editor with `gi`, and show hints with `f/F`. Press `?` for
+  help; Escape or Ctrl+[ leaves ordinary text fields without changing their value. The preference stays
   local; typing and menus retain their normal keys. [Shortcuts and limits](docs/vim-mode.md).
 - Optional local KaTeX rendering in abstracts, enabled by default, with a compact
   custom macro editor. Unknown or invalid expressions retain their original LaTeX.
