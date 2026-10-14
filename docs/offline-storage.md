@@ -1,7 +1,7 @@
 # Offline papers
 
-Offline is the third compact top-level navigation destination, beside Library and
-Following. Library remains bookmark-only and has no Offline filter. Offline lists
+Offline is the third compact top-level navigation destination, beside Library,
+Following and the fourth destination Feed. Library remains bookmark-only and has no Offline filter. Offline lists
 all locally stored PDFs, using the shared paper rows, text filtering and publication
 time controls. Count and PDF byte usage occupy the existing secondary count line.
 An offline-only paper has no bookmark membership. A bookmarked paper appears once

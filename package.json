@@ -9,6 +9,8 @@
     "build": "node scripts/build-extension.mjs",
     "test": "node --test",
     "test:offline": "node scripts/offline-smoke.mjs",
+    "test:feed": "node scripts/feed-smoke.mjs",
+    "test:feed:live": "node scripts/feed-live-smoke.mjs",
     "test:browser": "node scripts/browser-smoke.mjs",
     "test:release": "node scripts/release-smoke.mjs",
     "test:arxiv": "node scripts/live-arxiv-smoke.mjs",

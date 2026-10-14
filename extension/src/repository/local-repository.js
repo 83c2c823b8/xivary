@@ -4,6 +4,8 @@ import { createPaper } from "../domain/paper.js";
 import { createAuthor } from "../domain/author.js";
 import { cleanText, normalizeArxivId } from "../domain/identifiers.js";
 import { normalizeCachedAuthorResults } from "../services/arxiv-paper-service.js";
+import { followedIds, normalizeEvidenceCache } from "../feed/discovery.js";
+import { emptyQueue, migrateQueue, normalizeQueue, mergeQueue, queueMatchesFollowing, discoveryDue, FEED_INTERVAL, FEED_LEASE_MS, FEED_MANUAL_INTERVAL, retryDelay } from '../feed/queue.js';
 import { exportPortableCategory, mergePortableCategory, parsePortableCategory } from "./portable-library.js";
 
 const newest = field => (a, b) => b[field].localeCompare(a[field]);
@@ -277,6 +279,124 @@ export class LocalRepository extends PaperRepository {
 
   getAuthorPaperCache(authorId) {
     return this.run(state => structuredClone(state.authorPaperCaches.find(item => item.authorId === authorId) ?? null));
+  }
+
+  getFollowingFeedCache() {
+    return this.run(async state => {
+      const queue = this.feedQueue(state);
+      if (state.followingFeedCache && JSON.stringify(queue) !== JSON.stringify(state.followingFeedCache)) {
+        // Validate first: an incompatible cache remains recoverable until a new
+        // discovery commit replaces it. Valid migrations/pruning are idempotent.
+        try { migrateQueue(state.followingFeedCache, this.feedAuthors(state), this.clock()); }
+        catch { return queue; }
+        state.followingFeedCache = queue;
+        await this.storage.write(state);
+      }
+      return structuredClone(queue);
+    });
+  }
+
+  putFollowingFeedCache(input) {
+    return this.run(async state => {
+      const cache = normalizeQueue(input);
+      if (!queueMatchesFollowing(cache, this.feedAuthors(state))) throw new Error('Following changed; refresh the Feed.');
+      state.followingFeedCache = cache;
+      await this.storage.write(state);
+      return structuredClone(cache);
+    });
+  }
+
+  feedAuthors(state) {
+    const live = new Set(state.memberships.map(item => item.authorId));
+    return state.authors.filter(author => live.has(author.id));
+  }
+
+  feedQueue(state) {
+    try { return migrateQueue(state.followingFeedCache, this.feedAuthors(state), this.clock()); }
+    catch { return emptyQueue(); }
+  }
+
+  beginFollowingFeedDiscovery(manual) {
+    if (typeof manual !== 'boolean') return Promise.reject(new Error('Invalid Feed refresh choice.'));
+    return this.run(async state => {
+      const now = Date.parse(this.clock()), queue = this.feedQueue(state), authors = this.feedAuthors(state);
+      const input = state._followingFeedDiscovery;
+      const activeValid = !input?.active || (typeof input.active.token === 'string' && Number.isFinite(input.active.startedAt)
+        && input.active.until - input.active.startedAt === FEED_LEASE_MS && Array.isArray(input.active.followedIds)
+        && input.active.followedIds.every(id => typeof id === 'string' && id.startsWith('arxiv-author:name:v1:')));
+      const policy = input && Number.isSafeInteger(input.failures) && input.failures >= 0 && input.failures <= 32
+        && Number.isFinite(input.nextAttemptAt) && input.nextAttemptAt >= 0 && input.nextAttemptAt <= now + FEED_INTERVAL && activeValid
+        ? input : { failures: 0, nextAttemptAt: 0, active: null };
+      if (policy.active?.until > now) return { status: 'busy', queue };
+      if (policy.active) {
+        policy.active = null; policy.failures = Math.min(32, policy.failures + 1);
+        policy.nextAttemptAt = now + retryDelay(policy.failures);
+        state._followingFeedDiscovery = policy; await this.storage.write(state);
+      }
+      if (!manual && !discoveryDue(queue, authors, now)) return { status: 'fresh', queue };
+      if (policy.nextAttemptAt > now) return { status: 'cooldown', queue, nextAttemptAt: policy.nextAttemptAt };
+      const token = this.makeId();
+      policy.active = { token, followedIds: followedIds(authors), startedAt: now, until: now + FEED_LEASE_MS };
+      state._followingFeedDiscovery = policy;
+      await this.storage.write(state);
+      let evidence = null;
+      try {
+        const graph = normalizeEvidenceCache(state.followingFeedEvidence);
+        if (JSON.stringify(graph.followedIds) === JSON.stringify(followedIds(authors))) evidence = graph;
+      } catch { /* Disposable evidence can be rebuilt. */ }
+      return structuredClone({ status: 'started', token, queue, authors, evidence, bookmarkedIds: state.favorites.map(paper => paper.arxivId) });
+    });
+  }
+
+  commitFollowingFeedDiscovery(input) {
+    if (!input || typeof input.token !== 'string' || typeof input.complete !== 'boolean' || typeof input.truncated !== 'boolean'
+        || !Array.isArray(input.candidates) || input.candidates.length > 100) return Promise.reject(new Error('Invalid Feed discovery commit.'));
+    return this.run(async state => {
+      const policy = state._followingFeedDiscovery, authors = this.feedAuthors(state), now = Date.parse(this.clock());
+      if (!policy?.active || policy.active.token !== input.token || policy.active.until <= now) throw new Error('Feed discovery expired; cached results retained.');
+      if (JSON.stringify(policy.active.followedIds) !== JSON.stringify(followedIds(authors))) throw new Error('Following changed; cached results retained.');
+      const result = mergeQueue(this.feedQueue(state), input.candidates, authors, state.favorites.map(paper => paper.arxivId),
+        { now, complete: input.complete, truncated: input.truncated, areaCache: input.areaCache ?? null });
+      state.followingFeedCache = result.queue;
+      policy.active = null;
+      policy.failures = input.complete ? 0 : Math.min(32, policy.failures + 1);
+      policy.nextAttemptAt = now + (input.complete ? FEED_MANUAL_INTERVAL : retryDelay(policy.failures));
+      await this.storage.write(state); // Queue and durable lease commit together.
+      return structuredClone({ status: input.complete ? 'updated' : 'partial', ...result });
+    });
+  }
+
+  failFollowingFeedDiscovery(token) {
+    return this.run(async state => {
+      const policy = state._followingFeedDiscovery;
+      if (policy?.active?.token === token) {
+        policy.active = null; policy.failures = Math.min(32, policy.failures + 1);
+        policy.nextAttemptAt = Date.parse(this.clock()) + retryDelay(policy.failures);
+        await this.storage.write(state);
+      }
+      return { status: 'failed', queue: structuredClone(this.feedQueue(state)) };
+    });
+  }
+
+  getFollowingFeedEvidence() {
+    return this.run(state => {
+      try {
+        const cache = normalizeEvidenceCache(state.followingFeedEvidence);
+        const live = new Set(state.memberships.map(item => item.authorId));
+        return JSON.stringify(cache.followedIds) === JSON.stringify(followedIds(state.authors.filter(author => live.has(author.id)))) ? cache : null;
+      } catch { return null; }
+    });
+  }
+
+  putFollowingFeedEvidence(input) {
+    return this.run(async state => {
+      const cache = normalizeEvidenceCache(input);
+      const live = new Set(state.memberships.map(item => item.authorId));
+      if (JSON.stringify(cache.followedIds) !== JSON.stringify(followedIds(state.authors.filter(author => live.has(author.id))))) throw new Error('Following changed; refresh the Feed.');
+      state.followingFeedEvidence = cache;
+      await this.storage.write(state);
+      return structuredClone(cache);
+    });
   }
 
   getArxivRequestState() {

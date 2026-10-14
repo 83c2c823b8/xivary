@@ -1,7 +1,7 @@
 <!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Settings — Xivary</title>
 <link rel="stylesheet" href="../ui/page.css"><link rel="stylesheet" href="settings.css"><link rel="stylesheet" href="../ui/vim-mode.css"><script type="module" src="settings.js"></script></head><body>
 <header class="page-header">
-  <div class="app-bar"><a class="app-name" href="../library/library.html">Xivary</a><nav class="app-nav" aria-label="Primary"><a href="../library/library.html">Library</a><a href="../authors/authors.html">Following</a><a href="../offline/offline.html">Offline</a></nav></div>
+  <div class="app-bar"><a class="app-name" href="../library/library.html">Xivary</a><nav class="app-nav" aria-label="Primary"><a href="../library/library.html">Library</a><a href="../authors/authors.html">Following</a><a href="../offline/offline.html">Offline</a><a href="../feed/feed.html">Feed</a></nav></div>
   <div class="page-heading"><h1>Settings</h1></div>
 </header>
 <main class="settings-page">
@@ -27,7 +27,7 @@
     <p id="macros-description" class="section-description">Define LaTeX commands used when rendering abstracts.</p>
     <form id="macros-form" data-vim-persistent-form>
       <label class="visually-hidden" for="latex-macros">Macro definitions</label>
-      <textarea id="latex-macros" disabled rows="4" maxlength="16384" spellcheck="false" autocapitalize="off" aria-describedby="macros-description macros-help macros-status" placeholder="\Stab = \operatorname{Stab}"></textarea>
+      <textarea id="latex-macros" disabled rows="4" maxlength="16384" spellcheck="false" autocapitalize="off" aria-describedby="macros-description macros-help macros-status" placeholder="\Hom = \operatorname{Hom}"></textarea>
       <p id="macros-help" class="section-description">One \Command = replacement per line. Letters only; no arguments or built-in overrides. Saved only in this browser.</p>
       <button type="submit" id="save-macros" disabled>Save macros</button>
       <p id="macros-status" class="status" role="status" aria-live="polite"></p>

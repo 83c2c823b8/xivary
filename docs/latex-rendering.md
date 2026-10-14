@@ -8,7 +8,6 @@ Following lists authors. Xivary does not change native arXiv page rendering.
 Settings → **Custom LaTeX macros** accepts one zero-argument definition per line:
 
 ```text
-\Stab = \operatorname{Stab}
 \Hom = \operatorname{Hom}
 \Ext = \operatorname{Ext}
 \Db = D^{\mathrm{b}}
@@ -39,7 +38,7 @@ whitespace and paragraph breaks are preserved; newly retrieved API abstracts no
 longer collapse them. Existing stored abstracts are not rewritten, so whitespace
 already collapsed by older versions cannot be reconstructed.
 
-Unknown macros have no inferred meaning. `\Stab(X)` renders only after an explicit
+Unknown macros have no inferred meaning. `\Hom(X,Y)` renders only after an explicit
 definition. Unknown, malformed, restricted or oversized expressions display their
 exact original source including delimiters. A failed expression does not stop
 other expressions. No red KaTeX error output is shown. Abstract text is never

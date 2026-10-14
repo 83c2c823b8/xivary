@@ -31,10 +31,14 @@ export function buildArxivApiUrl(searchQuery, maxResults = 50, start = 0) {
 
 export function normalizeApiEntry(entry) {
   const arxivId = normalizeArxivId(entry.arxivId ?? entry.id);
+  const versionInput = entry.versionedId ?? entry.id ?? entry.arxivId;
+  const version = String(versionInput).match(/v([1-9]\d*)$/u)?.[1];
+  if (version && (!Number.isSafeInteger(Number(version)) || normalizeArxivId(versionInput) !== arxivId)) throw new Error('Invalid arXiv result version.');
   const authors = entry.authors.map(author => author.trim()).filter(Boolean);
   if (!authors.length) throw new Error("arXiv result has no authors.");
   return {
     arxivId,
+    ...(version ? { versionedId: `${arxivId}v${version}` } : {}),
     title: entry.title.replace(/\s+/gu, " ").trim(),
     authors,
     abstract: entry.abstract.trim(),
@@ -69,10 +73,34 @@ export function paperMatchesAuthor(paper, author) {
   return paper.authors.some(item => normalizeAuthorName(typeof item === "string" ? item : item.displayName) === target);
 }
 
-export function parseArxivPapers(text) {
+function parseAtom(text) {
   const xml = new DOMParser().parseFromString(text, "application/xml");
   if (xml.documentElement?.localName !== "feed" || xml.documentElement?.namespaceURI !== "http://www.w3.org/2005/Atom") throw new Error("arXiv returned an unexpected response.");
   if (xml.querySelector("parsererror")) throw new Error("arXiv returned an unreadable response.");
+  return xml;
+}
+
+export function parseArxivPapers(text) {
+  return papersFromAtom(parseAtom(text));
+}
+
+export function parseArxivPage(text, start = 0) {
+  const xml = parseAtom(text);
+  const number = name => {
+    const node = xml.getElementsByTagNameNS('http://a9.com/-/spec/opensearch/1.1/', name)[0];
+    if (!node || !/^\d+$/u.test(node.textContent.trim())) throw new Error('arXiv returned invalid pagination metadata.');
+    const value = Number(node.textContent.trim());
+    if (!Number.isSafeInteger(value)) throw new Error('arXiv returned invalid pagination metadata.');
+    return value;
+  };
+  const total = number('totalResults'), returnedStart = number('startIndex');
+  const count = xml.querySelectorAll('entry').length;
+  if (returnedStart !== start || count > 50 || (count && start + count > total)
+      || (count < 50 && total > start + count)) throw new Error('arXiv returned inconsistent pagination metadata.');
+  return { papers: papersFromAtom(xml, true), count, total };
+}
+
+function papersFromAtom(xml, preferLatest = false) {
   const unique = new Map();
   for (const entry of xml.querySelectorAll("entry")) {
     const paper = normalizeApiEntry({
@@ -83,7 +111,9 @@ export function parseArxivPapers(text) {
     authors: [...entry.querySelectorAll("author > name")].map(node => node.textContent || ""),
     categories: [...entry.querySelectorAll("category")].map(node => node.getAttribute("term") || "").filter(Boolean),
     });
-    if (!unique.has(paper.arxivId)) unique.set(paper.arxivId, paper);
+    const previous = unique.get(paper.arxivId);
+    const version = value => Number(value?.versionedId?.match(/v(\d+)$/u)?.[1] || 0);
+    if (!previous || (preferLatest && version(paper) > version(previous))) unique.set(paper.arxivId, paper);
   }
   return [...unique.values()];
 }

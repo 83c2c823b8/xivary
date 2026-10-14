@@ -1,0 +1,13 @@
+.page-heading { padding: 10px 0 11px; }
+main { padding-top: 16px; }
+.feed-toolbar { display: flex; align-items: center; gap: 12px; }
+.feed-toolbar #count { margin-left: auto; }
+#updated { margin: 6px 0 10px; font-size: 12px; }
+#updated:empty, .status:empty { display: none; }
+.paper-row { padding: 13px 2px; }
+.feed-match { color: var(--muted); }
+.feed-abstract { margin-top: 6px; font-size: 13px; color: var(--muted); }
+.feed-abstract summary { width: fit-content; min-height: 30px; padding: 5px 2px; cursor: pointer; }
+.feed-abstract .abstract { margin-top: 2px; }
+.feed-pagination { margin-top: 16px; }
+.feed-pagination .metadata { padding: 6px 0; }

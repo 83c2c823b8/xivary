@@ -15,9 +15,21 @@ The base is 15px/1.5; page headings 24px, paper/author headings 17px, metadata 1
 Do not truncate paper metadata. Long author names wrap. Long sidebar collection
 names truncate visually and retain the complete accessible name and tooltip.
 
-The 48px app bar contains Xivary, Library, Following and Offline. Each page has one heading
+The 48px app bar contains Xivary, Library, Following, Offline and Feed. Each page has one heading
 and one Settings gear. Library/Following heading padding is 10px above/11px below;
 main content begins 16px below it. Search is not primary navigation.
+
+Feed retains shared paper-row typography/actions and 13px vertical row padding.
+Its toolbar has Refresh and a secondary relative timestamp/count; 25-row local pages use
+one footer action and a finite end state. One restrained Following, Coauthor of
+or Related reason uses metadata typography and explicit namesake disclosure.
+Only original submissions from the rolling 30-day window are eligible; bookmarking
+a row keeps it visible while the next successful discovery cycle removes it from
+the persisted queue. A conditional new-papers control applies pending changes
+without moving the list during reading. Demand checks run at twelve-hour intervals.
+Abstracts are native collapsed
+disclosures, expanded on demand with the existing renderer. No separate Feed
+launcher row, settings, permanent filters or automatic paper/PDF saves are added.
 
 ## Shared collection navigation
 

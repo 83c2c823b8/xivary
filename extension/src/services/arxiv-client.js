@@ -1,7 +1,7 @@
 import { getBrowserApi } from '../platform/browser-api.js';
 import { ARXIV_CHANNEL } from './arxiv-scheduler.js';
 
-export function requestArxiv(query, { signal, onEvent = () => {} } = {}, runtime = getBrowserApi().runtime) {
+export function requestArxiv(query, { signal, onEvent = () => {}, start } = {}, runtime = getBrowserApi().runtime) {
   return new Promise((resolve, reject) => {
     if (signal?.aborted) { reject(new DOMException('Cancelled', 'AbortError')); return; }
     const port = runtime.connect({ name: ARXIV_CHANNEL });
@@ -24,6 +24,6 @@ export function requestArxiv(query, { signal, onEvent = () => {} } = {}, runtime
     };
     signal?.addEventListener('abort', abort, { once: true });
     port.onMessage.addListener(message); port.onDisconnect.addListener(disconnected);
-    try { port.postMessage({ query }); } catch (error) { finish(error); }
+    try { port.postMessage(start === undefined ? { query } : { query, start }); } catch (error) { finish(error); }
   });
 }

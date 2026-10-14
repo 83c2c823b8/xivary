@@ -29,7 +29,8 @@ bindArxivRequests(runtime, new ArxivScheduler({
   writeState: state => repository.setArxivRequestState(state),
 }));
 const repositoryHandler = createRepositoryHandler(repository, runtime.id,
-  () => runtime.sendMessage({ channel: PREFERENCES_CHANGED_CHANNEL }));
+  () => runtime.sendMessage({ channel: PREFERENCES_CHANGED_CHANNEL }),
+  () => runtime.sendMessage({ channel: 'xivary:feed-changed:v1' }));
 const authorNavigationHandler = createAuthorNavigationHandler(api, repository);
 const tabNavigationHandler = createTabNavigationHandler(api, repository);
 runtime.onMessage.addListener((...args) => repositoryHandler(...args) || authorNavigationHandler(...args) || tabNavigationHandler(...args));

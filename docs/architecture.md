@@ -1,5 +1,15 @@
 # Architecture
 
+The compact research discovery Feed combines membership-based follows, one-hop
+arXiv coauthorship evidence and small terminology-qualified area queries through
+the shared paced transport. A rolling 30-day initial-submission window, stable-ID
+deduplication, incremental 100-paper queue and global query budgets keep
+pagination finite. Discovery is demand-driven every twelve hours; durable leases
+and backoff coordinate live views and worker restarts. Coauthor/area evidence
+is cached for seven days. Queue/provenance metadata stays repository-owned and
+local, separate from bookmarks and Offline. It uses existing paper/bookmark/offline controls and native collapsed
+abstracts. See [Following Feed](following-feed.md) for boundaries, limits and evidence.
+
 Portable transfer is a repository-level scoped merge. Bookmarks and Following are
 separate ownership categories: importing one must not change the other or
 preferences. Version-2 files declare the category and All/collection selection;

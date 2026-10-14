@@ -4,6 +4,13 @@
  * Author entities persist independently of their many-to-many memberships.
  */
 export class PaperRepository {
+  async getFollowingFeedCache() { throw new Error("Not implemented"); }
+  async putFollowingFeedCache(cache) { throw new Error("Not implemented"); }
+  async beginFollowingFeedDiscovery(manual) { throw new Error("Not implemented"); }
+  async commitFollowingFeedDiscovery(result) { throw new Error("Not implemented"); }
+  async failFollowingFeedDiscovery(token) { throw new Error("Not implemented"); }
+  async getFollowingFeedEvidence() { throw new Error("Not implemented"); }
+  async putFollowingFeedEvidence(cache) { throw new Error("Not implemented"); }
   async readOfflinePdf(id) { throw new Error("Not implemented"); }
   async getOfflineLibrary() { throw new Error("Not implemented"); }
   async getOfflineCopy(id) { throw new Error("Not implemented"); }

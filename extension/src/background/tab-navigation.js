@@ -9,7 +9,7 @@ export function adjacentTab(tabs, sourceId, direction) {
 }
 
 export function createTabNavigationHandler(api, repository) {
-  const paths = new Set(['src/library/library.html', 'src/authors/authors.html', 'src/author/author.html', 'src/settings/settings.html']);
+  const paths = new Set(['src/library/library.html', 'src/authors/authors.html', 'src/author/author.html', 'src/settings/settings.html', 'src/feed/feed.html']);
   return (message, sender, respond) => {
     if (message?.channel !== TAB_NAVIGATION_CHANNEL) return false;
     const allowed = [...paths].some(path => sender.url?.split(/[?#]/, 1)[0] === api.runtime.getURL(path));

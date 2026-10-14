@@ -1,6 +1,9 @@
 import { REPOSITORY_CHANNEL } from "../repository/repository-client.js";
 
 const methods = new Map([
+  ["getFollowingFeedCache", 0], ["putFollowingFeedCache", 1],
+  ['beginFollowingFeedDiscovery', 1], ['commitFollowingFeedDiscovery', 1], ['failFollowingFeedDiscovery', 1],
+  ["getFollowingFeedEvidence", 0], ["putFollowingFeedEvidence", 1],
   ["getOfflineLibrary", 0], ["getOfflineCopy", 1], ["saveOfflinePaper", 2],
   ["removeOfflineCopy", 1], ["cancelOfflineSave", 1], ["getOfflinePdfChunk", 3], ["openOfflinePaper", 1],
   ["setVimMode", 1],
@@ -19,7 +22,7 @@ const methods = new Map([
   ["exportCategory", 2], ["importCategory", 2],
 ]);
 
-export function createRepositoryHandler(repository, extensionId, preferencesChanged = () => {}) {
+export function createRepositoryHandler(repository, extensionId, preferencesChanged = () => {}, feedChanged = () => {}) {
   return (message, sender, sendResponse) => {
     if (message?.channel !== REPOSITORY_CHANNEL) return false;
     if (sender.id !== extensionId || !methods.has(message.method)
@@ -33,6 +36,7 @@ export function createRepositoryHandler(repository, extensionId, preferencesChan
         if (message.method === "setVimMode") {
           Promise.resolve().then(preferencesChanged).catch(() => {});
         }
+        if (message.method === 'commitFollowingFeedDiscovery') Promise.resolve().then(feedChanged).catch(() => {});
         sendResponse({ ok: true, result: result ?? null });
       },
       error => sendResponse({ ok: false, error: error.message || "Unable to update the library." }),

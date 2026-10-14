@@ -72,7 +72,7 @@ try {
   chrome.listeners.push(message => { if (message.method === 'ServiceWorker.workerVersionUpdated') workerVersions.push(...message.params.versions); });
   await chrome.send('ServiceWorker.enable',{},lib.sessionId);
   assert.equal(await chrome.evaluate(lib.sessionId,"document.querySelector('#offline-filter')"),null);
-  assert.deepEqual(await chrome.evaluate(lib.sessionId,"[...document.querySelectorAll('.app-nav a')].map(a=>a.textContent)"),['Library','Following','Offline']);
+  assert.deepEqual(await chrome.evaluate(lib.sessionId,"[...document.querySelectorAll('.app-nav a')].map(a=>a.textContent)"),['Library','Following','Offline','Feed']);
   // Create v1 storage and migrate real IndexedDB, preserving data in the old stores.
   await chrome.evaluate(lib.sessionId,`(async()=>{await new Promise((resolve,reject)=>{const r=indexedDB.deleteDatabase('xivary-offline');r.onsuccess=resolve;r.onerror=reject;});await new Promise((resolve,reject)=>{const r=indexedDB.open('xivary-offline',1);r.onupgradeneeded=()=>{r.result.createObjectStore('copies',{keyPath:'arxivId'});r.result.createObjectStore('pdfs');};r.onsuccess=()=>{r.result.close();resolve();};r.onerror=reject;});})()`);
   await chrome.evaluate(lib.sessionId,`new Promise((resolve,reject)=>{const request=indexedDB.open('xivary-offline',1);request.onerror=reject;request.onsuccess=()=>{const db=request.result,tx=db.transaction(['copies','pdfs'],'readwrite');tx.objectStore('copies').put({arxivId:'2401.00003',version:1,versionedId:'2401.00003v1',savedAt:'2024-01-01T00:00:00Z',size:10,paper:${JSON.stringify({...paper,arxivId:'2401.00003'})}});tx.objectStore('pdfs').put(new Blob(['migration retained']),'2401.00003');tx.oncomplete=()=>{db.close();resolve();};};})`);

@@ -52,3 +52,16 @@ test('background arXiv ports accept only internal author/Search senders and cons
   await Promise.resolve(); assert.equal(new URL(url).origin, 'https://export.arxiv.org');
   assert.equal(new URL(url).searchParams.get('max_results'), '50');
 });
+
+test('Feed pages share the scheduler and only permit bounded 50-hit offsets from the Feed sender', async () => {
+  const runtime = { id: 'extension', getURL: path => `chrome-extension://extension/${path}`, onConnect: event() };
+  const urls = [];
+  bindArxivRequests(runtime, { request: async url => { urls.push(url); } });
+  for (const [path, start, valid] of [['feed/feed.html', 50, true], ['feed/feed.html', 150, true], ['feed/feed.html', 200, false], ['feed/feed.html', -50, false], ['feed/feed.html', 1, false], ['feed/feed.html', '50', false], ['author/author.html', 50, false], ['search/search.html', 50, false]]) {
+    const f = fixture(); const before = urls.length;
+    Object.assign(f.port, { name: ARXIV_CHANNEL, sender: { id: runtime.id, url: runtime.getURL(`src/${path}`) } });
+    runtime.onConnect.emit(f.port); f.port.onMessage.emit({ query: 'au:"Alex Kim"', start }); await Promise.resolve();
+    assert.equal(urls.length, before + Number(valid));
+    if (valid) { assert.equal(new URL(urls.at(-1)).searchParams.get('start'), String(start)); assert.equal(new URL(urls.at(-1)).searchParams.get('max_results'), '50'); }
+  }
+});

@@ -41,6 +41,21 @@ export class RepositoryClient extends PaperRepository {
   }
 
   get available() { return this.runtime.available !== false; }
+  getFollowingFeedCache() { return this.request("getFollowingFeedCache"); }
+  putFollowingFeedCache(cache) { return this.request("putFollowingFeedCache", [cache]); }
+  beginFollowingFeedDiscovery(manual) { return this.request('beginFollowingFeedDiscovery', [manual]); }
+  commitFollowingFeedDiscovery(result) { return this.request('commitFollowingFeedDiscovery', [result]); }
+  failFollowingFeedDiscovery(token) { return this.request('failFollowingFeedDiscovery', [token]); }
+  subscribeFollowingFeed(changed) {
+    const listener = (message, sender) => {
+      if (message?.channel === 'xivary:feed-changed:v1' && sender.id === this.runtime.id) changed();
+      return false;
+    };
+    this.runtime.onMessage.addListener(listener);
+    return () => this.runtime.onMessage.removeListener(listener);
+  }
+  getFollowingFeedEvidence() { return this.request("getFollowingFeedEvidence"); }
+  putFollowingFeedEvidence(cache) { return this.request("putFollowingFeedEvidence", [cache]); }
   setVimMode(enabled) { return this.request("setVimMode", [enabled]); }
 
   /** Notifications invalidate a view; fresh values still cross the repository. */
