@@ -1,0 +1,14 @@
+.offline-action { display: inline-grid; place-items: center; width: 30px; height: 30px; padding: 5px; border: 1px solid transparent; border-radius: 5px; background: transparent; color: #777d83; cursor: pointer; vertical-align: middle; }
+.offline-action svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.offline-action:hover { color: #202124; border-color: #c9cdd1; background: #f1f3f4; }
+.offline-action:focus-visible { outline: 2px solid #1475bc; outline-offset: 2px; }
+.offline-action[data-state="saved"] { color: #4b5157; }
+.offline-action[data-state="error"] { color: #a32b24; }
+.offline-action[data-state="saving"] svg { animation: offline-pulse 1s ease-in-out infinite alternate; }
+@keyframes offline-pulse { to { opacity: .25; } }
+@media (prefers-reduced-motion: reduce) { .offline-action[data-state="saving"] svg { animation: none; } }
+.offline-menu { position: fixed; z-index: 2147483646; box-sizing: border-box; min-width: 190px; overflow: auto; padding: 4px; border: 1px solid #c9cdd1; border-radius: 5px; background: #fff; color: #202124; font: 13px/1.5 system-ui, sans-serif; }
+.offline-menu button { display: block; width: 100%; padding: 6px 9px; border: 0; border-radius: 3px; text-align: left; color: inherit; background: transparent; cursor: pointer; font: inherit; }
+.offline-menu button:hover, .offline-menu button:focus { background: #f1f3f4; }
+.offline-menu .offline-detail { display: block; padding: 5px 9px; max-width: 270px; color: #62686e; font-size: 12px; }
+h1.title .offline-action { margin-left: 4px; }

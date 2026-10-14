@@ -18,10 +18,10 @@ test("manifest uses MV3, narrow permissions and existing entry points", async ()
   assert.equal(manifest.manifest_version, 3);
   assert.equal(manifest.name, "Xivary");
   assert.equal(manifest.action.default_title, "Xivary");
-  assert.equal(manifest.version, "0.3.0");
+  assert.equal(manifest.version, "0.4.0");
   assert.equal(packageMetadata.version, manifest.version);
   assert.deepEqual(manifest.permissions, ["storage", "alarms"]);
-  assert.deepEqual(manifest.host_permissions, ["https://export.arxiv.org/*"]);
+  assert.deepEqual(manifest.host_permissions, ["https://export.arxiv.org/*", "https://arxiv.org/*"]);
   assert.equal(manifest.background.type, "module");
   assert.equal(manifest.options_page, "src/settings/settings.html");
   assert.deepEqual(manifest.content_scripts[0].matches, ["https://arxiv.org/abs/*", "https://arxiv.org/search/*"]);
@@ -55,12 +55,12 @@ test("visible extension identity is Xivary", async () => {
     assert.doesNotMatch(await readFile(path, "utf8"), formerName, path);
   }
   const pages = [manifest.action.default_popup, "src/library/library.html", "src/authors/authors.html",
-    "src/author/author.html", "src/search/search.html", manifest.options_page];
+    "src/author/author.html", "src/search/search.html", "src/offline/offline.html", "src/offline/read.html", manifest.options_page];
   for (const page of pages) assert.match(await readFile(resolve(root, page), "utf8"), /Xivary/, page);
 });
 
 test("full-tab extension pages and their local assets exist", async () => {
-  for (const page of ["library/library.html", "authors/authors.html", "author/author.html", "search/search.html", "settings/settings.html"]) {
+  for (const page of ["library/library.html", "authors/authors.html", "author/author.html", "search/search.html", "settings/settings.html", "offline/offline.html", "offline/read.html"]) {
     const htmlPath = resolve(root, "src", page);
     const html = await readFile(htmlPath, "utf8");
     for (const match of html.matchAll(/(?:src|href)="([^"#]+)"/g)) {

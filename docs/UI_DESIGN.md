@@ -15,7 +15,7 @@ The base is 15px/1.5; page headings 24px, paper/author headings 17px, metadata 1
 Do not truncate paper metadata. Long author names wrap. Long sidebar collection
 names truncate visually and retain the complete accessible name and tooltip.
 
-The 48px app bar contains Xivary, Library and Following. Each page has one heading
+The 48px app bar contains Xivary, Library, Following and Offline. Each page has one heading
 and one Settings gear. Library/Following heading padding is 10px above/11px below;
 main content begins 16px below it. Search is not primary navigation.
 
@@ -102,7 +102,11 @@ picker and Undo remain intact. Library-only row padding is 13px above/below, ver
 Following rows use 12px above/below and an 8px action gap. Empty status elements do
 not reserve vertical space. Errors still appear in their live status region.
 
-Ordinary Unfollow or membership removal is immediate with eight-second Undo.
+Ordinary Unfollow or membership removal is immediate with a compact bottom-right
+Undo notice. It dismisses after three seconds of visible time, pausing for pointer
+hover, keyboard focus and a pending Undo. Receipt validity remains eight seconds
+in the background; pausing the notice does not extend restoration expiry.
+Routine successful additions/collection edits stay quiet; errors and warnings remain.
 Whole-collection deletion requires the existing native modal confirmation with the
 actual sole-membership consequence. Cancel is initially focused; Escape cancels
 when not busy. Confirmation is guarded, errors stay visible, and focus returns.
@@ -248,7 +252,8 @@ last applied filter. No saved-date fallback is used.
 
 Collection selection, existing title/author/category substring matching and time
 filtering intersect without changing order or memberships. Abstracts are neither
-searched nor displayed inline; Abstract/PDF links remain unchanged. Sidebar counts
+searched nor displayed inline; Titles remain the abstract-page links; rows retain PDF and bookmark controls
+without a second Abstract action. Sidebar counts
 remain unfiltered membership totals. A filtered zero-match view shows No matching
 papers; Clear search clears only text and focuses its input. Clear range clears
 only time filtering. Collection navigation and saved-paper updates preserve both
@@ -451,7 +456,9 @@ store-installed update. Existing manual release checks remain applicable.
 
 Abstracts retain the existing 14px prose typography, with locally bundled KaTeX
 at 1.1em and accessible HTML/MathML output. Internal whitespace and paragraph breaks
-use `pre-wrap`; display math has a bounded horizontal scrolling surface. There are
+use `pre-wrap`; abstracts expand to their full content height without nested
+scrolling, clipping or collapse controls. Display math wraps at KaTeX break points
+where available; indivisible equations remain visible. There are
 no per-paper math controls, badges or persistent status indicators. Library still
 hides abstracts, and native arXiv pages retain their own rendering.
 
@@ -461,3 +468,13 @@ feedback appears in a live status region, invalid drafts stay editable and the
 last saved configuration remains effective. Focus refresh preserves drafts. Native
 Tab/textarea editing and the existing control tokens remain in use. Both settings
 are device-local. See [syntax and fallback](latex-rendering.md).
+
+## Offline papers
+
+Offline is a compact third navigation link; Library has no offline filter. Reuse
+paper rows and text/date filtering, with count/byte usage in the secondary count
+line. Title clicks in Offline open the local native PDF; Library title navigation
+stays unchanged. A restrained 30px icon beside the bookmark saves or opens its
+small anchored menu. Update/removal are progressive operations; PDF export appears
+only in Offline’s menu. Settings has a compact usage summary and review link.
+See [offline storage](offline-storage.md).

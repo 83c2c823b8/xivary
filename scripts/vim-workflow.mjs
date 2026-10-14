@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { settingsVimWorkflow } from './settings-vim-workflow.mjs';
+import { edgeScrollWorkflow } from './edge-scroll-workflow.mjs';
 
 const rpc = operation => `(async()=>{const {RepositoryClient}=await import('../repository/repository-client.js');const repo=new RepositoryClient();return ${operation}})()`;
 const overlay = 'document.querySelector("[data-vim-overlay=hints]")';
@@ -46,6 +47,8 @@ export async function vimWorkflow({ evaluate, until, key, click, navigate, reloa
   assert.equal(await evaluate(rpc('repo.getPreferences().then(p=>p.vimMode)')), false);
   await evaluate(fixture); await evaluate('new Promise(resolve=>setTimeout(resolve,100))');
   await key('j'); assert.equal(await evaluate('window.scrollY'), 0, 'default off');
+  await key('g'); await key('g'); await key('G');
+  assert.equal(await evaluate('window.scrollY'), 0, 'disabled edge commands stay native');
   await key('f'); assert.equal(await evaluate(`Boolean(${overlay})`), false);
   await evaluate(rpc('repo.setVimMode(true)'));
   await evaluate('new Promise(resolve=>setTimeout(resolve,100))');
@@ -59,6 +62,7 @@ export async function vimWorkflow({ evaluate, until, key, click, navigate, reloa
   await evaluate('new Promise(resolve=>setTimeout(resolve,100))');
   await key('f'); await until(overlay); await screenshot('vim-library-native-hints.png'); await key('Escape');
   await evaluate(fixture); await evaluate('new Promise(resolve=>setTimeout(resolve,100))');
+  await edgeScrollWorkflow({evaluate,until,key:nativeKey,media});
   // Rapid native input is sent without the ordinary workflow's settling waits.
   await nativeKey('j'); await nativeKey('j'); await nativeKey('j');
   await until('window.scrollY===240');
@@ -82,6 +86,11 @@ export async function vimWorkflow({ evaluate, until, key, click, navigate, reloa
   await key('d'); await until('Math.abs(window.scrollY-innerHeight/2)<=1');
   await key('u'); await until('window.scrollY===0');
   await key('G'); await until('Math.abs(window.scrollY-(document.scrollingElement.scrollHeight-innerHeight))<=1');
+  await evaluate(`new Promise(resolve=>{
+    let last=scrollY,stable=0;
+    function frame(){stable=scrollY===last?stable+1:0;last=scrollY;if(stable>=4)resolve();else requestAnimationFrame(frame);}
+    requestAnimationFrame(frame);
+  })`);
   const bottom = await evaluate('window.scrollY');
   await key('j'); assert.equal(await evaluate('window.scrollY'), bottom);
   await key('g'); assert.equal(await evaluate('window.scrollY'), bottom, 'isolated g has no action');
@@ -204,6 +213,7 @@ export async function vimWorkflow({ evaluate, until, key, click, navigate, reloa
   await choose('vim-link'); await until('document.querySelector("#vim-mode") && !document.querySelector("#vim-mode").disabled');
   assert.equal(await evaluate('document.querySelector("#vim-mode").checked'), true);
   await settingsVimWorkflow({evaluate,until,key,click,navigate,resize,screenshot});
+  await edgeScrollWorkflow({evaluate,until,key:nativeKey,media});
   await screenshot('vim-settings.png');
   await evaluate('document.querySelector("#vim-mode").scrollIntoView({block:"center"})');
   await evaluate('document.querySelector("#vim-mode").focus()');
@@ -243,21 +253,38 @@ export async function vimWorkflow({ evaluate, until, key, click, navigate, reloa
   await key('Ctrl+['); await until('!document.querySelector(".collection-delete-dialog")');
   await evaluate('document.activeElement.blur()');
   // Cross-document back/forward uses actual history, independent of nav order.
-  await click('.app-nav a:last-child'); await until('location.pathname.endsWith("/authors/authors.html")&&document.querySelector("#count")?.textContent.includes("author")');
+  await click('.app-nav a[href*=authors]'); await until('location.pathname.endsWith("/authors/authors.html")&&document.querySelector("#count")?.textContent.includes("author")');
   await evaluate('new Promise(resolve=>setTimeout(resolve,100)).then(()=>document.activeElement.blur())');
   await key('h'); await until('location.pathname.endsWith("/library/library.html")&&document.querySelector("#filter")');
   await evaluate('new Promise(resolve=>setTimeout(resolve,100))'); await key('l');
   await until('location.pathname.endsWith("/authors/authors.html")&&document.querySelector("#count")?.textContent.includes("author")');
   await evaluate(fixture); await evaluate('new Promise(resolve=>setTimeout(resolve,100))'); await key('j'); await until('window.scrollY===80'); await key('g'); await key('g'); await until('window.scrollY===0');
+  await edgeScrollWorkflow({evaluate,until,key:nativeKey,media});
 
   await key('f'); await until(overlay); await screenshot('vim-following-hints.png'); await key('Ctrl+[');
   await key('g');await key('i');assert.equal(await evaluate('document.activeElement.id'),'filter');await key('Ctrl+[');
   await evaluate('document.querySelector("#vim-fixture").remove()');
   await key('f'); await until(overlay); await screenshot('vim-following-native-hints.png'); await key('Escape');
   await navigate('author/author.html?name=Alex%20Kim'); await until('document.querySelector("#name")?.textContent==="Alex Kim"&&document.querySelector("#updated")?.textContent.startsWith("Updated")');
+  assert.equal(await evaluate('document.querySelectorAll(".settings-link").length'),1);
+  assert.equal(await evaluate('document.querySelector(".settings-link").getAttribute("aria-label")'),'Settings');
+  assert.equal(await evaluate('document.querySelector(".settings-link").getAttribute("target")'),null,'gear keeps existing current-tab navigation');
+  await evaluate('document.querySelector(".settings-link").focus()');
+  assert.equal(await evaluate('document.activeElement.matches(".settings-link")'),true);
+  await screenshot('vim-author-settings.png');await evaluate('document.activeElement.blur()');
+  await edgeScrollWorkflow({evaluate,until,key:nativeKey,media});
   await evaluate(fixture); await evaluate('new Promise(resolve=>setTimeout(resolve,100))'); await key('d'); await until('Math.abs(window.scrollY-innerHeight/2)<=1'); await key('g'); await key('g'); await until('window.scrollY===0');
 
   await key('f'); await until(overlay); await screenshot('vim-author-hints.png'); await key('Escape');
+  await evaluate('document.querySelector("#vim-fixture").remove()');
+  await until('document.scrollingElement.scrollTop===0');
+  await evaluate('new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))');
+  await key('f');await until(overlay);
+  const gearHint=await evaluate(`import('../ui/vim-mode.js').then(({hintTargets,hintLabels})=>{const targets=hintTargets(document,window);return hintLabels(targets.length)[targets.indexOf(document.querySelector('.settings-link'))]})`);
+  assert.ok(gearHint,'author Settings gear is a visible Vim target');
+  await screenshot('vim-author-settings-hints.png');
+  for(const letter of gearHint) await key(letter);
+  await until('location.pathname.endsWith("/settings/settings.html")&&document.querySelector("#vim-mode")');
   await navigate('library/library.html'); await until('document.querySelector("#filter")');
   const after = await evaluate(rpc('Promise.all([repo.exportCategory("bookmarks"),repo.exportCategory("following")])'));
   for (const docs of [before,after]) for (const doc of docs) delete doc.exportedAt;

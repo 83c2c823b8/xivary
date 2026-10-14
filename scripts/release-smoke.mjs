@@ -223,6 +223,9 @@ try {
   assert.equal((await chrome.evaluate(session, localState))._chromeSync.id, pending[0]._chromeSync.id);
   console.log("Chrome Sync PASS: alarm delivery, worker recreation and publication without repository/UI activity");
 
+  await chrome.evaluate(session, client("repository.setVimMode(true)"));
+  await chrome.evaluate(session, client("repository.setRenderLatexInAbstracts(false)"));
+  await chrome.evaluate(session, client("repository.setCustomLatexMacros('\\\\Stab = \\\\operatorname{Stab}')"));
   const beforeReload = await chrome.evaluate(session, localState);
   await chrome.send("Runtime.evaluate", { expression: "setTimeout(() => chrome.runtime.reload(), 50)" }, session);
   // Chrome disables a CDP-loaded unpacked extension on runtime.reload(). Reenable
@@ -233,7 +236,7 @@ try {
   const reloaded = await chrome.evaluate(settings.sessionId, localState);
   assert.equal(reloaded._chromeSync.id, beforeReload._chromeSync.id);
   for (const field of ["favorites", "authors", "paperCollections", "collections", "paperMemberships", "memberships", "authorPaperCaches", "settings"]) assert.deepEqual(reloaded[field], beforeReload[field], `reload: ${field}`);
-  assert.deepEqual(await chrome.evaluate(settings.sessionId, client("repository.getPreferences()")), { openArxivLinksInNewTab: true, organizeFollowedAuthorsIntoCollections: true, openAuthorResultsInNewTab: true, openXivaryFromToolbarInNewTab: false, vimMode: false, renderLatexInAbstracts: true, customLatexMacros: "" });
+  assert.deepEqual(await chrome.evaluate(settings.sessionId, client("repository.getPreferences()")), { openArxivLinksInNewTab: true, organizeFollowedAuthorsIntoCollections: true, openAuthorResultsInNewTab: true, openXivaryFromToolbarInNewTab: false, vimMode: true, renderLatexInAbstracts: false, customLatexMacros: String.raw`\Stab = \operatorname{Stab}` });
   console.log("Chrome Sync PASS: extension reload preserves library, preferences and replica identity");
 
   // Create another pending preference before restarting the whole browser with
@@ -245,7 +248,7 @@ try {
   await chrome.evaluate(settings.sessionId, client("repository.setRenderLatexInAbstracts(false)"));
   await chrome.evaluate(settings.sessionId, client("repository.setCustomLatexMacros('\\\\Stab = \\\\operatorname{Stab}')"));
   const beforeRestart = await chrome.evaluate(settings.sessionId, `Promise.all([${localState}, chrome.storage.sync.get(null)])`);
-  assert.equal(Object.keys(beforeRestart[1]).some(key => /renderLatexInAbstracts|customLatexMacros/.test(key)), false);
+  assert.equal(Object.keys(beforeRestart[1]).some(key => /vimMode|renderLatexInAbstracts|customLatexMacros/.test(key)), false);
   assert.notDeepEqual(beforeRestart[0]._chromeSync.records[pendingKey], beforeRestart[1][pendingKey]);
   // Let the existing write interval elapse without invoking the repository; the
   // pending record must be recovered by the next browser's background startup.
@@ -259,9 +262,9 @@ try {
   assert.equal(restarted._chromeSync.id, beforeRestart[0]._chromeSync.id);
   assert.equal(restarted._chromeSync.counter, beforeRestart[0]._chromeSync.counter);
   for (const field of ["favorites", "authors", "paperCollections", "collections", "paperMemberships", "memberships", "authorPaperCaches", "settings"]) assert.deepEqual(restarted[field], beforeRestart[0][field], `restart: ${field}`);
-  assert.deepEqual(await chrome.evaluate(settings.sessionId, client("repository.getPreferences()")), { openArxivLinksInNewTab: false, organizeFollowedAuthorsIntoCollections: false, openAuthorResultsInNewTab: false, openXivaryFromToolbarInNewTab: true, vimMode: false, renderLatexInAbstracts: false, customLatexMacros: String.raw`\Stab = \operatorname{Stab}` });
+  assert.deepEqual(await chrome.evaluate(settings.sessionId, client("repository.getPreferences()")), { openArxivLinksInNewTab: false, organizeFollowedAuthorsIntoCollections: false, openAuthorResultsInNewTab: false, openXivaryFromToolbarInNewTab: true, vimMode: true, renderLatexInAbstracts: false, customLatexMacros: String.raw`\Stab = \operatorname{Stab}` });
   await chrome.until(settings.sessionId, `document.querySelector('#render-latex')?.checked===false && document.querySelector('#latex-macros')?.value===${JSON.stringify(String.raw`\Stab = \operatorname{Stab}`)}`);
-  console.log("LaTeX PASS: local toggle/macros survive full Chrome profile restart without new Sync keys");
+  console.log("Vim/LaTeX PASS: local toggle/macros survive extension reload and full Chrome profile restart without new Sync keys");
   await chrome.until(settings.sessionId, `chrome.storage.sync.get(${JSON.stringify(pendingKey)}).then(values => JSON.stringify(values[${JSON.stringify(pendingKey)}]) === ${JSON.stringify(JSON.stringify(beforeRestart[0]._chromeSync.records[pendingKey]))})`);
   const followingRestarted = await chrome.page(`chrome-extension://${extensionId}/src/authors/authors.html`);
   await chrome.until(followingRestarted.sessionId, "document.querySelector('#collection-sidebar')?.hidden && document.querySelectorAll('.author-row').length === 1");

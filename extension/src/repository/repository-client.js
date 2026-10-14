@@ -11,6 +11,35 @@ export class RepositoryClient extends PaperRepository {
     this.runtime = runtime;
   }
 
+  getOfflineLibrary() { return this.request("getOfflineLibrary"); }
+  getOfflineCopy(id) { return this.request("getOfflineCopy", [id]); }
+  saveOfflinePaper(paper, update = false) { return this.request("saveOfflinePaper", [paper, update]); }
+  removeOfflineCopy(id) { return this.request("removeOfflineCopy", [id]); }
+  cancelOfflineSave(id) { return this.request("cancelOfflineSave", [id]); }
+  getOfflinePdfChunk(id, revision, offset) { return this.request("getOfflinePdfChunk", [id, revision, offset]); }
+  openOfflinePaper(id) { return this.request("openOfflinePaper", [id]); }
+  subscribeOffline(changed) {
+    const listener = (message, sender) => {
+      if (message?.channel === "xivary:offline-changed:v1" && sender.id === this.runtime.id) changed();
+      return false;
+    };
+    this.runtime.onMessage.addListener(listener);
+    return () => this.runtime.onMessage.removeListener(listener);
+  }
+  // Bounded JSON messages keep large blobs out of the Chrome messaging serializer.
+  async readOfflinePdf(id) {
+    const copy = await this.getOfflineCopy(id);
+    if (!copy) throw new Error("This paper has no offline copy.");
+    const parts = [];
+    for (let offset = 0; offset < copy.size; offset += 512 * 1024) {
+      const text = atob(await this.getOfflinePdfChunk(id, copy.revision || copy.savedAt, offset));
+      const bytes = Uint8Array.from(text, character => character.charCodeAt(0));
+      if (bytes.length !== Math.min(512 * 1024, copy.size - offset)) throw new Error("Offline PDF is incomplete.");
+      parts.push(bytes);
+    }
+    return { copy, blob: new Blob(parts, { type: "application/pdf" }) };
+  }
+
   get available() { return this.runtime.available !== false; }
   setVimMode(enabled) { return this.request("setVimMode", [enabled]); }
 

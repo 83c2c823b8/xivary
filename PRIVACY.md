@@ -1,6 +1,6 @@
 # Privacy
 
-This document describes Xivary 0.3.0, a local-first desktop extension. Browser
+This document describes Xivary 0.4.0, a local-first desktop extension. Browser
 verification and remaining distribution checks are in [the release record](docs/release.md).
 
 ## Data stored locally
@@ -12,7 +12,8 @@ contain:
 - saved-paper titles, arXiv identifiers, author names, categories, abstracts, and dates;
 - followed author names and normalized name identifiers;
 - paper and author collection names and memberships;
-- user preferences, including the local LaTeX rendering toggle and custom macro definitions;
+- user preferences, including local Vim Mode, the LaTeX rendering toggle and custom macro definitions;
+- the local arXiv API pacing/cooldown deadline, without a persisted request queue;
 - cached public arXiv results for viewed author feeds, including non-followed
   names and their retrieval times.
 
@@ -20,6 +21,12 @@ Full local paper metadata, caches and last-used collection choices remain in the
 browser profile. Chrome and Firefox installations have independent libraries.
 Removal and retention are therefore also subject to the browser profile and extension
 lifecycle.
+
+Offline PDFs and their exact arXiv versions, timestamps, sizes and fallback paper
+metadata are stored separately in extension-origin IndexedDB. Copies stay local,
+are excluded from Chrome Sync and portable JSON exports, and can be lost when
+extension/profile data is deleted. Saving creates no Downloads file; the secondary
+Export PDF menu action deliberately creates an ordinary PDF file.
 
 ## Data synchronized by Chrome
 
@@ -36,7 +43,7 @@ Xivary receives no Google credentials and operates no account or server. Other
 Chromium distributions' sync infrastructure is not verified or promised.
 
 Bookmarks, Following records, collection names and memberships, paper metadata,
-author-feed caches, LaTeX rendering/macros, unknown settings and both last-used collection pointers remain
+author-feed caches, Vim Mode, LaTeX rendering/macros, unknown settings and both last-used collection pointers remain
 local. Firefox does not access its sync storage; its preferences remain local.
 Disabling Chrome sync is controlled by Chrome, not by Xivary.
 
@@ -76,6 +83,12 @@ See [Sync design](docs/chrome-sync.md).
 The extension has no project-owned backend and includes no analytics, advertising,
 or telemetry service.
 
+Author Results and the retained Search page use a shared background request queue.
+It spaces API starts by at least three seconds, uses one connection at a time and
+retries temporary HTTP 429 responses within bounded attempts/waiting. Queue entries
+and streamed response buffers are temporary; only the pacing/cooldown deadline
+persists locally, outside Chrome Sync and portable backups.
+
 When an author feed needs current results, the extension sends an author-name query
 directly to arXiv's public Atom API at `https://export.arxiv.org/api/query`. The
 response is cached locally for 24 hours. Opening paper, PDF, author-search, or other
@@ -96,6 +109,9 @@ No remote JavaScript, CSS, fonts, or other executable code is loaded at runtime.
 - `https://arxiv.org/search/*` content-script access: recognizes standard result
   author links and passes full displayed names to the existing Xivary author view.
   It leaves original destinations and modified-click behavior intact.
+- `https://arxiv.org/*` host access: resolves exact paper versions from abstracts
+  and internally fetches PDFs only when saving or updating an offline copy, without
+  credentials. Native offline reading requires no arXiv network request.
 - `https://export.arxiv.org/*` host access: retrieves public Atom results for author
   feeds and the retained field-aware search page.
 

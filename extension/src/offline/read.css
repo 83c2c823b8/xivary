@@ -1,0 +1,4 @@
+html, body { margin: 0; height: 100%; background: #fff; font: 14px system-ui, sans-serif; }
+#pdf { display: block; border: 0; width: 100%; height: 100%; }
+#pdf[hidden], #status[hidden] { display: none; }
+#status { margin: 16px; }

@@ -39,6 +39,13 @@ let followed = false;
 let followBusy = false;
 let requestBusy = false;
 let feedPhase = "loading";
+let requestController;
+let requestRevision = 0;
+window.addEventListener('pagehide', () => {
+  requestRevision++; requestController?.abort(); requestController = null;
+  requestBusy = false; element('refresh').disabled = false;
+  if (feedPhase === 'loading') { feedPhase = 'error'; setStatus('Loading interrupted; use Refresh to retry. Results may be incomplete.'); }
+});
 const filters = authorFilters(renderFiltered);
 
 element("follow-author").addEventListener("click", () => void toggleFollow());
@@ -126,23 +133,51 @@ async function init() {
 async function refresh(manual) {
   if (requestBusy) return;
   requestBusy = true;
+  const revision = ++requestRevision;
+  const controller = new AbortController();
+  requestController = controller;
+  let received = 0;
+  const current = () => revision === requestRevision && !controller.signal.aborted;
   feedPhase = "loading";
   element("empty").hidden = true;
   element("refresh").disabled = true;
   setStatus(manual ? "Refreshing from arXiv…" : "Loading papers from arXiv…");
   try {
-    const papers = await fetchArxivPapers(query);
+    const papers = await fetchArxivPapers(query, { signal: controller.signal,
+      onBatch: papers => {
+        if (!current()) return;
+        received = papers.filter(paper => paperMatchesAuthor(paper, author)).length;
+        // Keep a known-good cached view while refreshing it. On first load,
+        // append usable streamed entries immediately without remounting rows.
+        if (!loadedAt && received >= loadedPapers.length) render(papers, '');
+        setStatus(`Loading papers from arXiv… ${loadedAt ? received : loadedPapers.length} loaded (incomplete).`);
+      },
+      onStatus: event => {
+        if (!current()) return;
+        if (event.type === 'queued') setStatus('Loading papers from arXiv… waiting for the shared request queue.');
+        if (event.type === 'waiting') setStatus(`Waiting for arXiv${event.retry ? ' rate limit; retrying' : ''}…${event.until ? ` ${Math.max(1, Math.ceil((event.until - Date.now()) / 1000))}s wait.` : ''}${received ? ` ${received} loaded (incomplete).` : ''}`);
+      },
+    });
+    if (!current()) return;
     const cache = await repository.putAuthorPaperCache({ authorId: author.id, papers, fetchedAt: new Date().toISOString(), queryUsed: query });
+    if (!current()) return;
     savedIds = new Set((await repository.listFavorites()).map(paper => paper.arxivId));
+    if (!current()) return;
     feedPhase = "ready";
     render(cache.papers, cache.fetchedAt);
     setStatus("");
-  } catch (error) { feedPhase = "error"; renderFiltered(); setStatus(`Could not refresh: ${error.message}`, true); }
-  finally { requestBusy = false; element("refresh").disabled = false; }
+  } catch (error) {
+    if (!current()) return;
+    feedPhase = "error"; renderFiltered();
+    setStatus(`Could not refresh: ${error.message}${loadedAt ? ' Cached results retained.' : loadedPapers.length ? ` ${loadedPapers.length} shown; results incomplete.` : ''}`, true);
+  }
+  finally { if (current()) { requestBusy = false; requestController = null; element("refresh").disabled = false; } }
 }
 
 function render(papers, fetchedAt) {
-  loadedPapers = papers.filter(paper => paperMatchesAuthor(paper, author));
+  const unique = new Map();
+  for (const paper of papers) if (paperMatchesAuthor(paper, author) && !unique.has(paper.arxivId)) unique.set(paper.arxivId, paper);
+  loadedPapers = [...unique.values()];
   loadedAt = fetchedAt;
   const live = new Set(loadedPapers.map(paper => paper.arxivId));
   for (const id of paperRows.keys()) if (!live.has(id)) paperRows.delete(id);
@@ -153,7 +188,7 @@ function renderFiltered() {
   const values = filters.values();
   const active = Boolean(values.query.trim()) || values.range !== "any";
   const papers = filterAuthorPapers(loadedPapers, values);
-  element("updated").textContent = loadedAt ? `Updated ${new Date(loadedAt).toLocaleString()}` : "";
+  element("updated").textContent = loadedAt ? `Updated ${new Date(loadedAt).toLocaleString()} · Up to 50 arXiv results` : "";
   element("filter-count").textContent = active ? `${papers.length} ${papers.length === 1 ? "paper" : "papers"}` : "";
   const groups = new Map();
   for (const paper of papers) {
@@ -161,33 +196,41 @@ function renderFiltered() {
     if (!groups.has(year)) groups.set(year, []);
     groups.get(year).push(paper);
   }
-  const fragment = document.createDocumentFragment();
+  const container = element('papers');
+  for (const section of [...container.children]) if (!groups.has(Number(section.dataset.year))) section.remove();
+  let sectionIndex = 0;
   for (const [year, items] of groups) {
-    const section = document.createElement("section");
-    section.className = "year-group";
-    const heading = document.createElement("h2");
-    heading.className = "year";
-    heading.id = `year-${year}`;
-    heading.textContent = year;
-    section.setAttribute("aria-labelledby", heading.id);
-    const list = document.createElement("ul");
-    list.className = "year-list";
-    list.append(...items.map(paper => {
-      const signature = JSON.stringify([paper, savedIds.has(paper.arxivId), openArxivLinksInNewTab]);
+    let section = [...container.children].find(node => node.dataset.year === String(year));
+    if (!section) {
+      section = document.createElement('section'); section.dataset.year = year;
+      section.className = 'year-group';
+      const heading = document.createElement('h2'); heading.className = 'year';
+      heading.id = `year-${year}`; heading.textContent = year;
+      section.setAttribute('aria-labelledby', heading.id);
+      const list = document.createElement('ul'); list.className = 'year-list';
+      section.append(heading, list);
+    }
+    const list = section.querySelector('ul');
+    const nodes = items.map(paper => {
+      const signature = JSON.stringify([paper, openArxivLinksInNewTab]);
       let cached = paperRows.get(paper.arxivId);
       if (cached?.signature !== signature) {
         cached = { signature, node: paperRow(paper, {
+          repository,
           saved: savedIds.has(paper.arxivId), onToggle: button => save(paper, button),
           openArxivLinksInNewTab, renderAbstract,
         }) };
         paperRows.set(paper.arxivId, cached);
       }
+      const bookmark = cached.node.querySelector('.bookmark');
+      if (bookmark?.getAttribute('aria-pressed') !== String(savedIds.has(paper.arxivId))) setBookmarkState(bookmark, savedIds.has(paper.arxivId), paper.title);
       return cached.node;
-    }));
-    section.append(heading, list);
-    fragment.append(section);
+    });
+    for (const node of [...list.children]) if (!nodes.includes(node)) node.remove();
+    nodes.forEach((node, index) => { if (list.children[index] !== node) list.insertBefore(node, list.children[index] || null); });
+    if (container.children[sectionIndex] !== section) container.insertBefore(section, container.children[sectionIndex] || null);
+    sectionIndex++;
   }
-  element("papers").replaceChildren(fragment);
   element("empty").textContent = active ? "No matching papers." : "No papers were returned for this author name.";
   element("empty").hidden = feedPhase !== "ready" || papers.length > 0;
 }
@@ -206,7 +249,6 @@ async function save(paper, button) {
     localStateRevision++;
     savedIds.add(paper.arxivId);
     setBookmarkState(button, true, paper.title);
-    setStatus("Paper saved.");
   } catch (error) { setStatus(error.message, true); }
   finally { button.disabled = false; }
 }
@@ -216,7 +258,6 @@ async function syncBookmark(paper, button) {
   savedIds = new Set((await repository.listFavorites()).map(item => item.arxivId));
   localStateRevision++;
   setBookmarkState(button, savedIds.has(paper.arxivId), paper.title);
-  setStatus(savedIds.has(paper.arxivId) ? "Paper collections updated." : "Paper removed from the library.");
 }
 
 function setStatus(message, error = false) {

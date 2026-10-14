@@ -1,5 +1,6 @@
 import { normalizeArxivId } from "../domain/identifiers.js";
 import { normalizeAuthorName } from "../domain/author.js";
+import { requestArxiv } from './arxiv-client.js';
 
 export const AUTHOR_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 
@@ -18,10 +19,10 @@ export function buildApiQuery(plan) {
   return `${text} AND (${categories})`;
 }
 
-export function buildArxivApiUrl(searchQuery, maxResults = 50) {
+export function buildArxivApiUrl(searchQuery, maxResults = 50, start = 0) {
   const url = new URL("https://export.arxiv.org/api/query");
   url.searchParams.set("search_query", searchQuery);
-  url.searchParams.set("start", "0");
+  url.searchParams.set("start", String(start));
   url.searchParams.set("max_results", String(maxResults));
   url.searchParams.set("sortBy", "submittedDate");
   url.searchParams.set("sortOrder", "descending");
@@ -68,18 +69,53 @@ export function paperMatchesAuthor(paper, author) {
   return paper.authors.some(item => normalizeAuthorName(typeof item === "string" ? item : item.displayName) === target);
 }
 
-export async function fetchArxivPapers(searchQuery, fetchImpl = fetch) {
-  const response = await fetchImpl(buildArxivApiUrl(searchQuery), { headers: { Accept: "application/atom+xml" } });
-  if (!response.ok) throw new Error(`arXiv returned ${response.status}.`);
-  const xml = new DOMParser().parseFromString(await response.text(), "application/xml");
+export function parseArxivPapers(text) {
+  const xml = new DOMParser().parseFromString(text, "application/xml");
   if (xml.documentElement?.localName !== "feed" || xml.documentElement?.namespaceURI !== "http://www.w3.org/2005/Atom") throw new Error("arXiv returned an unexpected response.");
   if (xml.querySelector("parsererror")) throw new Error("arXiv returned an unreadable response.");
-  return [...xml.querySelectorAll("entry")].map(entry => normalizeApiEntry({
+  const unique = new Map();
+  for (const entry of xml.querySelectorAll("entry")) {
+    const paper = normalizeApiEntry({
     id: entry.querySelector("id")?.textContent || "",
     title: entry.querySelector("title")?.textContent || "",
     abstract: entry.querySelector("summary")?.textContent || "",
     publishedAt: entry.querySelector("published")?.textContent || "",
     authors: [...entry.querySelectorAll("author > name")].map(node => node.textContent || ""),
     categories: [...entry.querySelectorAll("category")].map(node => node.getAttribute("term") || "").filter(Boolean),
-  }));
+    });
+    if (!unique.has(paper.arxivId)) unique.set(paper.arxivId, paper);
+  }
+  return [...unique.values()];
+}
+
+/** Parse only fully closed entries; final whole-feed validation remains required.
+ * Full text is retained for validation, never persisted as an incomplete cache.
+ */
+export function progressiveAtom(onBatch, parse = parseArxivPapers) {
+  let text = '', emitted = 0;
+  return chunk => {
+    text += chunk;
+    // XML CDATA/comments may contain literal closing-entry text. Only a prefix
+    // which is itself a well-formed Atom feed may produce provisional rows.
+    const end = text.lastIndexOf('</entry>');
+    if (end < 0) return;
+    let papers;
+    try { papers = parse(text.slice(0, end + 8) + '</feed>'); } catch { return; }
+    if (papers.length > emitted) { emitted = papers.length; onBatch(papers); }
+  };
+}
+
+export async function fetchArxivPapers(searchQuery, options = {}) {
+  // Explicit injected transport is retained for parser/HTTP unit tests only.
+  if (typeof options === 'function') {
+    const response = await options(buildArxivApiUrl(searchQuery), { headers: { Accept: 'application/atom+xml' } });
+    if (!response.ok) throw new Error(`arXiv returned ${response.status}.`);
+    return parseArxivPapers(await response.text());
+  }
+  const progress = progressiveAtom(papers => options.onBatch?.(papers));
+  const text = await requestArxiv(searchQuery, { signal: options.signal, onEvent: event => {
+    if (event.type === 'chunk') progress(event.text);
+    else options.onStatus?.(event);
+  } });
+  return parseArxivPapers(text);
 }

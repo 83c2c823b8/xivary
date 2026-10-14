@@ -3,6 +3,7 @@ import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { ChromiumTestSession, waitFor } from "./chromium-test-session.mjs";
+import { undoNotificationWorkflow } from './undo-notification-workflow.mjs';
 
 export async function polishSmoke() {
   const profile = await mkdtemp(join(tmpdir(), "xivary-polish-"));
@@ -31,6 +32,10 @@ export async function polishSmoke() {
   });
   try {
     const { id } = await chrome.send("Extensions.loadUnpacked", { path: new URL("extension", root).pathname });
+    const worker = await waitFor(async () => (await chrome.send('Target.getTargets')).targetInfos.find(target => target.type === 'service_worker' && target.url.includes(id)), 'arXiv scheduler worker');
+    const { sessionId: workerSession } = await chrome.send('Target.attachToTarget', { targetId: worker.targetId, flatten: true });
+    await chrome.send('Runtime.enable', {}, workerSession);
+    await chrome.send('Fetch.enable', { patterns: [{ urlPattern: 'https://export.arxiv.org/*' }] }, workerSession);
     const url = path => `chrome-extension://${id}/src/${path}`;
     const page = async destination => { const result = await chrome.page(); await chrome.send("Fetch.enable", { patterns: [{ urlPattern: "https://*" }] }, result.sessionId); await chrome.send("Page.navigate", { url: destination }, result.sessionId); return result.sessionId; };
     const rpc = (session, operation) => chrome.evaluate(session, `(async()=>{const {RepositoryClient}=await import('../repository/repository-client.js');return ${operation.replaceAll("repo.", "new RepositoryClient().")}})()`);
@@ -176,6 +181,7 @@ export async function polishSmoke() {
       assert.deepEqual((await snapshot()).collections, before.collections);
     }
     // Paper picker removal and Undo retain full canonical metadata/memberships.
+    await chrome.send('Page.bringToFront', {}, author);
     await chrome.send("Page.navigate", { url: url("author/author.html?name=Alex%20Kim") }, author);
     await chrome.until(author, "document.querySelector('#name')?.textContent==='Alex Kim' && !document.querySelector('#refresh').disabled");
     await chrome.click(author, "#refresh");
@@ -224,7 +230,10 @@ export async function polishSmoke() {
     await chrome.send("Input.dispatchKeyEvent", { type: "keyUp", key: "Enter", windowsVirtualKeyCode: 13 }, searchPage);
     await chrome.until(searchPage, "location.protocol==='chrome-extension:' && document.querySelector('#name')?.textContent==='Yuya Nakamura'");
     assert.deepEqual(errors, []);
-    console.log("POLISH SMOKE PASS: author Follow/Unfollow/Undo/reload, delayed/invalid/empty API states, both Collection forms/dialogs, paper metadata Undo and eight-second expiry, default new-tab/current-tab, real search fixture/dynamic authors, native Ctrl/middle/Enter");
+    await chrome.send('Page.bringToFront', {}, library);
+    await chrome.evaluate(library, 'document.activeElement.blur()');
+    await undoNotificationWorkflow({evaluate:expression=>chrome.evaluate(library,expression),until:expression=>chrome.until(library,expression),click:selector=>chrome.click(library,selector),movePointer:(x,y)=>chrome.send('Input.dispatchMouseEvent',{type:'mouseMoved',x,y},library),screenshot:async name=>{if(!process.env.ARXIV_SCREENSHOT_DIR)return;const {data}=await chrome.send('Page.captureScreenshot',{format:'png'},library);const {mkdir}=await import('node:fs/promises');await mkdir(process.env.ARXIV_SCREENSHOT_DIR,{recursive:true});await writeFile(join(process.env.ARXIV_SCREENSHOT_DIR,name),Buffer.from(data,'base64'));}});
+    console.log("POLISH SMOKE PASS: author Follow/Unfollow/Undo/reload, delayed/invalid/empty API states, both Collection forms/dialogs, paper metadata Undo and three-second notice dismissal, default new-tab/current-tab, real search fixture/dynamic authors, native Ctrl/middle/Enter");
   } finally { await chrome.close(); await rm(profile, { recursive: true, force: true }); }
 }
 if (process.argv[1] && new URL(`file://${process.argv[1]}`).href === import.meta.url) await polishSmoke();

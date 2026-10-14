@@ -65,6 +65,7 @@ function render() {
     let cached = paperRows.get(paper.arxivId);
     if (cached?.signature !== signature) {
       cached = { signature, node: paperRow(paper, {
+        repository,
         saved: true, showAbstract: false,
         openArxivLinksInNewTab: library.settings.openArxivLinksInNewTab,
         onToggle: button => managePaper(paper, button),

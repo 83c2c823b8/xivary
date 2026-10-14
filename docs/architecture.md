@@ -77,7 +77,7 @@ the sender and exposes subscription/unsubscription. Views reread through the sam
 repository contract, with revision guards for overlapping reads. Notification
 failure does not fail a local save. Focus/pageshow refresh covers missed messages;
 an unavailable repository disables shortcuts. No UI module accesses storage.
-Library, Following, Author Results and Settings import `ui/vim-mode.js`. Browser
+Library, Following, Offline, Author Results and Settings import `ui/vim-mode.js`. Browser
 history stays in the view; adjacent-tab activation crosses the platform adapter
 and the shared background entry point, with supported-sender/source-tab checks.
 Settings TOC scrolling is independent of routing and never replaces mounted forms
@@ -193,8 +193,12 @@ freshness rule. Browser navigation uses the platform boundary; DOM rendering sta
 The field expansion modules are also pure and deterministic. These contracts can
 be ported to a backend or mobile client without Chrome storage or UI types.
 
-Direct result retrieval uses the public arXiv Atom endpoint under the manifest's
-single host permission. Search retains an equivalent native arXiv URL but is
+Result retrieval uses one background ArxivScheduler and native runtime ports,
+with progressive Atom parsing in the page and complete-only cache commits. A local
+repository-owned `_arxivApi.until` deadline survives worker restart; queued work
+stays transient. See [pacing, recovery and stream evidence](arxiv-loading.md).
+Retrieval uses the public arXiv Atom endpoint under the manifest’s
+`https://export.arxiv.org/*` host permission. Search retains an equivalent native arXiv URL but is
 currently hidden from primary navigation. Author feeds defensively require one
 returned author to match the selected normalized full name; namesakes remain an
 explicit limitation. ORCID linking is future work.
@@ -245,7 +249,7 @@ open their picker, while headings retain direct Unfollow and a separate picker.
 
 The author heading rereads actual membership state and submits Follow/Unfollow
 with a busy guard. It exposes the existing optional collection picker. Fetching is
-single-flight per author view; a focus read cannot reveal an initial empty state
+single-flight per author view and globally paced/deduplicated in the worker; a focus read cannot reveal an initial empty state
 while loading. Only valid Atom feeds become caches; unexpected successful responses
 are errors. See [investigation and evidence](author-interaction-polish.md).
 
@@ -292,3 +296,12 @@ client and background allowlist. LocalRepository validates macro drafts before a
 write. Schema 5 gets additive default-true/empty-string settings on reads; no schema
 bump or rewriting of existing abstracts is needed. Sync's four-key projection and
 portable v1/v2 formats stay unchanged. See [policy and limits](latex-rendering.md).
+
+## Offline PDF storage
+
+The shared repository delegates independent offline copies to extension-origin
+IndexedDB through the same client/RPC boundary. Schema 5, preferences, Sync and
+portable transfer stay unchanged. The top-level Offline view shares paper rows
+and filters; Library remains bookmark-only. A stable reader tab reconstructs a
+Blob and embeds Chrome’s native PDF viewer, with document-owned URL lifetime.
+See [schema, lifecycle and browser evidence](offline-storage.md).

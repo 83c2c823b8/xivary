@@ -35,6 +35,9 @@ main { padding-top: 12px; }
   #filter-count { margin-left: auto; }
 }
 
+.author-heading-content { min-width: 0; }
+.page-heading > .settings-link { flex: 0 0 auto; }
+
 .author-heading { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; }
 .author-heading h1 { min-width: 0; overflow-wrap: anywhere; }
 .author-heading .xivary-follow-button { flex: 0 0 auto; }
@@ -44,3 +47,6 @@ main { padding-top: 12px; }
 .author-heading .collection-trigger-icon:hover { background: #f1f3f4; color: var(--text); }
 
 #status:empty { display: none; }
+#updated:empty { display: none; }
+/* Loading and completion occupy the same restrained line above the rows. */
+#status { margin: 6px 0 10px; font-size: 12px; line-height: 1.45; min-height: 0; }

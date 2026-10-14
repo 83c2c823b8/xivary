@@ -1,4 +1,5 @@
 import { vimWorkflow } from "./vim-workflow.mjs";
+import { undoNotificationWorkflow } from './undo-notification-workflow.mjs';
 import { followingSearchWorkflow } from "./following-search-workflow.mjs";
 import { latexSettingsWorkflow, latexAuthorWorkflow } from "./latex-workflow.mjs";
 import { libraryDateWorkflow } from './library-date-workflow.mjs';
@@ -101,7 +102,9 @@ async function switchToNewPage(previousHandles) {
 }
 
 try {
-  const { directory, manifest } = await packageExtension("firefox", join(temporary, "package"));
+  const { directory, manifest } = await packageExtension("firefox", join(temporary, "package"), {
+    archive: process.env.XIVARY_NO_ARCHIVE !== "1",
+  });
   const fixture = (await readFile(join(root, "tests/fixtures/arxiv-abstract.html"), "utf8"))
     .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, "");
   const atom = '<?xml version="1.0"?><feed xmlns="http://www.w3.org/2005/Atom"><entry><id>https://arxiv.org/abs/2609.01234v1</id><title>Firefox feed fixture</title><summary>Local fixture</summary><published>2026-09-20T00:00:00Z</published><author><name>Alex Kim</name></author><category term="math.AG"/></entry></feed>';
@@ -163,7 +166,7 @@ try {
 
   await navigate("https://arxiv.org/abs/2401.00001");
   await until("document.querySelectorAll('.authors .arxiv-library-button').length === 2 && !document.querySelector('.arxiv-library-bookmark').disabled");
-  assert.equal(await evaluate("document.querySelectorAll('.arxiv-library-bookmark').length===1 && document.querySelector('h1.title').lastElementChild.classList.contains('arxiv-library-bookmark') && document.querySelector('h1.title').textContent==='Title:A sample paper' && getComputedStyle(document.querySelector('.arxiv-library-bookmark')).float==='none'"),true);
+  assert.equal(await evaluate("document.querySelectorAll('.arxiv-library-bookmark').length===1 && document.querySelector('h1.title').lastElementChild.classList.contains('offline-action') && document.querySelector('h1.title').lastElementChild.previousElementSibling.classList.contains('arxiv-library-bookmark') && document.querySelector('.offline-action').getBoundingClientRect().width===30 && document.querySelector('h1.title').textContent==='Title:A sample paper' && getComputedStyle(document.querySelector('.arxiv-library-bookmark')).float==='none'"),true);
   await screenshot("arxiv-title-unsaved.png");
   await evaluate("document.querySelector('.arxiv-library-bookmark').click()");
   await until("document.querySelector('.arxiv-library-bookmark').getAttribute('aria-pressed') === 'true' && !document.querySelector('.arxiv-library-bookmark').disabled");
@@ -275,7 +278,9 @@ try {
     resize:(width,height)=>command('/window/rect',{width,height:height+100}),screenshot,
     openLink:async operation=>{const source=await request('GET',`/session/${session}/window`);const handles=await request('GET',`/session/${session}/window/handles`);await operation();await switchToNewPage(handles);await until('document.querySelector("#vim-mode")');assert.equal(await evaluate('window.opener===null'),true);assert.equal(await evaluate('location.href'),extensionUrl('settings/settings.html'));await request('DELETE',`/session/${session}/window`);await command('/window',{handle:source})},
   });
-  console.log("FIREFOX SMOKE PASS: generated package, background messaging, content save/follow, local-only storage, reloads, feeds, transient author entry, popup navigation, settings and both contextual gears");
+  await navigateExtension('library/library.html');await until("document.querySelector('.paper-row')");
+  await undoNotificationWorkflow({evaluate:evaluateAsync,until,click:pickerClick,movePointer:(x,y)=>command('/actions',{actions:[{type:'pointer',id:'notice-pointer',parameters:{pointerType:'mouse'},actions:[{type:'pointerMove',origin:'viewport',x,y,duration:0}]}]}),screenshot});
+  console.log("FIREFOX SMOKE PASS: generated package, background messaging, content save/follow, local-only storage, reloads, feeds, transient author entry, popup navigation, settings, Undo notices and both contextual gears");
 } catch (error) {
   console.error(log.slice(-5000));
   throw error;

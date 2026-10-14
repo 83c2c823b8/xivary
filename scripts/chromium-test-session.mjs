@@ -4,7 +4,7 @@ const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 
 /** CDP pipe to one disposable profile. Never connects to the user's browser. */
 export class ChromiumTestSession {
-  constructor(profile) {
+  constructor(profile, extraArguments = []) {
     this.nextId = 0;
     this.pending = new Map();
     this.listeners = [];
@@ -13,7 +13,7 @@ export class ChromiumTestSession {
     this.process = spawn(process.env.CHROME_BIN || "/usr/bin/google-chrome", [
       "--headless=new", "--no-sandbox", "--disable-gpu", "--disable-dev-shm-usage",
       "--no-first-run", "--disable-background-networking", "--remote-debugging-pipe",
-      "--enable-unsafe-extension-debugging", `--user-data-dir=${profile}`, "about:blank",
+      "--enable-unsafe-extension-debugging", `--user-data-dir=${profile}`, ...extraArguments, "about:blank",
     ], { stdio: ["ignore", "ignore", "pipe", "pipe", "pipe"] });
     this.process.stderr.on("data", data => { this.errors += data; });
     this.process.stdio[4].on("data", data => {

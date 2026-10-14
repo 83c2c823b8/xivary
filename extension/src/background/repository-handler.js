@@ -1,6 +1,8 @@
 import { REPOSITORY_CHANNEL } from "../repository/repository-client.js";
 
 const methods = new Map([
+  ["getOfflineLibrary", 0], ["getOfflineCopy", 1], ["saveOfflinePaper", 2],
+  ["removeOfflineCopy", 1], ["cancelOfflineSave", 1], ["getOfflinePdfChunk", 3], ["openOfflinePaper", 1],
   ["setVimMode", 1],
   ["setRenderLatexInAbstracts", 1], ["setCustomLatexMacros", 1],
   ["listFavorites", 0], ["getPaperLibrary", 0], ["savePaper", 1],

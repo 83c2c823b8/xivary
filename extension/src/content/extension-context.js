@@ -8,6 +8,8 @@ export function isInvalidatedContext(error) {
 export function contentConnection(runtime, onUnavailable) {
   let available = true;
   return {
+    get id() { return runtime.id; },
+    get onMessage() { return runtime.onMessage; },
     get available() { return available; },
     async sendMessage(message) {
       if (!available) throw new Error(RECONNECT_HINT);

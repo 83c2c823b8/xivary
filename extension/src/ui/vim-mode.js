@@ -113,6 +113,8 @@ export function scrollDestination(key, top, height, total) {
 }
 
 export const SCROLL_DURATION = 90;
+export const EDGE_SCROLL_MAX_DURATION = 260;
+export const edgeScrollDuration = distance => Math.min(EDGE_SCROLL_MAX_DURATION, 120 + 3 * Math.sqrt(Math.abs(distance)));
 /** One short animation, retargeted in place; never a queue of native animations. */
 export function createScrollAnimator(doc, view) {
   let frame = null, motion = null;
@@ -125,13 +127,18 @@ export function createScrollAnimator(doc, view) {
     view.innerHeight === motion.height && motion.root.scrollHeight === motion.total &&
     Math.abs(motion.root.scrollTop - motion.written) <= 1;
   const write = top => {
-    view.scrollTo({ top, behavior: 'instant' });
+    // Write to the page's actual scrolling element, including its rounded offset.
+    scrollTo(motion.root, top);
     motion.written = motion.root.scrollTop; // Browsers round fractional offsets.
+  };
+  const scrollTo = (root, top) => {
+    if (root.scrollTo) root.scrollTo({ top, behavior: 'instant' });
+    else view.scrollTo({ top, behavior: 'instant' });
   };
   function tick(now) {
     frame = null;
     if (!unchanged()) { cancel(); return; }
-    const progress = reduced?.matches ? 1 : Math.min(1, (now - motion.started) / SCROLL_DURATION);
+    const progress = reduced?.matches ? 1 : Math.min(1, (now - motion.started) / motion.duration);
     write(motion.from + (motion.target - motion.from) * (1 - (1 - progress) ** 3));
     if (progress >= 1 || Math.abs(motion.root.scrollTop - motion.target) < 0.5) {
       write(motion.target); motion = null;
@@ -141,17 +148,19 @@ export function createScrollAnimator(doc, view) {
     if (!unchanged()) cancel();
     const root = doc.scrollingElement;
     if (!root) return;
-    const direction = key === 'j' ? 1 : -1;
+    const step = key === 'j' || key === 'k';
+    const direction = key === 'j' || key === 'G' ? 1 : -1;
     // Reversal drops the old directional backlog and responds from the live
     // position; repeated presses in the same direction accumulate 80px targets.
-    const base = motion?.direction === direction ? motion.target : root.scrollTop;
+    const base = step && motion?.step && motion.direction === direction ? motion.target : root.scrollTop;
     const target = scrollDestination(key, base, view.innerHeight, root.scrollHeight);
     if (target === root.scrollTop) { cancel(); return; }
     if (motion?.target === target) return; // No work for repeated boundary presses.
     const from = root.scrollTop;
     // Interrupt an in-progress native TOC smooth scroll at its live position.
-    if (!motion) view.scrollTo({ top: from, behavior: 'instant' });
-    motion = { root, from, target, direction, height: view.innerHeight, total: root.scrollHeight,
+    if (!motion) scrollTo(root, from);
+    motion = { root, from, target, direction, step, height: view.innerHeight, total: root.scrollHeight,
+      duration: step ? SCROLL_DURATION : edgeScrollDuration(target - from),
       written: from, started: view.performance.now() };
     if (reduced?.matches) { write(target); cancel(); }
     else if (frame === null) frame = view.requestAnimationFrame(tick);
@@ -273,7 +282,8 @@ export function bindVimMode(repository, doc = document, view = window, switchTab
   }
 
   function keydown(event) {
-    if (!enabled || composing || unsafeKey(event)) return;
+    if (!enabled) return;
+    if (composing || unsafeKey(event)) { scrolling.cancel(); return; }
     if (editable(event.target) || transient(doc, view)) { scrolling.cancel(); resetSequence(); cancelHints(); return; }
     const key = event.key;
     if (hints) {
@@ -300,7 +310,7 @@ export function bindVimMode(repository, doc = document, view = window, switchTab
     if (key === "g" && !event.repeat) {
       event.preventDefault();
       if (sequenceTimer !== null) { resetSequence(); scroll("gg"); }
-      else sequenceTimer = view.setTimeout(resetSequence, SEQUENCE_TIMEOUT);
+      else { scrolling.cancel(); sequenceTimer = view.setTimeout(resetSequence, SEQUENCE_TIMEOUT); }
       return;
     }
     if (key === 'i' && sequenceTimer !== null && !event.repeat) {
@@ -328,6 +338,7 @@ export function bindVimMode(repository, doc = document, view = window, switchTab
       else view.history.forward();
     } else if (!event.repeat && (key === "f" || key === "F")) { scrolling.cancel(); event.preventDefault(); showHints(key === "F"); }
     else if (!event.repeat && key === "?") { scrolling.cancel(); event.preventDefault(); showHelp(); }
+    else if (key !== 'Shift') scrolling.cancel(); // Native keys interrupt without being claimed.
   }
 
   // Window bubble runs after target/form/document cancellation handlers. Claimed
@@ -369,7 +380,7 @@ export function bindVimMode(repository, doc = document, view = window, switchTab
   }
 
   function scroll(key) {
-    if (key === 'j' || key === 'k') { scrolling.move(key); return; }
+    if (['j', 'k', 'gg', 'G'].includes(key)) { scrolling.move(key); return; }
     scrolling.cancel();
     const root = doc.scrollingElement;
     // All supported views scroll their document; sidebar/picker scroll is native.

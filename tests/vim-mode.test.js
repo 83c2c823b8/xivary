@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { hintTargets, hintAnchor, hintPosition, hintLabels, HINT_ALPHABET, editable, unsafeKey, scrollDestination, bindVimMode, SEQUENCE_TIMEOUT, createScrollAnimator, SCROLL_DURATION, escapeAlias, inputTarget } from '../extension/src/ui/vim-mode.js';
+import { hintTargets, hintAnchor, hintPosition, hintLabels, HINT_ALPHABET, editable, unsafeKey, scrollDestination, bindVimMode, SEQUENCE_TIMEOUT, createScrollAnimator, SCROLL_DURATION, EDGE_SCROLL_MAX_DURATION, edgeScrollDuration, escapeAlias, inputTarget } from '../extension/src/ui/vim-mode.js';
 import { LocalRepository } from '../extension/src/repository/local-repository.js';
 import { RepositoryClient, PREFERENCES_CHANGED_CHANNEL } from '../extension/src/repository/repository-client.js';
 import { createRepositoryHandler } from '../extension/src/background/repository-handler.js';
@@ -189,6 +189,75 @@ function animationSurface() {
   const step = time => { now = time; const pending = [...frames.values()]; frames.clear(); pending.forEach(fn => fn(now)); };
   return { doc, view, frames, reduced, step, writes: () => writes };
 }
+
+test('gg/G animate short and very long pages within a bounded distance-aware duration', () => {
+  assert.ok(edgeScrollDuration(100) < edgeScrollDuration(1000));
+  assert.equal(edgeScrollDuration(1e9), EDGE_SCROLL_MAX_DURATION);
+  for (const total of [900, 3000, 500000]) for (const key of ['gg', 'G']) {
+    const { doc, view, frames, step } = animationSurface();
+    const root = doc.scrollingElement;
+    root.scrollHeight = total;
+    root.scrollTop = key === 'gg' ? total - view.innerHeight : 0;
+    // Exercise the element API rather than relying on window.scrollTo.
+    root.scrollTo = ({ top, behavior }) => { assert.equal(behavior, 'instant'); root.scrollTop = top; };
+    view.scrollTo = () => assert.fail('must write to the actual scroll root');
+    const initial = root.scrollTop, target = key === 'gg' ? 0 : total - view.innerHeight;
+    const animation = createScrollAnimator(doc, view);
+    animation.move(key); assert.equal(root.scrollTop, initial); assert.equal(frames.size, 1);
+    step(16); assert.ok(root.scrollTop > Math.min(initial, target) && root.scrollTop < Math.max(initial, target));
+    animation.move(key); assert.equal(frames.size, 1, 'repeated edges do not restart or queue');
+    step(EDGE_SCROLL_MAX_DURATION); assert.equal(root.scrollTop, target); assert.equal(frames.size, 0);
+  }
+});
+
+test('edge reversal and j/k retarget from the live position without carrying an edge backlog', () => {
+  const { doc, view, frames, step } = animationSurface();
+  const animation = createScrollAnimator(doc, view), root = doc.scrollingElement;
+  animation.move('G'); step(16); const down = root.scrollTop;
+  animation.move('gg'); step(32); assert.ok(root.scrollTop < down);
+  animation.move('G'); step(48); const live = root.scrollTop;
+  animation.move('j'); step(48 + SCROLL_DURATION);
+  assert.equal(root.scrollTop, live + 80); assert.equal(frames.size, 0);
+});
+
+test('edge scrolling is immediate for reduced motion and no-op on non-scrollable pages', () => {
+  const { doc, view, frames, reduced } = animationSurface();
+  const animation = createScrollAnimator(doc, view);
+  reduced.matches = true;
+  animation.move('G'); assert.equal(doc.scrollingElement.scrollTop, 2400);
+  animation.move('gg'); assert.equal(doc.scrollingElement.scrollTop, 0); assert.equal(frames.size, 0);
+  reduced.matches = false; doc.scrollingElement.scrollHeight = 100;
+  animation.move('G'); assert.equal(doc.scrollingElement.scrollTop, 0); assert.equal(frames.size, 0);
+});
+
+test('native keys, wheel, navigation and disabled Vim interrupt edge scrolling without claiming native keys', async () => {
+  const { doc, view, frames, step } = animationSurface();
+  let enabled = true, changed;
+  const dispose = bindVimMode({ getPreferences: async () => ({ vimMode: enabled }), subscribePreferences: fn => { changed = fn; return () => {}; } }, doc, view);
+  await new Promise(resolve => setImmediate(resolve));
+  const press = (key, extra = {}) => {
+    const event = { key, target: {}, preventDefault() { this.defaultPrevented = true; }, ...extra };
+    doc.dispatch('keydown', event); return event;
+  };
+  let now = 0;
+  for (const stop of [
+    () => assert.equal(press('ArrowDown').defaultPrevented, undefined),
+    () => assert.equal(press('Tab').defaultPrevented, undefined),
+    () => assert.equal(press('l', { ctrlKey: true }).defaultPrevented, undefined),
+    () => press('Escape'), () => doc.dispatch('wheel'), () => view.dispatch('popstate'),
+    () => view.dispatch('hashchange'),
+  ]) {
+    press('G'); step(now += 16); const at = doc.scrollingElement.scrollTop;
+    assert.equal(frames.size, 1); stop(); assert.equal(frames.size, 0);
+    step(now += 300); assert.equal(doc.scrollingElement.scrollTop, at);
+    doc.scrollingElement.scrollTop = 200;
+  }
+  press('G'); enabled = false; changed(); await new Promise(resolve => setImmediate(resolve));
+  assert.equal(frames.size, 0); assert.equal(press('G').defaultPrevented, undefined);
+  enabled = true; changed(); await new Promise(resolve => setImmediate(resolve));
+  press('G'); view.dispatch('pagehide', {});
+  assert.equal(frames.size, 0); dispose(); assert.equal(doc.count() + view.count(), 0);
+});
 
 test('j/k uses one responsive frame chain, accumulates repeats and reverses immediately', () => {
   const { doc, view, frames, step } = animationSurface();

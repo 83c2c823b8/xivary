@@ -64,8 +64,10 @@ domain-specific commands and full paper sources are outside this feature.
 KaTeX 0.19.0 JavaScript, CSS and all fonts referenced by that CSS are bundled under
 `extension/vendor/katex/` with their licenses. No CDN requests, source fetching,
 AI inference, accounts, telemetry or new permissions are introduced. The existing
-MV3 script policy remains unchanged. Display equations scroll horizontally within
-the abstract when too wide; prose retains the existing compact reading layout.
+MV3 script policy remains unchanged. Abstracts expand naturally without internal
+scroll containers. Display equations wrap at KaTeX break points where available;
+indivisible expressions remain visible rather than being clipped. Prose retains
+the existing compact reading layout.
 Author Results reuses rendered rows during filtering and invalidates its cache
 when settings change. Open result pages reread settings on focus or reopening.
 

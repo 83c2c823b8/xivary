@@ -19,6 +19,22 @@ export class LocalRepository extends PaperRepository {
     this.removals = new Map();
     this.entityVersions = new Map();
     this.undoNow = () => Date.now();
+    this.offline = null; // Injected by the shared background entry point; independent of schema 5.
+  }
+
+  getOfflineLibrary() { return this.offline.list(); }
+  getOfflineCopy(id) { return this.offline.get(id); }
+  saveOfflinePaper(paper, update) {
+    if (typeof update !== "boolean") throw new Error("Invalid offline update choice.");
+    return this.offline.save(paper, update);
+  }
+  removeOfflineCopy(id) { return this.offline.remove(id); }
+  cancelOfflineSave(id) { return this.offline.cancel(id); }
+  getOfflinePdfChunk(id, revision, offset) { return this.offline.chunk(id, revision, offset); }
+  async openOfflinePaper(id) {
+    const copy = await this.getOfflineCopy(id);
+    if (!copy) throw new Error("This paper has no offline copy.");
+    return this.openOfflineTab(copy.arxivId);
   }
 
   // One worker instance serializes migrations, reads and writes across all UI contexts.
@@ -261,6 +277,19 @@ export class LocalRepository extends PaperRepository {
 
   getAuthorPaperCache(authorId) {
     return this.run(state => structuredClone(state.authorPaperCaches.find(item => item.authorId === authorId) ?? null));
+  }
+
+  getArxivRequestState() {
+    return this.run(state => structuredClone(state._arxivApi ?? { until: 0 }));
+  }
+
+  setArxivRequestState(value) {
+    if (!value || !Number.isFinite(value.until) || value.until < 0) return Promise.reject(new Error("Invalid arXiv request deadline."));
+    return this.run(async state => {
+      state._arxivApi = { until: value.until };
+      await this.storage.write(state);
+      return structuredClone(state._arxivApi);
+    });
   }
 
   putAuthorPaperCache(input) {

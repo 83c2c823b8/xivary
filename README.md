@@ -1,11 +1,11 @@
 # Xivary
 
-Version **0.3.0** is prepared for manual submission; see [release verification and
-publication steps](docs/release.md#v030-release-preparation). No automatic upload occurs.
+Version **0.4.0** is a keyboard-navigation release candidate, pending the manual
+checks in the [release record](docs/release.md#v040-release-candidate). No upload or publication has occurred.
 
-Library (Bookmarks) and Following have a Settings gear in their page header. Both
-open the existing Settings page, including preferences and category-specific data
-transfer.
+Library (Bookmarks), Following, Offline and Author Results share a Settings gear in their
+page header. It opens the existing Settings page in the current tab, including
+preferences and category-specific data transfer.
 
 On supported arXiv abstract and standard search-results pages, an ordinary click
 or keyboard activation of an author-name search link opens the existing Xivary
@@ -35,8 +35,15 @@ measurements and safety counterexamples. It does not enable library uploads.
 
 ## Features
 
+- A compact **Offline** tab for local PDFs, with discreet save icons on paper rows
+  and arXiv abstracts. Offline title clicks use Chrome’s native PDF viewer; PDF
+  export/removal stay in the contextual menu. Bookmarks remain independent.
+  [Storage, permissions and browser evidence](docs/offline-storage.md).
 - Compact **Follow** and **Following** controls beside authors on arXiv abstract pages.
-- A Following list and per-author paper feeds retrieved from arXiv's public Atom API.
+- A Following list and per-author paper results from arXiv’s public Atom API.
+  New author pages display usable streamed entries before retrieval finishes.
+  All extension API requests share one paced queue with HTTP 429 recovery.
+  Results remain limited to the first 50 arXiv hits, with full-name matching.
 - Search followed authors by part of their name, locally and case-insensitively.
   The temporary query combines with collection browsing and clears on page reload.
 - Paper saving from arXiv pages and author feeds.
@@ -46,8 +53,10 @@ measurements and safety counterexamples. It does not enable library uploads.
   collections**; use each author's folder-icon collection picker to assign memberships.
   To move, select the destination before clearing the source. Disabling organization
   preserves assignments. [Workflow and data rules](docs/following-collections.md).
-- Eight-second Undo for ordinary item/membership removals; confirmation for deleting
-  an entire collection, including sole-membership consequences.
+- Compact bottom-right Undo notices for ordinary removals: three seconds of
+  visible time, paused during hover or keyboard focus. The background’s eight-second
+  restoration validity remains unchanged. Whole-collection deletion still confirms
+  sole-membership consequences; routine successful operations stay quiet.
 - Local text filtering of saved papers and author feeds, with shared rolling time
   presets and inclusive custom year ranges in Library and author feeds.
 - A compact popup for opening Library and Following and viewing their counts.
@@ -55,14 +64,13 @@ measurements and safety counterexamples. It does not enable library uploads.
   to enabled. Disable it to replace the active tab when choosing a popup row;
   the toolbar icon still opens the popup, and its Settings gear is unchanged.
 - Optional **Settings → Keyboard navigation → Vim Mode**, off by default, for
-  Library, Following, Author Results and Settings. Scroll with `j/k`, navigate
-  browser history with `h/l`, switch browser tabs left/right with `J/K`, focus
-  search or the macro editor with `gi`, and show hints with `f/F`. Press `?` for
-  help; Escape or Ctrl+[ leaves ordinary text fields without changing their value. The preference stays
-  local; typing and menus retain their normal keys. [Shortcuts and limits](docs/vim-mode.md).
+  Library, Following, Offline, Author Results and Settings. The preference stays local;
+  typing, menus and native Tab navigation retain their keys.
+  [Keyboard mappings](#keyboard-navigation) and [precise behavior](docs/vim-mode.md).
 - Optional local KaTeX rendering in abstracts, enabled by default, with a compact
   custom macro editor. Unknown or invalid expressions retain their original LaTeX.
   [Syntax, safety and limitations](docs/latex-rendering.md).
+- A shared Settings gear in Library, Following and Author Results.
 - Settings for opening arXiv links in a new tab and optionally organizing followed
   authors into collections.
 - Explicit JSON export/import for backing up or transferring Library and Following
@@ -71,13 +79,40 @@ measurements and safety counterexamples. It does not enable library uploads.
 The separate field-aware Search page remains packaged for direct testing but is not
 linked from primary navigation in this release.
 
+## Keyboard navigation
+
+Enable **Settings → Keyboard navigation → Vim Mode**; it is off by default and
+stays local to this installation. It works on Library, Following, Offline, Author Results
+and Settings. The toolbar popup, separate Search page and arXiv pages retain their
+native keys.
+
+| Key | Action |
+| --- | --- |
+| `j` / `k` | Scroll down / up |
+| `h` / `l` | Browser history back / forward |
+| `J` / `K` | Adjacent browser tab on the left / right, wrapping at either end |
+| `f` | Show hints for visible links and controls |
+| `F` | Show hints; open selected navigational links in a new tab |
+| `gi` | Focus the primary search field or eligible editor (macro editor in Settings) |
+| `d` / `u` | Half-page down / up |
+| `gg` / `G` | Smoothly scroll to top / bottom (immediate with reduced motion) |
+| `Escape` / `Ctrl+[` | Cancel the current interaction or leave an ordinary editable field |
+| `?` | Shortcut help |
+
+Native Tab and Shift+Tab stay available. Normal shortcuts pause while typing,
+composing with an IME, or using menus/dialogs. Escape and Ctrl+[ preserve ordinary
+field values; existing creation, rename and dialog cancellation takes priority.
+Hints activate noneditable controls once without leaving focus behind, and focus
+editable targets intentionally. See [Vim Mode](docs/vim-mode.md) for precise
+sequence, focus, scrolling and browser-verification limits.
+
 ## Data and privacy
 
 Saved papers, followed authors, collections, preferences, and cached author-feed
 results have a browser-local view in `storage.local`. In the Chromium package,
 only `openArxivLinksInNewTab`, `organizeFollowedAuthorsIntoCollections`,
 `openAuthorResultsInNewTab` and `openXivaryFromToolbarInNewTab` use
-`storage.sync`. The LaTeX rendering toggle and custom macro definitions, both last-used collection
+`storage.sync`. Vim Mode, the LaTeX rendering toggle and custom macro definitions, both last-used collection
 pointers, all library records and feed caches remain local. Chrome and Firefox installations have independent libraries;
 Firefox settings remain local too. Filters and pickers remain ephemeral.
 
@@ -130,16 +165,28 @@ npm test
 npm run test:browser
 npm run test:firefox
 npm run test:release
+npm run test:upgrade
+npm run test:arxiv-loading
 npm run package
 npm run package:firefox
 ```
 
 `npm run package` retains Chromium as the default and writes
-`dist/xivary-0.3.0-chromium.zip`; `npm run package:firefox` writes
-`dist/xivary-0.3.0-firefox.zip`. Unpacked artifacts are also generated under
+`dist/xivary-0.4.0-chromium.zip`; `npm run package:firefox` writes
+`dist/xivary-0.4.0-firefox.zip`. The ZIP builder sorts entries, fixes timestamps to
+1980-01-01 UTC and includes the project and bundled dependency licenses. Rebuilding unchanged sources with
+the same zip implementation produces byte-identical archives. Unpacked artifacts
+are also generated under
 `dist/chromium/` and `dist/firefox/`. Only the generated manifests differ;
 application files are copied unchanged. Archives contain runtime files and the
 bundled font and KaTeX licenses, with `manifest.json` at the root.
+
+For an archive-free production build, run `npm run build`. It stages the same
+runtime files and generated manifests in `dist/chromium/` and `dist/firefox/`
+without creating ZIPs. When avoiding archives during verification, use
+`npm test -- --test-skip-pattern='both ZIP artifacts'` and set
+`XIVARY_NO_ARCHIVE=1` for Firefox smoke. The excluded test is the existing ZIP
+creation/reproducibility check; unpacked builds have their own source-equality test.
 
 Chrome smoke testing uses `CHROME_BIN` (default `/usr/bin/google-chrome`).
 Firefox smoke testing needs geckodriver, Firefox, OpenSSL, and permission to bind
@@ -148,9 +195,16 @@ The fixture suites use temporary profiles. `npm run test:release` additionally
 checks native category downloads/file inputs and real Chrome Sync events,
 alarm/worker recovery, reload and test-profile restart. It uses one unsigned-in
 profile and does not verify Google-account delivery. `npm run test:arxiv` is the
-separate live-network author-link check; the preceding milestone verified three
-actual abstracts in Chrome. Current search support was checked against fetched
-search HTML and native browser fixtures; current live API behavior was not verified.
+separate live-network author-link check; the initial 0.4.0 candidate run verified three actual
+abstracts and live name-matched retrieval. The subsequent stability investigation
+observed one production 429 and stopped further live requests; recovery is verified
+with controlled fixtures, not claimed as live-network success. Search-result author
+links use deterministic browser fixtures. `npm run test:upgrade` checks retained
+0.2.0/0.3.0 source snapshots and the pre-candidate Vim/LaTeX build in same-ID test
+profiles without uninstalling or resetting storage; it does not prove a store-installed update.
+`npm run test:arxiv-loading` uses local TLS streaming/429 fixtures to measure first
+results, request spacing, partial failures, cancellation and worker restart without
+production traffic. See [API loading and recovery](docs/arxiv-loading.md).
 See [release packaging and remaining checks](docs/release.md).
 
 ## Architecture
@@ -180,6 +234,11 @@ See [docs/architecture.md](docs/architecture.md) and
 - Real Google-account propagation, Firefox native transfer/toolbar flows, signed
   installation and declared minimum versions still require verification.
 - There is no mobile application. The extension targets desktop browsers.
+
+## Future milestone
+
+Research Feed is postponed to **0.5.0**. It is not implemented or included in
+0.4.0; the existing per-author results pages remain available.
 
 ## License
 

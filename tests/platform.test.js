@@ -47,6 +47,7 @@ test("actual Chrome background wires sync events, alarms, startup and repository
   } });
   const runtime = {
     id: "test-sync-extension", getManifest: () => ({ background: { service_worker: "entry.js" } }),
+    onConnect: { addListener: fn => { assert.equal(typeof fn, "function"); } },
     onMessage: { addListener: fn => { messageHandler = fn; } },
     onStartup: { addListener: fn => { startupHandler = fn; } },
     sendMessage(message) { return new Promise(resolve => messageHandler(message, { id: this.id }, resolve)); },
@@ -94,6 +95,7 @@ for (const namespace of ["chrome", "browser"]) {
     let handler;
     const runtime = {
       id: "test-extension",
+      onConnect: { addListener: fn => { assert.equal(typeof fn, "function"); } },
       onMessage: { addListener(listener) { assert.equal(handler, undefined); handler = listener; } },
       sendMessage(message) {
         assert.equal(this, runtime);

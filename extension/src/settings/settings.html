@@ -1,12 +1,12 @@
 <!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Settings — Xivary</title>
 <link rel="stylesheet" href="../ui/page.css"><link rel="stylesheet" href="settings.css"><link rel="stylesheet" href="../ui/vim-mode.css"><script type="module" src="settings.js"></script></head><body>
 <header class="page-header">
-  <div class="app-bar"><a class="app-name" href="../library/library.html">Xivary</a><nav class="app-nav" aria-label="Primary"><a href="../library/library.html">Library</a><a href="../authors/authors.html">Following</a></nav></div>
+  <div class="app-bar"><a class="app-name" href="../library/library.html">Xivary</a><nav class="app-nav" aria-label="Primary"><a href="../library/library.html">Library</a><a href="../authors/authors.html">Following</a><a href="../offline/offline.html">Offline</a></nav></div>
   <div class="page-heading"><h1>Settings</h1></div>
 </header>
 <main class="settings-page">
   <nav class="settings-toc" aria-label="Settings sections">
-    <a href="#general">General</a><a href="#keyboard">Keyboard</a><a href="#abstracts">Abstracts</a><a href="#latex-macros">Macros</a><a href="#following-settings">Following</a><a href="#data">Data</a><a href="#support-xivary">Support</a>
+    <a href="#general">General</a><a href="#keyboard">Keyboard</a><a href="#abstracts">Abstracts</a><a href="#latex-macros">Macros</a><a href="#following-settings">Following</a><a href="#data">Data</a><a href="#offline-storage">Offline</a><a href="#support-xivary">Support</a>
   </nav>
   <div class="settings-content">
   <section id="general" data-settings-section="general" aria-labelledby="general-heading"><h2 id="general-heading">General</h2>
@@ -44,9 +44,14 @@
     </div>
     <input id="import-file" type="file" accept="application/json,.json" hidden>
   </section>
+  <section id="offline-storage" data-settings-section="offline-storage" aria-labelledby="offline-heading"><h2 id="offline-heading">Offline storage</h2>
+    <p id="offline-usage" class="section-description" role="status">Loading storage usage…</p>
+    <p class="section-description"><a href="../offline/offline.html">Review offline copies</a></p>
+    <p class="section-description">PDF copies stay in this browser profile. Deleting the extension or profile data can erase them. Bookmarks and offline copies are independent.</p>
+  </section>
   <p id="status" class="status" role="status" aria-live="polite"></p>
   <section data-settings-section="support-xivary" id="support-xivary" aria-labelledby="support-heading"><h2 id="support-heading">Support Xivary</h2>
-    <p class="section-description">I want to keep Xivary minimal and free of unnecessary UI. Even adding a donation link feels a little contrary to that philosophy.</p>
+    <p class="section-description">I want to keep Xivary minimal and free of unnecessary UI. Even adding a donation link feels fundamentally at odds with that philosophy.</p>
     <p class="section-description">Ideally, I'd like to manage your Library, Following, and Collections through a server so that everything stays synchronized across devices. However, running and maintaining that infrastructure costs money, and I currently don't have the budget to support it.</p>
     <p class="section-description">If you find Xivary useful and would like to help make cross-device synchronization possible in the future, you can support the project through Buy Me a Coffee.</p>
     <p class="section-description">Support is entirely optional. Xivary will remain usable without it.</p>

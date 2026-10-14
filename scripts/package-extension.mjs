@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { copyFile, mkdir, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
+import { copyFile, mkdir, readFile, readdir, rm, stat, utimes, writeFile } from "node:fs/promises";
 import { dirname, relative, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
@@ -8,15 +8,15 @@ import { browserManifest } from "./browser-manifest.mjs";
 const repositoryRoot = fileURLToPath(new URL("../", import.meta.url));
 const extensionRoot = resolve(repositoryRoot, "extension");
 /** Stage identical runtime files with a generated manifest, then ZIP them. */
-export async function packageExtension(target = "chromium", outputDirectory = resolve(repositoryRoot, "dist")) {
+export async function packageExtension(target = "chromium", outputDirectory = resolve(repositoryRoot, "dist"), { archive = true } = {}) {
   const source = JSON.parse(await readFile(resolve(extensionRoot, "manifest.json"), "utf8"));
   const manifest = browserManifest(source, target);
   const packageMetadata = JSON.parse(await readFile(resolve(repositoryRoot, "package.json"), "utf8"));
   if (manifest.version !== packageMetadata.version) throw new Error("Manifest/package version mismatch.");
 
-  const files = (await walk(extensionRoot))
+  const files = [...(await walk(extensionRoot))
     .map(path => relative(extensionRoot, path).replaceAll("\\", "/"))
-    .filter(path => path !== "assets/fonts/README.md")
+    .filter(path => path !== "assets/fonts/README.md"), "LICENSE"]
     .sort();
   const developmentOnly = /(^|\/)(?:tests?|scripts?|screenshots?|node_modules|coverage|dist)(?:\/|$)|\.map$/;
   if (files.some(path => path.startsWith(".") || path.includes("/.") || developmentOnly.test(path))) {
@@ -29,8 +29,11 @@ export async function packageExtension(target = "chromium", outputDirectory = re
     const destination = resolve(directory, path);
     await mkdir(dirname(destination), { recursive: true });
     if (path === "manifest.json") await writeFile(destination, JSON.stringify(manifest, null, 2) + "\n");
-    else await copyFile(resolve(extensionRoot, path), destination);
+    else await copyFile(resolve(path === "LICENSE" ? repositoryRoot : extensionRoot, path), destination);
+    // ZIP's earliest timestamp, independent of checkout/build time and timezone.
+    await utimes(destination, new Date("1980-01-01T00:00:00Z"), new Date("1980-01-01T00:00:00Z"));
   }
+  if (!archive) return { directory, artifact: null, manifest, files };
   const artifact = resolve(outputDirectory, `xivary-${manifest.version}-${target}.zip`);
   await rm(artifact, { force: true });
   run("zip", ["-X", "-q", artifact, ...files], directory);
@@ -58,7 +61,7 @@ async function walk(directory) {
 }
 
 function run(command, args, cwd) {
-  const result = spawnSync(command, args, { cwd, encoding: "utf8", stdio: "inherit" });
+  const result = spawnSync(command, args, { cwd, encoding: "utf8", stdio: "inherit", env: { ...process.env, TZ: "UTC" } });
   if (result.error) throw result.error;
   if (result.status !== 0) throw new Error(`${command} exited with status ${result.status}.`);
 }

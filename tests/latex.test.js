@@ -110,6 +110,20 @@ test("off returns exact raw notation; no HTML can be inserted through abstracts/
   assert.equal(descendants(node).some(node => node.tag === "script"), false);
 });
 
+test("short and long multiparagraph abstracts preserve all prose and notation through the shared renderer", () => {
+  for (const source of ['Short abstract.', Array.from({ length: 70 }, (_, i) =>
+    String.raw`Paragraph ${i + 1}: preserved  spacing, $M_i$ and \[x^2+y^2=z^2\].`).join('\n\n') + '\n\nFINAL PARAGRAPH']) {
+    assert.equal(render(source, { renderLatexInAbstracts: false }).textContent, source);
+    assert.equal(scanAbstract(source).map(part => part.text ?? part.source).join(''), source);
+    const rendered = render(source);
+    assert.ok(rendered.textContent.endsWith(source.endsWith('FINAL PARAGRAPH') ? '\n\nFINAL PARAGRAPH' : source));
+    if (source.includes('Paragraph')) {
+      assert.equal(expressions(rendered).length, 140);
+      assert.ok(rendered.textContent.includes('Paragraph 70: preserved  spacing,'));
+    }
+  }
+});
+
 test("local settings default safely, persist through RPC/restart, and isolate invalid drafts/portable data", async () => {
   let disk;
   let writes = 0;

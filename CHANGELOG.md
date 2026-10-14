@@ -1,6 +1,33 @@
 # Release notes
 
-## Unreleased (development after 0.3.0 preparation)
+## 0.5.0 — Unreleased development
+
+- Add a compact Offline navigation tab, local IndexedDB PDF copies and Chrome's
+  native offline PDF viewer. Keep Bookmarks independent; retain exact versions,
+  atomic replacement, cancellation, contextual removal/export and Settings usage.
+- Correct the Support Xivary wording to “fundamentally at odds with that philosophy.”
+- Add archive-free production builds and verification without release ZIP creation.
+
+- Display existing abstracts in full without nested scroll containers. Preserve
+  paragraphs and mathematical notation; wrap display math at available break points.
+
+## 0.4.0 — 2026-10-12 (release candidate; not submitted)
+
+- Coordinate arXiv API requests across author pages and Search through one
+  background queue, with three-second spacing, HTTP 429 cooldown/retries and
+  durable restart pacing. Keep existing local data and the 50-result limit.
+- Render usable streamed author entries before the response finishes. Preserve
+  ordering, row focus, filtering/bookmarks and cached data on partial failures;
+  incomplete responses never become complete caches.
+- Remove duplicate Abstract actions from shared paper rows; titles remain links,
+  with PDF and bookmark controls and native modifiers unchanged.
+- Make Undo notices compact at bottom-right, dismiss after three seconds of
+  unhovered/unfocused time, and suppress routine success messages. Keep the
+  background’s eight-second restoration expiry and deletion rules.
+
+- Smoothly animate `gg/G` with a short distance-aware duration capped at 260ms;
+  interrupt on manual input/navigation and honor reduced motion. Retain j/k timing.
+- Add the shared, keyboard-accessible Settings gear to Author Results.
 
 - Anchor Settings Vim hints beside visible switches rather than entire rows;
   activate switches/buttons once without transferring focus, while preserving
@@ -29,6 +56,11 @@
 - Preserve paragraph breaks and internal whitespace in newly retrieved abstracts.
   Titles, author names, saved abstracts and existing Library layout remain unchanged.
 
+- Package deterministic ZIPs with the project MIT license and existing dependency
+  notices. Preserve schema 5, portable v2, Sync v1 and existing permissions.
+- Keep Research Feed out of this release; it is postponed to 0.5.0.
+
+See [0.4.0 verification and outstanding manual checks](docs/release.md#v040-release-candidate).
 
 ## 0.3.0 — 2026-10-09 (prepared; not submitted)
 

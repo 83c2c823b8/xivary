@@ -18,6 +18,9 @@ export async function settingsVimWorkflow({evaluate,until,key,click,navigate,res
     await until('!document.querySelector("[data-vim-overlay=hints]")');
   };
   const switchGeometry = async () => {
+    // Labels can load a font and trigger ResizeObserver after insertion. Geometry
+    // must settle even when the optional screenshot helper is disabled.
+    await evaluate('document.fonts.ready.then(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))))');
     const geometry=await evaluate(`import('../ui/vim-mode.js').then(({hintTargets,hintLabels})=>{
       const targets=hintTargets(document,window),labels=hintLabels(targets.length);
       return targets.filter(n=>n.matches('input[role="switch"]')).map(n=>{
@@ -67,6 +70,7 @@ export async function settingsVimWorkflow({evaluate,until,key,click,navigate,res
   assert.deepEqual(await evaluate('({length:history.length,url:location.href})'),history,'scroll-spy never rewrites history');
   await key('g');await key('g');await until('window.scrollY===0');
   for(const escape of ['Escape','Ctrl+[']) {
+    await settle();
     await key('f');await until('document.querySelector("[data-vim-overlay=hints]")');
     await screenshot('vim-settings-hints.png');
     await switchGeometry();

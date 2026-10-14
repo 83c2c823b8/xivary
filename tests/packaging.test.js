@@ -35,6 +35,24 @@ test("browser manifests retain shared resources and limit the sync alarm permiss
   assert.throws(() => browserManifest({ manifest_version: 2 }, "firefox"), /module MV3/);
 });
 
+test("unpacked production builds preserve source files and create no ZIP", async () => {
+  const temporary = await mkdtemp(join(tmpdir(), "xivary-unpacked-"));
+  try {
+    for (const target of ["chromium", "firefox"]) {
+      const { directory, artifact, manifest, files } = await packageExtension(target, temporary, { archive: false });
+      assert.equal(artifact, null);
+      assert.equal(manifest.version, source.version);
+      assert.ok(files.includes("LICENSE"));
+      for (const path of files) {
+        const built = await readFile(join(directory, path));
+        if (path === "manifest.json") assert.deepEqual(JSON.parse(built), manifest);
+        else assert.deepEqual(built, await readFile(new URL(path === "LICENSE" ? '../LICENSE' : `../extension/${path}`, import.meta.url)), `${target}: ${path}`);
+      }
+    }
+    assert.deepEqual((await readdir(temporary)).sort(), ["chromium", "firefox"]);
+  } finally { await rm(temporary, { recursive: true, force: true }); }
+});
+
 test("both ZIP artifacts contain identical runtime sources and their generated manifests", async () => {
   const temporary = await mkdtemp(join(tmpdir(), "xivary-packaging-"));
   try {
@@ -52,17 +70,24 @@ test("both ZIP artifacts contain identical runtime sources and their generated m
       if (previousFiles) assert.deepEqual(files, previousFiles);
       previousFiles = files;
       assert.ok(files.includes("assets/fonts/LICENSE.txt"));
+      assert.ok(files.includes("LICENSE"));
       assert.ok(!files.includes("assets/fonts/README.md"));
       for (const path of files) {
         const archived = await readFile(join(extracted, path));
         assert.deepEqual(archived, await readFile(join(directory, path)), `${target}: ${path}`);
         if (path === "manifest.json") assert.deepEqual(JSON.parse(archived), manifest);
-        else assert.deepEqual(archived, await readFile(new URL(`../extension/${path}`, import.meta.url)), path);
+        else assert.deepEqual(archived, await readFile(new URL(path === "LICENSE" ? '../LICENSE' : `../extension/${path}`, import.meta.url)), path);
       }
       const background = manifest.background.service_worker || manifest.background.scripts[0];
       assert.ok(files.includes(background));
       assert.ok(files.includes(manifest.options_page));
       assert.ok(files.includes(manifest.action.default_popup));
+      const firstBuild = await readFile(artifact);
+      // Newly copied sources/generated manifests must not inherit build times.
+      const listing = execFileSync("unzip", ["-l", artifact], { encoding: "utf8" });
+      assert.equal(listing.match(/1980-01-01 00:00/g)?.length, files.length);
+      await packageExtension(target, temporary);
+      assert.deepEqual(await readFile(artifact), firstBuild, `${target}: reproducible ZIP`);
     }
   } finally { await rm(temporary, { recursive: true, force: true }); }
 });

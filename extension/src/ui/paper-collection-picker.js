@@ -97,7 +97,7 @@ export async function openPaperCollectionPicker({ repository, paper, anchor, onC
       const result = await operation();
       await render(focusId || result?.id);
       await onChange();
-      status.textContent = "Updated.";
+      status.textContent = "";
     } catch (error) {
       await render(focusId).catch(() => {});
       status.textContent = error.message;

@@ -1,9 +1,36 @@
 # Browser support and verification
 
-## v0.3.0 preparation
+## Final source verification — 2026-10-14
 
-The current product version is 0.3.0. See the [release record](release.md#v030-release-preparation)
-for current verification, upgrade-evidence limits, package hashes and manual submission.
+Chrome 154 and Firefox 157 fixture suites pass with the completed Offline, author
+loading and interaction changes. Chrome additionally verifies native offline PDF
+reading after disconnected reload, service-worker suspension and extension/profile
+restart. Library remains bookmark-only; Offline is the third navigation destination.
+The default Firefox Snap launchers fail to create the WebDriver session; the direct
+binaries documented below pass with `XIVARY_NO_ARCHIVE=1`. No release ZIP is created.
+See the [final source verification](release.md#final-source-verification-and-git-handoff--2026-10-14)
+and [native PDF evidence/limits](offline-storage.md). Firefox native offline PDF
+rendering, live PDF delivery, minimum versions and account/store/manual checks
+remain unverified. Earlier milestone results below retain their historical scope.
+
+## v0.4.0 release candidate
+
+The current product version is **0.4.0**. See the [release record](release.md#v040-release-candidate)
+for current commands, evidence, source-upgrade checks and manual release gates.
+Vim Mode and the shared arXiv scheduler use the same implementation in both
+packages. Native Chrome/Firefox Undo hover/focus, stripped paper-row and keyboard
+checks pass; Chrome’s local TLS fixture additionally covers streamed results and
+429 cooldown across worker restart. [Details](arxiv-loading.md). The Offline
+milestone additionally uses `https://arxiv.org/*` host access for
+internal PDF retrieval and exact-version resolution. API permissions, minimum
+versions, schema 5 and distribution identities remain unchanged. Account
+propagation, store-installed updates, physical IME and assistive checks remain
+manual; historical results below are not new store-verification claims.
+
+## v0.3.0 preparation (historical)
+
+The product version at this milestone was 0.3.0. See the [release record](release.md#v030-release-preparation)
+for that milestone’s verification, upgrade-evidence limits, package hashes and manual submission.
 Earlier sections retain historical milestone results. Permissions, minimum versions
 and commit gates are unchanged. A store-installed/signed upgrade remains a manual check.
 

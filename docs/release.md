@@ -1,5 +1,305 @@
 # Xivary release records
 
+## Final source verification and Git handoff — 2026-10-14
+
+The current working version remains **0.4.0**. This finalization adds the compact
+Offline destination, independent IndexedDB PDF lifecycle and Chrome native reading,
+plus the exact Support Xivary wording correction. The user also authorized inclusion
+of the completed pre-existing arXiv loading/recovery, full-abstract display, Undo,
+keyboard/header polish and candidate documentation. Existing local history is
+retained; `master` was seven commits ahead of `origin/master` with no remote
+commits after fetch. This is source finalization, not an extension-store release.
+
+| Check | Result |
+| --- | --- |
+| `npm test -- --test-skip-pattern='both ZIP artifacts'` | 251 tests pass; only the archive-producing ZIP test is excluded |
+| `npm run build` | Chromium and Firefox unpacked production trees pass, 162 runtime files each, source/generated manifests/licenses retained; no ZIP |
+| First-party `node --check` | 120 JS/MJS files pass |
+| `npm run test:browser` | Chrome 154 fixture suite passes; Library/Following, author results, filters, popup geometry, navigation and Vim/Settings preserved |
+| `XIVARY_NO_ARCHIVE=1 npm run test:firefox` with documented direct binaries | Firefox 157 fixture suite passes, including native Undo and existing collection/navigation/keyboard behavior; temporary unpacked extension |
+| `npm run test:offline` | Chrome native PDF renderer, disconnected reload, 20 MiB copy, worker suspension, extension/browser restart, exact versions, migration, cancellation/network/quota rollback, removal/export and bookmark independence pass |
+| `npm run test:arxiv-loading` | Local TLS streaming/429/worker-restart, cancellation, filtering and complete-cache preservation pass; no production requests |
+| `npm run test:upgrade` | All three retained source snapshots pass same-ID/profile data, preferences and reload/restart comparisons |
+| `npm run test:release` | Native category transfer, local-data isolation, Sync events/alarm/worker/reload/profile lifecycle pass; no account propagation claim |
+| `git diff --check` and source review | Pass; no credential patterns or generated/binary artifacts in selected changes |
+
+Support Xivary differs only by the requested sentence: “Even adding a donation
+link feels fundamentally at odds with that philosophy.” Settings hint geometry
+now waits explicitly for font/ResizeObserver settling even without optional
+screenshots; the existing 3–5 px assertion is unchanged. Rendered Library, popup,
+Settings hint and Offline screenshots were reviewed. Snapshot artifacts/logs remain
+outside the committed runtime source.
+
+The default Snap launchers failed to create a Firefox WebDriver session; the
+documented direct binaries passed without product changes or weaker assertions.
+Chrome's native PDF viewer setting must remain enabled. Firefox native offline
+PDF rendering, live arXiv PDF delivery, declared minimum browsers, actual
+store/signed upgrades, physical IME/assistive/macOS interactions and Google-account
+propagation remain unverified/manual. No release ZIP, version increment, tag,
+store upload, signing or publication is performed by this finalization. ZIP
+packaging commands are intentionally omitted to honor the user's constraint;
+the shared production pipeline and archive-free source-equality test are exercised.
+
+The reviewed completed changes are prepared for commit and a normal upstream push;
+Git history and the final task report provide the actual commit/push outcome.
+
+## v0.4.0 release candidate
+
+This section records the pre-Offline candidate; current source verification is
+recorded above. Its archive hashes and uncommitted-tree statements are historical.
+
+Current candidate includes global arXiv pacing/429 recovery, progressive author
+results, duplicate Abstract-link removal and minimal Undo notices, alongside the
+previously prepared Vim Mode milestone. Edge scrolling (`gg/G`) is distance-aware
+and capped at 260ms, with immediate reduced-motion behavior; j/k retain their
+90ms timing and 80px step. Author Results now shares the native Settings gear.
+Research Feed remains postponed to 0.5.0.
+See [implementation, investigation, performance and evidence](arxiv-loading.md).
+
+This continuation started at `72a0d3fde811c4728e403c3fb24602c22aaf9992` with
+12 modified files plus the upgrade script from initial preparation; all were
+preserved. HEAD remains unchanged, and the full candidate is uncommitted.
+No tag, push, upload, signing or publication was performed. The final scrolling
+polish started with 30 tracked modifications and 10 untracked files, and ends with
+35 tracked modifications and 11 untracked files, all preserved and unstaged.
+
+Current gates: **241/241 Node tests**, installed Chrome 154 and Firefox 157
+smoke/interaction suites (including native Undo hover/focus and title modifiers),
+release transfer/Sync lifecycle, same-ID source upgrades, local TLS streaming/429
+and worker-restart suite, **112 first-party syntax checks**, both packages and
+whitespace checks **PASS**. No configured lint command exists.
+
+One diagnostic production API call returned 429/Rate exceeded from the configured
+URL with Google Frontend/Via headers and no Retry-After. Further production calls
+were stopped. Controlled installed-browser recovery passes; current production
+API availability/recovery is not claimed. Earlier live-network success in the
+historical initial record below remains historical evidence.
+
+Local schema 5, existing caches, settings, memberships, Sync v1 and portable v2
+remain compatible. The private `_arxivApi.until` pacing deadline is local-only.
+Incomplete streams never replace complete caches. Undo notices last three seconds
+of unhovered/unfocused time; background receipt validity stays eight seconds.
+
+Rebuild with `npm run package` and `npm run package:firefox`; inspect root
+manifest/version and file list with unzip, and compare sha256sum. Sorted entries,
+fixed UTC timestamps and retained project/dependency licenses produce identical
+ZIPs on unchanged-source rebuilds with the same Info-ZIP implementation.
+
+| Browser | Artifact | Files | Bytes | SHA-256 |
+| --- | --- | --- | --- | --- |
+| Chromium | `dist/xivary-0.4.0-chromium.zip` | 153 | 1282659 | `a7e453460344b22bf43c073ce1c97849547b7ce15a49b01eb4367d340306af1c` |
+| Firefox | `dist/xivary-0.4.0-firefox.zip` | 153 | 1282726 | `a3cfe2a05134b497a576d1d934ff622fcad5b62d7fa7232d4949750b5838b63b` |
+
+Archives exclude development/test files, repository metadata and credentials.
+Only generated manifests differ between browsers; runtime files match source.
+Logs and reviewed screenshots are in ignored `dist/verification-0.4.0-stability/`
+and `dist/verification-0.4.0-vim-final/`. The final polish reran Node, syntax,
+installed-browser, packaging and whitespace gates. Earlier transfer/Sync, source
+upgrade and TLS recovery passes remain the evidence for those unchanged paths.
+
+Deterministic frames cover short and 500,000px pages, capped duration, edge/step
+retargeting, reduced motion, interruption and cleanup. Installed Chrome/Firefox
+exercise native gg/G on Library, Following, Settings and Author Results with
+200,000px controlled spacers, repeat/reversal inputs and the existing shorter
+page workflows; wheel interruption is DOM-dispatched. Native Escape, Settings
+gear focus/hint navigation and live disabling pass. Screenshots are reviewed.
+These are actual installed unpacked-extension checks with local paper data, not
+production API or physical-keyboard/IME verification.
+
+Before submission, complete the manual gates in the historical initial record:
+same-ID update from the actual preceding published build without reset, same-account
+four-preference delivery/local-data isolation, declared minimum browsers,
+physical IME/layout/screen-reader/macOS interaction, and listing/privacy review.
+Also confirm normal production arXiv recovery once its upstream limit clears;
+do not deliberately provoke rate limits. Then manually upload the Chromium ZIP
+to the existing store item and verify 0.4.0. Firefox distribution retains its
+separate native-toolbar/transfer/tab-switch and signed-update checks.
+
+No known product blocker remains in deterministic/native fixture verification.
+**READY PENDING MANUAL BROWSER VERIFICATION**
+
+## v0.4.0 initial candidate (historical)
+
+Prepared on 2026-10-12 from clean `master` at
+`72a0d3fde811c4728e403c3fb24602c22aaf9992`. Initial working tree: no staged,
+modified or untracked files. Final HEAD is unchanged; candidate changes are left
+reviewable and uncommitted (12 tracked files modified, one new verification script).
+No tag, push, upload, signing or publication was performed. Generated packages and
+verification artifacts remain ignored under `dist/`.
+
+### Scope and inspection
+
+This is the keyboard-navigation/usability milestone: optional default-off Vim
+Mode, link/control hints, keyboard accessibility, continuous Settings navigation,
+local Following search and bundled LaTeX/macros. Library, Following, Collections,
+author entry, Undo, native transfer and preference-only Sync are retained.
+Research Feed is postponed to **0.5.0** and is not implemented in this candidate.
+
+Inspected AGENTS.md, README, CHANGELOG, privacy, package/manifest declarations,
+recent commits, runtime keyboard/platform/repository code, design guides and the
+existing test/build procedures. There is no root DESIGN.md; implemented conventions
+are in UI_DESIGN.md and DESIGN_PRINCIPLES.md. No additional repository instructions,
+lockfile, separate lint command or separate application build command were found.
+No attribution/acknowledgments were removed. The manifest description still
+accurately describes existing per-author results, not the postponed Research Feed.
+
+The implementation and [keyboard documentation](vim-mode.md) agree: `j/k` scroll,
+`h/l` history back/forward, `J/K` adjacent browser tab left/right with wrapping,
+`f` hints, `gi` primary editable/search field, Escape/Ctrl+[ cancellation/Normal
+Mode subject to existing dialog handlers. Additional established `F`, `d/u`,
+`gg/G` and `?` remain. Native Tab/Shift+Tab are unhandled. Supported pages are
+Library, Following, Author Results and Settings; popup, separate Search and arXiv
+content scripts intentionally do not install Vim Mode. No mappings changed.
+
+### Targeted preparation changes
+
+- Match package/shared manifest/assertion at **0.4.0**; Firefox derives the version.
+- Make ZIP staging timestamps deterministic (1980-01-01 UTC), retain sorted
+  entries and `zip -X`, and include the project's MIT LICENSE alongside existing
+  IBM Plex/KaTeX/font notices. Regression checks compare byte-identical rebuilds.
+- Fix a Chrome screenshot-harness race: deliver the 320px viewport resize before
+  opening a collection menu that correctly dismisses on resize. Keep all Chrome
+  geometry coverage. Observe installed service-worker console/runtime errors too.
+- Extend native release checks to keep enabled Vim Mode and custom macros through
+  extension reload/full profile restart, with no new Sync keys.
+- Add `npm run test:upgrade`: install retained historical source builds, seed
+  real repository data, load the candidate at the same path/ID without uninstalling
+  or clearing storage, and compare data through reload/restart.
+- Update README, CHANGELOG, privacy and current browser/release documentation.
+
+No application JavaScript, schema, migrations, Sync behavior, portable format,
+permissions, dependencies or distribution identity changed during preparation.
+No reproducible product release-blocking defect was found.
+
+### Completed verification
+
+| Check | Current result |
+| --- | --- |
+| `npm test` | **216/216 PASS**, zero failed/skipped; migrations, UI/domain, two-device preference simulations, legacy Sync isolation, portable transfer and reproducible packaging |
+| First-party `node --check` | **103 JS/MJS files PASS**; no configured lint command |
+| `npm run test:browser` | **PASS**, installed unpacked Chrome **154.0.8037.57**, including interaction/polish, popup geometry, full Vim/Settings and native adjacent tabs |
+| `npm run test:firefox` | **PASS**, generated temporary extension in Firefox **157.0** with direct binaries below |
+| `npm run test:release` | **PASS**, native All/collection downloads/file inputs, Cancel/invalid/idempotence/category isolation, real Sync events, alarm/worker recovery, reload/profile restart |
+| `npm run test:upgrade` | **PASS**, source 0.2.0 (`124f5e7`), 0.3.0 preparation (`8bbf3fd`) and pre-candidate Vim/LaTeX (`72a0d3f`) → 0.4.0 |
+| `npm run test:arxiv` | **PASS**, live abstracts math/0307245, 2512.03554 and 1706.03762, native author navigation, preserved href/modifiers, live name-matched Atom rows |
+| Both packaging commands | **PASS**, 150-file ZIPs; root manifests/version, runtime bytes, platform differences, required licenses and artifact exclusions verified |
+| `git diff --check` | **PASS** |
+
+The initial Firefox attempt used a Snap launcher that could not create the test
+profile. The documented direct binaries passed; this did not require product
+changes or reduced assertions:
+
+```sh
+FIREFOX_BIN=/snap/firefox/8995/usr/lib/firefox/firefox \
+GECKODRIVER_BIN=/snap/firefox/8995/usr/lib/firefox/geckodriver \
+ARXIV_SCREENSHOT_DIR=/tmp/xivary-040-verification/firefox npm run test:firefox
+```
+
+These are actual headless installed-extension profiles. Deterministic arXiv/Atom
+responses and temporary long-list/hint DOM additions are controlled fixtures;
+Settings itself is the installed extension page. Native input exercises typing,
+IME-event guards, disabled shortcuts, hint ownership/geometry/exactly-once toggles,
+noneditable focus release, intentional editor focus, repeated cleanup, collection
+creation/rename/cancellation, menus/dialogs and native history/tab behavior.
+Library/Following/author results, search/date/collection composition, follow/save/
+removal/Undo, LaTeX validation/rendering and both current/new-tab choices pass.
+Observed Chrome page/service-worker exceptions and error-level console calls are
+absent in the browser/upgrade suites. Worker attachment can affect idle lifetime;
+the separate release suite explicitly stops the worker and checks real recovery.
+
+Reviewed current Chrome Library, Following, actual 300px popup, arXiv controls,
+author/Library hints, desktop and 360px Settings hint screenshots, plus Firefox
+Settings hints. Switch labels sit next to visible controls and remain inside the
+viewport. Logs and selected screenshots are retained in ignored
+`dist/verification-0.4.0/`; browser screenshot capture uses ARXIV_SCREENSHOT_DIR.
+
+### Data compatibility and evidence limits
+
+Local schema **5**, preference Sync **v1** and portable-library **v2** are unchanged.
+The source upgrade runs compare paper/author metadata, stable collection IDs,
+many-to-many memberships, both last-used pointers, all prior settings, populated
+feed caches, replica identity and category exports. Missing Vim/LaTeX fields get
+additive defaults; first preference writes preserve existing records. The
+pre-candidate source retains already-enabled Vim Mode, a nonempty macro definition
+and disabled rendering. Enabled Vim/macros and all library data survive subsequent
+reload and full profile restart. Existing older-schema migration/idempotence and
+failed-write regressions also pass. No reset or import is required for upgrades.
+
+Bookmarks/Following remain local. Four designated preferences alone enter Sync;
+Vim, LaTeX/macros, last-used pointers and caches stay local. Legacy remote library
+records remain untouched and inert. Account transport is **not** proven by native
+single-profile events or two-device simulations.
+
+There is no supplied preceding store binary or authoritative evidence that 0.3.0
+was published: its historical record says prepared/not submitted. Testing both
+retained 0.2.0 and 0.3.0 sources covers compatibility without claiming either is
+identical to the actual published binary. A same-ID store-installed update, declared
+Chrome 102/Firefox 140 minimums, physical Japanese IME/layouts, screen readers,
+macOS Cmd/context-menu/copy interaction, native Firefox toolbar/transfer and signed
+lifetime remain manual checks. Firefox adjacent-tab switching remains manual.
+The live arXiv check is separate from deterministic search-page fixtures.
+
+### Reproducible packages
+
+```sh
+npm run package
+npm run package:firefox
+unzip -t dist/xivary-0.4.0-chromium.zip
+unzip -p dist/xivary-0.4.0-chromium.zip manifest.json
+sha256sum dist/xivary-0.4.0-*.zip
+```
+
+Node 20+, zip/unzip are required. This run used Node **22.22.1** and Info-ZIP
+**3.0**. Unchanged sources and the same ZIP implementation produce identical
+archives on repeated builds; fixed timestamps/UTC remove staging-time variation.
+ZIPs include only extension runtime files and license notices, no development
+fixtures/dependencies, repository metadata, temporary files, credentials or source
+maps. Both manifests are at the root; only platform manifests differ between
+archives. Runtime bytes match source; root LICENSE is copied from the repository.
+
+| Browser | Files | Bytes | SHA-256 |
+| --- | --- | --- | --- |
+| Chromium | 150 | 1275228 | `079a3a7e61e08a19852c550057b8e4bb97c2fbc3617c0fab0d91dc90a532354d` |
+| Firefox | 150 | 1275295 | `7b0b36499d2a73883ec811663ef6b9367a335daa17caa627a93e1ecb8e17f090` |
+
+Artifacts: `dist/xivary-0.4.0-chromium.zip` and
+`dist/xivary-0.4.0-firefox.zip`. Firefox remains unsigned.
+
+### Manual gates before Chrome Web Store submission
+
+1. In a dedicated profile, install the **actual preceding published version** of
+   the existing Xivary item. Export Bookmarks and Following, record settings,
+   counts, collection IDs/memberships and macros/Vim settings where available.
+   Update to the candidate with the same extension identity **without uninstalling
+   or clearing storage**. Compare data and settings after extension reload/browser
+   restart; refresh an already-open arXiv tab and check its update/reload hint.
+2. On dedicated same-account/same-extension-ID Chrome A/B installations, verify
+   all four designated preferences propagate and converge after offline changes;
+   check unavailable/disabled Sync. Saves, follows, collections, memberships,
+   imports, caches, macros/Vim and last-used choices must stay local. Retained
+   legacy remote records must remain untouched. Sign in manually.
+3. Check declared Chrome 102 compatibility and physical Japanese IME/non-US
+   layouts, native Tab/Shift+Tab, Escape/Ctrl+[, hint toggles, screen-reader focus,
+   and macOS Cmd-click/context-menu/copy-link behavior. Recheck Library, Following,
+   Settings, an abstract and author results; inspect extension/worker errors.
+4. Review the existing item's listing and permissions against README/PRIVACY and
+   the 0.4.0 changelog: no Research Feed, library Sync or new permissions. Verify
+   the ZIP checksum/version/root manifest and runtime/license assets. Apply any
+   existing account-required Verified CRX Upload signing procedure manually.
+5. Only after those gates pass, use the **existing item** in the Chrome Web Store
+   developer dashboard: Package → Upload New Package, choose the Chromium ZIP,
+   confirm **0.4.0**, review validation/listing/privacy/distribution and submit for
+   review (deferred publication if desired). Do not create a replacement item.
+   After approval, verify an actual store installation/update in dedicated profiles.
+   This preparation performs none of those uploads/publication actions.
+
+Firefox publication separately needs its native toolbar/transfer, tab-switch,
+minimum-version and signed-update checks from the existing checklist, AMO validation
+and signing with the existing Gecko ID. Automated gates pass and no known product
+blocker remains; the manual gates above still prevent a fully verified release.
+
+**READY PENDING MANUAL BROWSER VERIFICATION**
+
 ## v0.3.0 release preparation
 
 Prepared from clean `master` at `625b66c671877f14424f3f07eb0bf9ad8537933d`

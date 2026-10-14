@@ -4,6 +4,16 @@
  * Author entities persist independently of their many-to-many memberships.
  */
 export class PaperRepository {
+  async readOfflinePdf(id) { throw new Error("Not implemented"); }
+  async getOfflineLibrary() { throw new Error("Not implemented"); }
+  async getOfflineCopy(id) { throw new Error("Not implemented"); }
+  async saveOfflinePaper(paper, update) { throw new Error("Not implemented"); }
+  async removeOfflineCopy(id) { throw new Error("Not implemented"); }
+  async cancelOfflineSave(id) { throw new Error("Not implemented"); }
+  async getOfflinePdfChunk(id, revision, offset) { throw new Error("Not implemented"); }
+  async openOfflinePaper(id) { throw new Error("Not implemented"); }
+  async getArxivRequestState() { throw new Error("Not implemented"); }
+  async setArxivRequestState(state) { throw new Error("Not implemented"); }
   async setVimMode(enabled) { throw new Error("Not implemented"); }
   async setRenderLatexInAbstracts(enabled) { throw new Error("Not implemented"); }
   async setCustomLatexMacros(text) { throw new Error("Not implemented"); }

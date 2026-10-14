@@ -1,11 +1,11 @@
 {
   "manifest_version": 3,
   "name": "Xivary",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Save arXiv papers, organize collections, and follow author feeds locally.",
   "minimum_chrome_version": "102",
   "permissions": ["storage", "alarms"],
-  "host_permissions": ["https://export.arxiv.org/*"],
+  "host_permissions": ["https://export.arxiv.org/*", "https://arxiv.org/*"],
   "background": {
     "service_worker": "src/background/service-worker.js",
     "type": "module"
@@ -29,7 +29,7 @@
   "content_scripts": [{
     "matches": ["https://arxiv.org/abs/*", "https://arxiv.org/search/*"],
     "js": ["src/platform/content-loader.js"],
-    "css": ["src/ui/follow-button.css", "src/content/arxiv.css", "src/ui/author-collection-picker.css", "src/ui/undo.css"],
+    "css": ["src/ui/follow-button.css", "src/content/arxiv.css", "src/ui/author-collection-picker.css", "src/ui/undo.css", "src/ui/offline.css"],
     "run_at": "document_idle"
   }],
   "web_accessible_resources": [{
@@ -50,7 +50,8 @@
       "src/repository/paper-repository.js",
       "src/repository/repository-client.js",
       "assets/fonts/IBMPlexSans-Regular.woff2",
-      "assets/fonts/IBMPlexSans-SemiBold.woff2"
+      "assets/fonts/IBMPlexSans-SemiBold.woff2",
+      "src/ui/offline-action.js"
     ],
     "matches": ["https://arxiv.org/*"]
   }]

@@ -48,6 +48,13 @@ let macrosDirty = false;
 let macrosBusy = false;
 element("latex-macros").addEventListener("input", () => { macrosDirty = true; });
 element("macros-form").addEventListener("submit", event => { event.preventDefault(); void saveMacros(); });
+repository.subscribeOffline(() => { void loadOfflineUsage(); });
+async function loadOfflineUsage() {
+  try {
+    const data = await repository.getOfflineLibrary();
+    element("offline-usage").textContent = `${data.count} offline ${data.count === 1 ? "paper" : "papers"} · ${(data.size / 1048576).toFixed(1)} MB of PDFs${data.localUsage === null ? "" : ` · ${(data.localUsage / 1048576).toFixed(1)} MB local storage (estimated)`}`;
+  } catch (error) { element("offline-usage").textContent = error.message; }
+}
 void load();
 const unsubscribe = repository.subscribePreferences(() => {
   if (!Object.keys(controls).some(id => element(id).disabled)) void load();
@@ -58,6 +65,7 @@ window.addEventListener("focus", () => {
 });
 
 async function load() {
+  void loadOfflineUsage();
   const focused = document.activeElement;
   setDisabled(true);
   try {

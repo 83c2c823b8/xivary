@@ -1,3 +1,4 @@
+import { offlineAction } from "../ui/offline-action.js";
 import { setFollowButton } from "../ui/follow-button.js";
 import { showUndo } from "../ui/undo.js";
 import { RepositoryClient } from "../repository/repository-client.js";
@@ -13,7 +14,7 @@ export async function mountArxivPage() {
   const connection = contentConnection(getBrowserApi().runtime, () => {
     closeAuthorCollectionPicker();
     closePaperCollectionPicker();
-    document.querySelectorAll(".arxiv-library-bookmark, .arxiv-library-button, .xivary-undo button").forEach(button => {
+    document.querySelectorAll(".arxiv-library-bookmark, .arxiv-library-button, .offline-action, .xivary-undo button").forEach(button => {
       button.disabled = true;
       button.title = RECONNECT_HINT;
     });
@@ -42,6 +43,7 @@ export async function mountArxivPage() {
   let organizeAuthorCollections = false;
   const favorite = makeBookmarkButton(paper.title);
   heading.append(favorite);
+  heading.append(offlineAction({ ...paper, versionedId: location.pathname.slice(5) }, repository));
   const followingButtons = [];
   const unused = [...paper.authors];
   for (const link of document.querySelectorAll(".authors a")) {
@@ -65,7 +67,7 @@ export async function mountArxivPage() {
         followingButtons.filter(item => item.author.id === author.id).forEach(item => {
           setFollowButton(item.button, Boolean(record), item.author.displayName, organizeAuthorCollections);
         });
-        return followed ? `No longer following ${author.displayName}.` : `Following ${author.displayName}.`;
+        return "";
       });
     });
   }
@@ -81,7 +83,7 @@ export async function mountArxivPage() {
     void act(favorite, async () => {
       await repository.savePaper(paper);
       setBookmarkState(favorite, true, paper.title);
-      return "Paper saved.";
+      return "";
     });
   });
 

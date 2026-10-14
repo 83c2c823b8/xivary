@@ -9,7 +9,7 @@ content scripts do not install Vim shortcuts. No permissions or dependencies cha
 | --- | --- |
 | `j` / `k` | Scroll down / up by 80 CSS pixels |
 | `d` / `u` | Scroll down / up by half the viewport |
-| `gg` / `G` | Top / bottom |
+| `gg` / `G` | Smoothly scroll to top / bottom |
 | `gi` | Focus the main search field or an eligible editor |
 | `h` / `l` | Browser history backward / forward |
 | `J` / `K` | Browser tab to the **left / right**, wrapping at either end |
@@ -53,8 +53,16 @@ animation: repeated keys accumulate a clamped target and reversal starts from th
 current offset. It does not queue independent smooth animations. Reduced motion
 uses immediate scrolling. Editing, pointer/wheel input, composition, viewport or
 content changes, native scroll displacement, page exit and disabling cancel pending
-motion. Dedicated sidebar/picker scrolling stays native. Other scroll commands are
-immediate and never select individual rows.
+motion. `gg/G` use the same single animator, with cubic ease-out and a
+distance-aware duration of `min(260, 120 + 3 × sqrt(distance))` milliseconds. Repeated
+edge commands keep their current target; switching to j/k starts from the live
+offset. Native keys and navigation interrupt without being claimed. Reduced motion
+also makes edge commands immediate. Dedicated sidebar/picker scrolling stays native.
+Half-page commands remain immediate; scrolling never selects individual rows.
+
+The existing j/k easing, 90ms duration and 80px steps are retained to preserve
+repeat speed and responsive reversal. Author Results has the same keyboard-focusable
+Settings gear, native current-tab link and hint eligibility as Library/Following.
 
 Hints use deterministic DOM order and equal-length, prefix-free labels from
 `asdfghjk`; larger visible target sets use multiple letters. Typing narrows labels;
