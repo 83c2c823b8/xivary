@@ -41,12 +41,13 @@ test("preferences use documented defaults, validate, and persist through the rep
   assert.deepEqual(await repository.getPreferences(), defaults);
   await repository.savePaper(paper);
   const prePreferenceSchema5 = await storage.read();
+  prePreferenceSchema5.schemaVersion = 5;
   delete prePreferenceSchema5.settings.openArxivLinksInNewTab;
   delete prePreferenceSchema5.settings.organizeFollowedAuthorsIntoCollections;
   await storage.write(prePreferenceSchema5);
   assert.deepEqual(await new LocalRepository(storage).getPreferences(), defaults);
-  assert.equal(Object.hasOwn((await storage.read()).settings, "openArxivLinksInNewTab"), false);
-  assert.equal(Object.hasOwn((await storage.read()).settings, "organizeFollowedAuthorsIntoCollections"), false);
+  assert.equal(Object.hasOwn((await storage.read()).settings, "openArxivLinksInNewTab"), true);
+  assert.equal(Object.hasOwn((await storage.read()).settings, "organizeFollowedAuthorsIntoCollections"), true);
   await assert.rejects(repository.setOpenArxivLinksInNewTab("yes"), /true or false/);
   await assert.rejects(repository.setOrganizeFollowedAuthorsIntoCollections("yes"), /true or false/);
   assert.deepEqual(await repository.setOpenArxivLinksInNewTab(true), { openArxivLinksInNewTab: true });
@@ -157,7 +158,7 @@ test("legacy follows migrate once, merge canonical names, and leave favorites un
     id: stableAuthorKey(latest.displayName), displayName: latest.displayName,
     normalizedName: "anne-marie o'neill", followedAt: early, updatedAt: late,
   });
-  assert.equal((await storage.read()).schemaVersion, 5);
+  assert.equal((await storage.read()).schemaVersion, 6);
   assert.deepEqual((await storage.read()).favorites, favorites);
   assert.equal((await storage.read()).extra, "keep");
   const writes = area.set;
@@ -189,7 +190,7 @@ test("empty legacy following migrates without changing saved favorites", async (
   const favorites = [createPaper(paper, now)];
   await storage.write({ schemaVersion: 1, favorites, following: [] });
   assert.deepEqual(await repository.listFavorites(), favorites);
-  assert.equal((await storage.read()).schemaVersion, 5);
+  assert.equal((await storage.read()).schemaVersion, 6);
   assert.deepEqual((await storage.read()).favorites, favorites);
   assert.deepEqual((await storage.read()).memberships, []);
   assert.equal((await storage.read()).collections[0].name, "Following");
@@ -255,10 +256,11 @@ test("schema 3 migrates to an empty author cache without changing saved or colle
   const current = await storage.read();
   const schema3 = { ...current, schemaVersion: 3, favorites: [saved] };
   delete schema3.authorPaperCaches;
+  delete schema3.paperCollections; delete schema3.paperMemberships; delete schema3.paperOrdering; delete schema3.settings.lastUsedPaperCollectionId;
   await storage.write(schema3);
   assert.deepEqual(await repository.listFavorites(), [saved]);
   const migrated = await storage.read();
-  assert.equal(migrated.schemaVersion, 5);
+  assert.equal(migrated.schemaVersion, 6);
   assert.deepEqual(migrated.favorites, schema3.favorites);
   assert.deepEqual(migrated.authors, schema3.authors);
   assert.deepEqual(migrated.collections, schema3.collections);
@@ -281,10 +283,11 @@ test("worker rejects unknown methods, malformed arguments and external senders",
 test("author navigation preference preserves old schema-5 data/defaults and rejects invalid values", async () => {
   const { repository, storage } = fixture();
   await repository.savePaper(paper); await repository.followAuthor(author);
-  const legacy = await storage.read(); delete legacy.settings.openAuthorResultsInNewTab; await storage.write(legacy);
+  const legacy = await storage.read(); legacy.schemaVersion = 5; delete legacy.settings.openAuthorResultsInNewTab; await storage.write(legacy);
   const upgraded = new LocalRepository(storage);
   assert.equal((await upgraded.getPreferences()).openAuthorResultsInNewTab, true);
-  assert.deepEqual(await storage.read(), legacy, "normalization does not write/reset schema-5 on read");
+  assert.deepEqual((await storage.read()).favorites, legacy.favorites);
+  assert.equal((await storage.read()).schemaVersion, 6);
   await assert.rejects(upgraded.setOpenAuthorResultsInNewTab("false"), /true or false/);
   await upgraded.setOpenAuthorResultsInNewTab(false);
   const saved = await storage.read();
@@ -298,10 +301,11 @@ test("author navigation preference preserves old schema-5 data/defaults and reje
 test("toolbar preference preserves old schema-5 data/defaults and rejects invalid values", async () => {
   const { repository, storage } = fixture();
   await repository.savePaper(paper); await repository.followAuthor(author);
-  const legacy = await storage.read(); delete legacy.settings.openXivaryFromToolbarInNewTab; await storage.write(legacy);
+  const legacy = await storage.read(); legacy.schemaVersion = 5; delete legacy.settings.openXivaryFromToolbarInNewTab; await storage.write(legacy);
   const upgraded = new LocalRepository(storage);
   assert.equal((await upgraded.getPreferences()).openXivaryFromToolbarInNewTab, true);
-  assert.deepEqual(await storage.read(), legacy, "normalization does not write/reset schema-5 on read");
+  assert.deepEqual((await storage.read()).favorites, legacy.favorites);
+  assert.equal((await storage.read()).schemaVersion, 6);
   await assert.rejects(upgraded.setOpenXivaryFromToolbarInNewTab("false"), /true or false/);
   await upgraded.setOpenXivaryFromToolbarInNewTab(false);
   const saved = await storage.read();

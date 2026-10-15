@@ -36,15 +36,16 @@ Keep native extension API namespace selection inside `extension/src/platform/`.
 Modules use `getBrowserApi()`; the classic content loader is the sole bootstrap
 exception inside that boundary. Prefer native Promise APIs (`browser`, then
 `chrome`); do not add browser checks in application code. Preserve one shared
-background repository entry point and all schema-5 semantics. Each browser/profile
-has a local schema-5 view. Chrome synchronizes only the four designated preferences;
+background repository entry point and schema-5 many-to-many semantics. Current
+local storage is schema 6, with automatic registered upgrades from schemas 1–5.
+Chrome synchronizes only the four designated preferences;
 Firefox stays local-only. Cross-browser execution does not imply shared state.
 
 Chrome sync is below LocalRepository in `repository/sync-storage.js`, with pure
 record projection/merge in `repository/sync-model.js`. Do not move storage access
-into UI code or copy the whole schema-5 envelope to sync. Keep caches, full local
+into UI code or copy the whole local envelope to sync. Keep caches, full local
 paper metadata and last-used collection settings local. Sync v1 is independent
-of schema 5; preserve preference logical revisions and retained winners. Legacy
+of local schema 6; preserve preference logical revisions and retained winners. Legacy
 library records/generations/tombstones remain inert and must never upload, merge
 or restore local library data. Leave remote legacy data untouched.
 Local commits (including pending replica records) precede best-effort sync writes.
@@ -69,9 +70,10 @@ Importing one portable category must never modify user-owned state belonging to
 another category. Bookmarks own papers and paper collections/memberships;
 Following owns followed authors and author collections/memberships. Preferences
 have no manual import/export and remain on their existing Chrome Sync path.
-Version-2 exports declare category and all/collection selection; a collection
-file contains only that collection and its memberships. Combined v1 files remain
-selectable by Bookmarks or Following during import, without applying preferences.
+Settings uses portable version-3 ZIP/JSON backups with explicit IDs/order and
+self-contained individual collection files. It does not migrate obsolete portable
+file formats. See docs/import-export.md; installed-data compatibility is a separate,
+mandatory concern.
 There is no unclassified saved/followed state: each live entity has a membership.
 
 Two-device simulation tests are required for changes to synchronization. They do
@@ -121,7 +123,9 @@ Follow `docs/UI_DESIGN.md` for implemented compact UI conventions and
 `docs/DESIGN_PRINCIPLES.md` for reusable principles. Library/Following share the
 sidebar presentation helper: retain aggregate vs folder icons, stable counts and
 focusable rows with double-click/F2 rename and right-click/Shift+F10/Context Menu
-actions; no visible management icons. Collection menus do not select rows; retain
+actions; Library may reveal its contextual ellipsis on hover/focus, while Following
+keeps contextual-only actions. Temporary reorder handles remain hidden outside
+editing mode. Collection menus do not select rows; retain
 keyboard/outside dismissal, focus return and existing deletion confirmation.
 The actual toolbar popup is 300px wide; retain native geometry coverage and
 launcher semantics. Inspect rendered screenshots alongside behavior tests.
@@ -130,3 +134,16 @@ Collection pickers share trigger-anchored viewport positioning: prefer below, fl
 above or constrain to available space, clamp horizontally, and update on scroll,
 resize and content changes without losing input state. Close when the trigger is
 removed and clean up observers/listeners; preserve membership and Undo semantics.
+
+Automatic upgrade safety is mandatory. Any code change that modifies persistent
+storage must include the corresponding automatic migration and upgrade-path tests
+in the same milestone. Keep schema versions independent of the manifest version;
+register explicit, consecutive steps in repository/local-schema.js and validate
+before activating a new schema. Preserve original user data in the local migration
+recovery snapshot before transformations. Never clear/reset storage, overwrite
+valid records with defaults, or auto-restore an old snapshot over newer work.
+All reads/mutations cross the shared migration barrier and repository lock;
+MigrationStorage remains below SyncStorage. Keep Offline IDB/Feed versions and
+Library RPC snapshot versions explicit and independently tested. Current-schema
+integrity failures must surface recoverable errors, never fake empty results.
+See docs/storage-migrations.md for startup/reload/retry, recovery and developer rules.

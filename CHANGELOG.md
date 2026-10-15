@@ -1,6 +1,21 @@
 # Release notes
 
-## 0.5.0 — Unreleased development
+## 0.5.0 — 2026-10-15
+
+- Add a persistent incremental research Feed: 30-day original submissions, 100-paper
+  capacity, finite 25-paper pages, demand-driven 12-hour discovery and seven-day
+  direct-coauthor evidence caching. Add selective terminology-backed related areas;
+  keep citation and category-only discovery deferred.
+- Display canonical arXiv IDs as ordinary selectable text across paper lists.
+- Add contextual drag and keyboard ordering of paper collections and each
+  collection's papers, with a subtle divider below All Saved.
+- Add portable version-3 multi-file ZIP backups and self-contained collection JSON,
+  preserving custom names, aliases, memberships and explicit ordering. Keep the
+  native export selector limited to all items/collections with compact typography.
+- Automatically migrate local storage schemas 1–5 to schema 6 through a shared
+  initialization barrier and durable recovery snapshots. Repair the old-worker/new-UI
+  Library collectionIds response mismatch without resetting user data.
+- Use `\Hom = \operatorname{Hom}` as the custom TeX command example.
 
 - Add a compact Offline navigation tab, local IndexedDB PDF copies and Chrome's
   native offline PDF viewer. Keep Bookmarks independent; retain exact versions,

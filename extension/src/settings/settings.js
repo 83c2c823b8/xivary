@@ -1,3 +1,4 @@
+import { decodeBase64, encodeBase64, MAX_BACKUP_BYTES } from '../repository/backup-zip.js';
 import { bindVimMode } from "../ui/vim-mode.js";
 import { bindSettingsToc } from "../ui/settings-toc.js";
 import { parseLatexMacros } from "../domain/latex.js";
@@ -109,11 +110,15 @@ async function openExport(button) {
   const category = button.dataset.export;
   button.disabled = true;
   try {
-    const library = category === "bookmarks" ? await repository.getPaperLibrary() : await repository.getAuthorLibrary();
+    const library = category === "all" ? null : category === "bookmarks" ? await repository.getPaperLibrary() : await repository.getAuthorLibrary();
     const selector = element("export-selection");
     selector.replaceChildren();
-    selector.add(new Option(`All ${category}`, "all"));
-    for (const collection of library.collections) selector.add(new Option(collection.name, collection.id));
+    selector.add(new Option(category === "all" ? "All research data" : `All ${category}`, "all"));
+    if (library) {
+      const collections = document.createElement('optgroup'); collections.label = 'Collections';
+      for (const collection of library.collections) collections.append(new Option(collection.name, collection.id));
+      selector.append(collections);
+    }
     element("export-heading").textContent = `Export ${label(category)}`;
     exportCategory = category;
     exportTrigger = button;
@@ -133,13 +138,12 @@ async function exportData() {
   button.disabled = true;
   element("cancel-export").disabled = true;
   try {
-    const backup = await repository.exportCategory(category, selection);
-    const blob = new Blob([JSON.stringify(backup, null, 2) + "\n"], { type: "application/json" });
+    const backup = await repository.exportBackup(category, selection);
+    const blob = new Blob([backup.base64 ? decodeBase64(backup.base64) : backup.text], { type: backup.mimeType });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    const suffix = selection.kind === "all" ? "all" : "collection";
-    link.download = `xivary-${category}-${suffix}-${backup.exportedAt.slice(0, 10)}.json`;
+    link.download = backup.filename;
     document.body.append(link);
     link.click();
     link.remove();
@@ -153,20 +157,27 @@ async function exportData() {
 async function importData(input) {
   const category = selectedCategory;
   selectedCategory = null;
-  const button = document.querySelector(`[data-import="${category}"]`);
-  const file = input.files?.[0];
-  input.value = "";
-  if (!file) return;
-  button.disabled = true;
+  const files = [...(input.files || [])];
+  input.value = '';
+  if (!files.length) return;
+  const buttons = [...document.querySelectorAll('[data-import]')];
+  buttons.forEach(button => { button.disabled = true; });
   try {
-    const result = await repository.importCategory(await file.text(), category);
+    if (files.reduce((size,file) => size + file.size, 0) > MAX_BACKUP_BYTES) throw new Error('Selected backups exceed 20 MiB.');
+    const inputs = [];
+    for (const file of files) {
+      const header = new Uint8Array(await file.slice(0,4).arrayBuffer());
+      const zip = file.name.toLowerCase().endsWith('.zip') || (header[0]===0x50 && header[1]===0x4b && header[2]===3 && header[3]===4);
+      inputs.push(zip ? { kind: 'zip', data: encodeBase64(new Uint8Array(await file.arrayBuffer())) } : { kind: 'json', data: await file.text() });
+    }
+    const result = await repository.importBackup(inputs, category);
     await load();
-    setStatus(`${result.importedScope} imported into ${label(category)}.`);
-  } catch (error) { setStatus(`${label(category)} import failed: ${error.message}`, true); }
-  finally { button.disabled = false; }
+    setStatus(`${result.imported} imported, ${result.merged} merged, ${result.skipped} skipped, ${result.invalid} invalid${result.conflicts ? `; ${result.conflicts} conflicting fields kept or names disambiguated` : ''}.`);
+  } catch (error) { setStatus(`${label(category)} import failed: ${error.message} No records imported.`, true); }
+  finally { buttons.forEach(button => { button.disabled = false; }); }
 }
 
-function label(category) { return category[0].toUpperCase() + category.slice(1); }
+function label(category) { if (category === "all") return "All research data"; return category[0].toUpperCase() + category.slice(1); }
 
 async function saveMacros() {
   if (macrosBusy || !macrosLoaded) return;

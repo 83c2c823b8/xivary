@@ -12,7 +12,9 @@
 .data-row { display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: 8px; min-height: 48px; border-top: 1px solid var(--border); }
 .data-row:last-child { border-bottom: 1px solid var(--border); }
 dialog label { display: block; margin-bottom: 6px; }
-dialog select { width: 100%; min-height: 36px; }
+#export-selection { width: 100%; height: 40px; min-height: 40px; padding: 6px 9px; font-family: inherit; font-size: 14px; font-weight: 400; }
+#export-selection optgroup { font: inherit; }
+#export-selection option { padding-inline: 8px; font: inherit; text-indent: 0; }
 .setting-row { display: flex; align-items: center; justify-content: space-between; gap: 24px; min-height: 48px; cursor: pointer; }
 .toggle-input { position: absolute; opacity: 0; width: 1px; height: 1px; }
 .toggle { position: relative; flex: 0 0 auto; width: 38px; height: 22px; border: 1px solid #9ca1a6; border-radius: 9999px; background: #dfe1e3; transition: background-color 120ms ease, border-color 120ms ease; }

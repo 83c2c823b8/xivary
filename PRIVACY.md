@@ -1,6 +1,6 @@
 # Privacy
 
-This document describes Xivary 0.4.0, a local-first desktop extension. Browser
+This document describes Xivary 0.5.0, a local-first desktop extension. Browser
 verification and remaining distribution checks are in [the release record](docs/release.md).
 
 ## Data stored locally
@@ -11,7 +11,10 @@ contain:
 
 - saved-paper titles, arXiv identifiers, author names, categories, abstracts, and dates;
 - followed author names and normalized name identifiers;
-- paper and author collection names and memberships;
+- paper and author collection names, memberships and explicit Library ordering;
+- the bounded Feed queue, seen-ID ledger and coauthor/topic evidence with public
+  paper provenance and cache/refresh timestamps;
+- local migration recovery snapshots retaining the original research envelope;
 - user preferences, including local Vim Mode, the LaTeX rendering toggle and custom macro definitions;
 - the local arXiv API pacing/cooldown deadline, without a persisted request queue;
 - cached public arXiv results for viewed author feeds, including non-followed
@@ -24,7 +27,7 @@ lifecycle.
 
 Offline PDFs and their exact arXiv versions, timestamps, sizes and fallback paper
 metadata are stored separately in extension-origin IndexedDB. Copies stay local,
-are excluded from Chrome Sync and portable JSON exports, and can be lost when
+are excluded from Chrome Sync and portable backups, and can be lost when
 extension/profile data is deleted. Saving creates no Downloads file; the secondary
 Export PDF menu action deliberately creates an ordinary PDF file.
 
@@ -56,15 +59,18 @@ See [migration strategy](docs/settings-only-sync-migration.md).
 
 ## User-controlled backup files
 
-The Settings page can download separate human-readable, versioned JSON files for
-all Bookmarks or one paper collection, and all Following or one author collection.
-A selected category import changes only that category. Preferences have no manual
-file export/import; the four boolean preferences use Chrome Sync while last-used
-collection pointers remain local. Older combined backups are accepted by either
-category action, without applying their preference values. Files exclude
-author-feed caches and queries, last-used collection
-choices, unknown storage fields, Chrome Sync replica/revision/tombstone/bootstrap/
-retry data, and ephemeral UI or request state.
+Settings exports one version-3 ZIP for all research data or a complete section,
+with separate JSON records and explicit ordering. One selected collection exports
+self-contained JSON. Import accepts current ZIP/JSON files, including multiple
+individual JSON files, and validates them all before applying one merge. A category
+import changes only that category. Custom names, aliases and supported edited
+metadata are preserved. Older portable file versions are not accepted by Settings;
+installed-data migrations remain automatic and independent.
+
+Backups exclude preferences, Offline PDF bytes, Feed and coauthor/topic caches,
+migration recovery snapshots, last-used collection pointers, unknown storage fields,
+authentication/runtime state and all Chrome Sync bookkeeping. Preferences continue
+on their existing four-boolean Chrome Sync path.
 
 Xivary does not upload backup files. A downloaded file is governed by the user's
 device, browser download settings, backup software, and any transfer service the
@@ -83,7 +89,7 @@ See [Sync design](docs/chrome-sync.md).
 The extension has no project-owned backend and includes no analytics, advertising,
 or telemetry service.
 
-Author Results and the retained Search page use a shared background request queue.
+Feed, Author Results and the retained Search page use a shared background request queue.
 It spaces API starts by at least three seconds, uses one connection at a time and
 retries temporary HTTP 429 responses within bounded attempts/waiting. Queue entries
 and streamed response buffers are temporary; only the pacing/cooldown deadline
@@ -94,6 +100,14 @@ directly to arXiv's public Atom API at `https://export.arxiv.org/api/query`. The
 response is cached locally for 24 hours. Opening paper, PDF, author-search, or other
 arXiv links navigates the browser to arXiv. Those requests are governed by arXiv and
 the browser's own privacy behavior.
+
+Feed discovery sends bounded author-name, category and specific terminology
+queries directly to the same arXiv API. It runs on demand when opened and due
+(default twelve hours), or through manual refresh, and reuses coauthor evidence
+for seven days. No requests run merely because the browser is closed. Discovery
+relationships remain name-based and are not uploaded to a recommendation service.
+See [request budgets](docs/following-feed.md). Migration recovery snapshots are
+local-only, in extension local storage or an independent IndexedDB recovery store.
 
 No remote JavaScript, CSS, fonts, or other executable code is loaded at runtime.
 
@@ -113,7 +127,7 @@ No remote JavaScript, CSS, fonts, or other executable code is loaded at runtime.
   and internally fetches PDFs only when saving or updating an offline copy, without
   credentials. Native offline reading requires no arXiv network request.
 - `https://export.arxiv.org/*` host access: retrieves public Atom results for author
-  feeds and the retained field-aware search page.
+  feeds, research discovery and the retained field-aware search page.
 
 The Firefox manifest declares `searchTerms` under its data-transmission settings
 because author-name and field-search queries are sent to arXiv. This declaration

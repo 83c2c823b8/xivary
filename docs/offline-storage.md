@@ -28,8 +28,10 @@ and the existing allowlisted, sender-validated background handler. Best-effort i
 pages through runtime messaging and supported abstracts through tab messaging. The shared
 background `LocalRepository` delegates offline operations to `OfflineRepository`;
 there is no second application repository or sync path. `OfflineStorage` owns the
-extension-origin IndexedDB connection. Nothing is added to schema 5, its migrations,
-Chrome Sync projection or portable `xivary-library` backups.
+extension-origin IndexedDB connection. Calls wait for the shared local schema-6
+initialization barrier, then use independent PDF transactions. No PDF records or
+bytes enter the local research envelope, migration recovery snapshots, Chrome Sync
+projection or portable backups. See [upgrade safety](storage-migrations.md).
 
 Database `xivary-offline` is at version 2:
 
@@ -138,7 +140,8 @@ temporary ZIP test fixtures; subsequent checks excluded that case.
 
 The exact Support Xivary sentence is now “Even adding a donation link feels
 fundamentally at odds with that philosophy.” The remaining Support section text
-and markup are unchanged. Runtime version remains 0.4.0.
+and markup are unchanged. Current release verification is recorded in
+[the 0.5.0 release record](release.md#v050--2026-10-15).
 
 Archive-free production staging is available with `npm run build`, using the same
 packaging pipeline and browser-manifest derivation with archive creation disabled.

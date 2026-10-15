@@ -119,6 +119,7 @@ input[type="search"] {
 .paper-row h2 a, .author-row h2 a { text-decoration: none; }
 .paper-row h2 a:hover, .author-row h2 a:hover { text-decoration: underline; }
 .metadata { margin: 2px 0; font-size: 13px; line-height: 1.45; }
+.arxiv-id { overflow-wrap: anywhere; }
 .abstract { max-width: 88ch; margin: 8px 0 6px; color: #383c40; font-size: 14px; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; }
 .abstract .katex { font-size: 1.1em; white-space: normal; }
 .abstract .katex-display { max-width: 100%; padding: 3px 0; margin: 10px 0; }

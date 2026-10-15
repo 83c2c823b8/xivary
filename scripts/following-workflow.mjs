@@ -185,13 +185,15 @@ export async function collectionMenuWorkflow({ evaluate, click, key, screenshot 
   await evaluate(`document.querySelector(${JSON.stringify(trigger)}).closest('.collection-row').querySelector('.collection-count').textContent=${JSON.stringify(savedCount)}`);
   assert.equal(await evaluate("!document.querySelector('.collection-menu-trigger,.collection-actions')"),true);
   await click(trigger,{button:'right'});
+  const actions = await evaluate("document.querySelector('.library-content') ? ['rename','delete','reorder-collections','reorder-papers'] : ['rename','delete']");
+  assert.deepEqual(await evaluate("[...document.querySelectorAll('.collection-menu [data-action]')].map(node=>node.dataset.action)"),actions);
   assert.equal(await evaluate("Boolean(document.querySelector('.collection-menu')) && document.activeElement.dataset.action==='rename'"),true);
   assert.equal(await evaluate("document.querySelector('.collection-link[aria-current]').dataset.collectionId"),original,'right click does not select');
   assert.deepEqual(await geometry(),before);
   await screenshot('collection-menu.png');
   await key('ArrowDown'); assert.equal(await evaluate("document.activeElement.dataset.action"),'delete');
   await key('Home'); assert.equal(await evaluate("document.activeElement.dataset.action"),'rename');
-  await key('End'); assert.equal(await evaluate("document.activeElement.dataset.action"),'delete');
+  await key('End'); assert.equal(await evaluate("document.activeElement.dataset.action"),actions.at(-1));
   await key('Escape');
   assert.equal(await evaluate("!document.querySelector('.collection-menu') && document.activeElement.matches('.collection-link')"),true);
   await key('Shift+F10');

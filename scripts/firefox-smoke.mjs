@@ -195,7 +195,7 @@ try {
   await pickerVisualWorkflow({evaluate:evaluateAsync,key:pickerKey,screenshot:name=>screenshot(`library-${name}`)});
   await pickerPositionWorkflow({evaluate:evaluateAsync,until,click:pickerClick,resize:(width,height)=>command('/window/rect',{width,height:height+100}),screenshot:name=>screenshot(`library-${name}`)});
   const stored = await evaluateAsync("import('../lib/storage.js').then(async ({ BrowserLocalStorage }) => new BrowserLocalStorage().read())");
-  assert.equal(stored.schemaVersion, 5);
+  assert.equal(stored.schemaVersion, 6);
   assert.equal(stored.favorites.length, 1);
   assert.equal(stored.paperMemberships.length, 1);
   assert.equal(stored.authors.length, 1);
@@ -213,7 +213,16 @@ try {
   assert.equal(await evaluate("document.querySelector('.settings-link').getAttribute('aria-label')"), "Settings");
   await evaluate("document.querySelector('.settings-link').click()");
   await until("location.pathname.endsWith('/settings/settings.html') && document.querySelector('#open-arxiv-new-tab')");
-  assert.deepEqual(await evaluate("[...document.querySelectorAll('[data-import]')].map(node=>node.dataset.import)"), ["bookmarks", "following"]);
+  assert.deepEqual(await evaluate("[...document.querySelectorAll('[data-import]')].map(node=>node.dataset.import)"), ["all", "bookmarks", "following"]);
+  const portable=await evaluateAsync(`import('../repository/repository-client.js').then(async ({RepositoryClient})=>{
+    const repository=new RepositoryClient(),before=await repository.getPaperLibrary();
+    const backup=await repository.exportBackup('all');
+    const result=await repository.importBackup([{kind:'zip',data:backup.base64}],'all');
+    return {mimeType:backup.mimeType,result,before,after:await repository.getPaperLibrary()};
+  })`);
+  assert.equal(portable.mimeType,'application/zip');assert.equal(portable.result.invalid,0);assert.deepEqual(portable.after,portable.before);
+  assert.equal(await evaluateAsync("import('../lib/storage.js').then(async ({BrowserLocalStorage})=>Object.hasOwn(await new BrowserLocalStorage().read(),'_chromeSync'))"),false);
+  console.log('FIREFOX BACKUP PASS: native stored ZIP repository round trip, idempotence and local-only data');
   await evaluate("document.querySelector('.app-nav a[href*=authors]').click()");
   await until("document.querySelectorAll('.author-row').length === 1");
   await evaluate("document.querySelector('.author-row a').click()");

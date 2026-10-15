@@ -35,11 +35,14 @@ const authorNavigationHandler = createAuthorNavigationHandler(api, repository);
 const tabNavigationHandler = createTabNavigationHandler(api, repository);
 runtime.onMessage.addListener((...args) => repositoryHandler(...args) || authorNavigationHandler(...args) || tabNavigationHandler(...args));
 
+const reconcile = () => repository.run(() => {}).catch(error => console.warn("Xivary storage initialization:", error.message));
+// Every startup/reload and lazy repository read uses the same barrier, even if
+// onInstalled does not fire because the manifest version is unchanged.
+runtime.onInstalled.addListener(() => void reconcile());
+runtime.onStartup.addListener(() => void reconcile());
+void reconcile();
 if (transport) {
-  const reconcile = () => repository.run(() => {}).catch(error => console.warn("Xivary library initialization:", error.message));
   // Register wake-up listeners synchronously before starting asynchronous work.
   transport.subscribe(changes => { if (storage.observe(changes)) void reconcile(); });
   api.alarms.onAlarm.addListener(alarm => { if (alarm.name === SYNC_ALARM) void reconcile(); });
-  runtime.onStartup.addListener(() => void reconcile());
-  void reconcile();
 }

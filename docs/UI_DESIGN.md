@@ -15,6 +15,18 @@ The base is 15px/1.5; page headings 24px, paper/author headings 17px, metadata 1
 Do not truncate paper metadata. Long author names wrap. Long sidebar collection
 names truncate visually and retain the complete accessible name and tooltip.
 
+Paper lists use the shared metadata line for date, canonical `arXiv:2610.12279`
+identifier and categories, in that order. The identifier is ordinary selectable
+13px muted text, without links, handlers, tab stops or copy controls. Legacy IDs
+are supported; versions/URLs/prefixes normalize through the existing ID utility
+for display only, and missing or malformed IDs are omitted. Feed keeps its UTC
+submission date prefix. Library (including collections), Offline, Author Results
+and Search use the same presentation; metadata wraps naturally on narrow screens.
+The focused check `node scripts/paper-ids-smoke.mjs` installs the production build
+in disposable Chrome and verifies all six contexts, text selection, StaticText
+accessibility, existing actions and 1280px/360px layouts. Unit coverage is in
+`tests/paper-row.test.js`.
+
 The 48px app bar contains Xivary, Library, Following, Offline and Feed. Each page has one heading
 and one Settings gear. Library/Following heading padding is 10px above/11px below;
 main content begins 16px below it. Search is not primary navigation.
@@ -33,7 +45,7 @@ launcher row, settings, permanent filters or automatic paper/PDF saves are added
 
 ## Shared collection navigation
 
-`ui/collection-sidebar.js` supplies presentation and the two-action menu; each page
+`ui/collection-sidebar.js` supplies presentation and the base Rename/Delete menu; each page
 owns its repository operations, selection and inline rename form. Shared styling
 lives in `ui/collection-sidebar.css`. No shared storage model is introduced.
 
@@ -43,7 +55,8 @@ lives in `ui/collection-sidebar.css`. No shared storage model is introduced.
 - Aggregate All Saved uses a bookmark icon; All Following uses a users icon.
   Real collections use folders. All views have a small gap before the collections.
 - Collection names lead; 14px tabular counts remain visible in a separate column.
-  Counts stay right-aligned; no management icon or reserved action column appears.
+  Counts stay right-aligned without a reserved action column. Library reveals an
+  ellipsis on hover/focus; Following retains its contextual-only menu.
 - Each row is a semantic button with visible keyboard focus. Single click or
   Enter/Space selects immediately; double-click or F2 starts inline rename.
   Right-click, Shift+F10 or the Context Menu key opens collection actions without
@@ -490,3 +503,42 @@ stays unchanged. A restrained 30px icon beside the bookmark saves or opens its
 small anchored menu. Update/removal are progressive operations; PDF export appears
 only in Offline’s menu. Settings has a compact usage summary and review link.
 See [offline storage](offline-storage.md).
+
+## Library ordering and hierarchy
+
+A neutral divider below All Saved separates the aggregate from the collection
+list. Its selected-state background and existing lower divider remain unchanged.
+Library collections reveal a small ellipsis on hover/focus; their contextual menu
+adds Reorder collections and Reorder papers after Rename and Delete. Temporary
+reordering reveals six-dot handles on hover/focus, a subtle drop indicator, and a
+compact Done action. Normal browsing has no handles or reorder toolbar. Handle
+Arrow Up/Down and Home/End movement is announced; complete collection membership
+is shown while paper filters are temporarily disabled. See
+[ordering semantics and backup limitations](collection-reordering.md).
+
+## Portable backups
+
+Settings retains the compact Bookmarks/Following data rows and adds one All
+research data row with Export All/Import All. The existing export dialog provides
+All bookmarks / All following and one Collections group, without individual
+paper or author options. All exports download a ZIP; collection selections use
+self-contained JSON. The import chooser accepts ZIP/JSON and
+multiple files; concise counts appear in the existing live status region. No new
+settings or navigation are introduced. See [format and limits](import-export.md).
+
+The export Include control remains a native select: it inherits the surrounding
+Settings font family, uses 14px normal-weight text, is 40px tall and retains the
+shared subtle border, 2px corner radius and keyboard focus outline. Its rules are
+scoped to `#export-selection`; other Settings typography is unchanged. Options
+request normal weight, compact inline padding and no text indent; optgroups
+inherit the same font. Native popup rendering remains browser/OS-controlled:
+Chrome on Linux can retain bold group headings, built-in group indentation,
+platform selection colors and popup row spacing despite those CSS hints. Do not
+replace the select or remove semantic grouping to override these differences.
+
+Verified in disposable Chrome 154 on Linux, including screenshots of both opened
+native popups in a headed virtual X display. Closed controls, 40px geometry,
+14px inherited typography, 1280px/360px layouts, native expanded accessibility
+state, Arrow Down/Home selection, Tab and Escape/Cancel were checked. Headless
+page screenshots omit the separate native popup; use a headed desktop capture
+when inspecting its appearance.

@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Xivary",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "Save arXiv papers, organize collections, and follow author feeds locally.",
   "minimum_chrome_version": "102",
   "permissions": ["storage", "alarms"],
@@ -45,6 +45,8 @@
       "src/ui/undo.js",
       "src/ui/follow-button.js",
       "src/domain/identifiers.js",
+      "src/domain/library-snapshot.js",
+      "src/domain/paper-ordering.js",
       "src/domain/paper.js",
       "src/domain/author.js",
       "src/repository/paper-repository.js",

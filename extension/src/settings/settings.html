@@ -37,12 +37,13 @@
     <label class="setting-row"><span>Organize followed authors into collections</span><input id="organize-author-collections" class="toggle-input" type="checkbox" role="switch"><span class="toggle" data-vim-control aria-hidden="true"></span></label>
   </section>
   <section id="data" data-settings-section="data" aria-labelledby="data-heading"><h2 id="data-heading">Data</h2>
-    <p class="section-description">Import merges into this browser. Export lets you choose all items or a collection.</p>
+    <p class="section-description">ZIP backups preserve names and ordering. Import merges into this browser; PDF copies stay local.</p>
     <div class="data-rows">
+      <div class="data-row"><span>All research data</span><button data-import="all" type="button" aria-label="Import All">Import All</button><button data-export="all" type="button" aria-label="Export All">Export All</button></div>
       <div class="data-row"><span>Bookmarks</span><button data-import="bookmarks" type="button" aria-label="Import Bookmarks">Import</button><button data-export="bookmarks" type="button" aria-label="Export Bookmarks">Export</button></div>
       <div class="data-row"><span>Following</span><button data-import="following" type="button" aria-label="Import Following">Import</button><button data-export="following" type="button" aria-label="Export Following">Export</button></div>
     </div>
-    <input id="import-file" type="file" accept="application/json,.json" hidden>
+    <input id="import-file" type="file" accept="application/json,application/zip,.json,.zip" multiple hidden>
   </section>
   <section id="offline-storage" data-settings-section="offline-storage" aria-labelledby="offline-heading"><h2 id="offline-heading">Offline storage</h2>
     <p id="offline-usage" class="section-description" role="status">Loading storage usage…</p>

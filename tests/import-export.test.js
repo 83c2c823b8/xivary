@@ -44,7 +44,7 @@ const fields = {
   following: ["authors", "authorCollections", "authorMemberships"],
 };
 const owned = {
-  bookmarks: ["favorites", "paperCollections", "paperMemberships"],
+  bookmarks: ["favorites", "paperCollections", "paperMemberships", "paperOrdering"],
   following: ["authors", "collections", "memberships"],
 };
 function outside(state, category) {
@@ -246,8 +246,8 @@ test("a valid import commits a pending migration and merge in one write", async 
   assert.equal(target.writes(), 0);
   target.fail(false);
   await target.repository.importCategory(JSON.stringify(file), "bookmarks");
-  assert.equal(target.writes(), 1);
-  assert.equal(target.state().schemaVersion, 5);
+  assert.equal(target.writes(), 3, "durable journal, completed migration, then one atomic import write");
+  assert.equal(target.state().schemaVersion, 6);
   assert.equal(target.state().favorites.length, 1);
 });
 
@@ -323,7 +323,7 @@ test("category imports remain local without changing preference projection and R
     assert.equal(JSON.stringify(file).includes("_chromeSync"), false);
     assert.equal(JSON.stringify(file).includes("rev"), false);
     assert.equal(JSON.stringify(file).includes("tombstone"), false);
-    assert.equal(base.state().schemaVersion, 5);
+    assert.equal(base.state().schemaVersion, 6);
     assert.ok(base.state()[category === "bookmarks" ? "paperCollections" : "collections"].some(item => item.id === (category === "bookmarks"
       ? source.paperCollection.id : source.authorCollection.id)));
   }

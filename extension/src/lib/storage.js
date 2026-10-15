@@ -1,11 +1,13 @@
+import { MigrationRecovery } from '../repository/migration-recovery.js';
 import { getBrowserApi } from "../platform/browser-api.js";
 
 export const STORAGE_KEY = "arxivResearchLibrary";
 
 /** The only adapter allowed to access the browser's local storage area. */
 export class BrowserLocalStorage {
-  constructor(area = getBrowserApi().storage.local) {
+  constructor(area = getBrowserApi().storage.local, recovery = new MigrationRecovery()) {
     this.area = area;
+    this.recovery = recovery;
   }
 
   async read() {
@@ -16,6 +18,31 @@ export class BrowserLocalStorage {
   async write(state) {
     await this.area.set({ [STORAGE_KEY]: state });
   }
+
+  async readMigrationBackup(from, to) {
+    const key = `xivary:local-migration:${from}:${to}`;
+    return (await this.area.get(key))[key] ?? await this.recovery.get(key);
+  }
+
+  async backupMigration(journal) {
+    const key = `xivary:local-migration:${journal.from}:${journal.to}`;
+    const existing = await this.readMigrationBackup(journal.from, journal.to);
+    if (existing) {
+      if (existing.format !== journal.format || existing.version !== journal.version || JSON.stringify(existing.source) !== JSON.stringify(journal.source)) {
+        throw new Error('Migration recovery snapshot conflicts with stored data. Both were retained; no migration was applied.');
+      }
+      return;
+    }
+    try { await this.area.set({ [key]: journal }); }
+    catch (error) {
+      if (error.name !== 'QuotaExceededError' && !/QUOTA_BYTES|quota.*exceeded/i.test(error.message)) throw error;
+      // Avoid doubling a large Library in Chrome's small local-area quota.
+      // The IDB transaction must complete before the active envelope can advance.
+      try { await this.recovery.put(key, journal); }
+      catch (recoveryError) { throw new Error(`${error.message}; recovery snapshot failed: ${recoveryError.message}`); }
+    }
+  }
+
 }
 
 // Preserve the existing adapter export for consumers and regression tests.

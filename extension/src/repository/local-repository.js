@@ -1,6 +1,12 @@
+import { migratingStorage, withStorageLock } from './migration-storage.js';
+import { LIBRARY_SNAPSHOT_VERSION } from '../domain/library-snapshot.js';
+import { prepareState, STORAGE_SCHEMA_VERSION, collectionName, paperCollectionName } from './local-schema.js';
+export { prepareState } from './local-schema.js';
+import { exportBackup, parseBackupFiles, mergeBackup } from './portable-backup.js';
 import { PaperRepository } from "./paper-repository.js";
 import { parseLatexMacros } from "../domain/latex.js";
 import { createPaper } from "../domain/paper.js";
+import { reconcilePaperOrdering, moveBefore } from '../domain/paper-ordering.js';
 import { createAuthor } from "../domain/author.js";
 import { cleanText, normalizeArxivId } from "../domain/identifiers.js";
 import { normalizeCachedAuthorResults } from "../services/arxiv-paper-service.js";
@@ -14,7 +20,8 @@ const DEFAULT_PAPER_COLLECTION_ID = "paper-collection:saved-papers";
 export class LocalRepository extends PaperRepository {
   constructor(storage, clock = () => new Date().toISOString(), makeId = () => crypto.randomUUID()) {
     super();
-    this.storage = storage;
+    this.storage = migratingStorage(storage, clock);
+    this.initialization = null;
     this.clock = clock;
     this.makeId = makeId;
     this.pending = Promise.resolve();
@@ -24,15 +31,22 @@ export class LocalRepository extends PaperRepository {
     this.offline = null; // Injected by the shared background entry point; independent of schema 5.
   }
 
-  getOfflineLibrary() { return this.offline.list(); }
-  getOfflineCopy(id) { return this.offline.get(id); }
-  saveOfflinePaper(paper, update) {
-    if (typeof update !== "boolean") throw new Error("Invalid offline update choice.");
-    return this.offline.save(paper, update);
+  initialize() {
+    if (!this.initialization) {
+      const pending = this.run(state => ({ schemaVersion: state.schemaVersion }));
+      this.initialization = pending.catch(error => { this.initialization = null; throw error; });
+    }
+    return this.initialization;
   }
-  removeOfflineCopy(id) { return this.offline.remove(id); }
-  cancelOfflineSave(id) { return this.offline.cancel(id); }
-  getOfflinePdfChunk(id, revision, offset) { return this.offline.chunk(id, revision, offset); }
+  getOfflineLibrary() { return this.initialize().then(() => this.offline.list()); }
+  getOfflineCopy(id) { return this.initialize().then(() => this.offline.get(id)); }
+  saveOfflinePaper(paper, update) {
+    if (typeof update !== 'boolean') throw new Error('Invalid offline update choice.');
+    return this.initialize().then(() => this.offline.save(paper, update));
+  }
+  removeOfflineCopy(id) { return this.initialize().then(() => this.offline.remove(id)); }
+  cancelOfflineSave(id) { return this.initialize().then(() => this.offline.cancel(id)); }
+  getOfflinePdfChunk(id, revision, offset) { return this.initialize().then(() => this.offline.chunk(id, revision, offset)); }
   async openOfflinePaper(id) {
     const copy = await this.getOfflineCopy(id);
     if (!copy) throw new Error("This paper has no offline copy.");
@@ -40,11 +54,10 @@ export class LocalRepository extends PaperRepository {
   }
 
   // One worker instance serializes migrations, reads and writes across all UI contexts.
-  run(operation, persistMigration = true) {
-    const result = this.pending.then(async () => {
+  run(operation) {
+    const result = this.pending.then(() => withStorageLock(this.storage, async () => {
       const stored = await this.storage.read();
       const state = prepareState(stored, this.clock());
-      if (persistMigration && stored && stored.schemaVersion !== 5) await this.storage.write(state);
       const before = entitySnapshots(state);
       const result = await operation(state);
       const after = entitySnapshots(state);
@@ -52,7 +65,7 @@ export class LocalRepository extends PaperRepository {
         if (before.get(key) !== after.get(key)) this.entityVersions.set(key, (this.entityVersions.get(key) || 0) + 1);
       }
       return result;
-    });
+    }));
     this.pending = result.catch(() => {});
     return result;
   }
@@ -63,15 +76,45 @@ export class LocalRepository extends PaperRepository {
 
   getPaperLibrary() {
     return this.run(state => structuredClone({
+      snapshotVersion: LIBRARY_SNAPSHOT_VERSION, schemaVersion: STORAGE_SCHEMA_VERSION,
       papers: state.favorites, collections: state.paperCollections,
-      memberships: state.paperMemberships, settings: state.settings,
+      memberships: state.paperMemberships, settings: state.settings, ordering: reconcilePaperOrdering(state),
     }));
+  }
+
+  async persist(state) {
+    if (state.paperOrdering !== undefined) state.paperOrdering = reconcilePaperOrdering(state);
+    await this.storage.write(state);
+  }
+
+  movePaperCollection(id, beforeId) {
+    if (typeof id !== 'string' || (beforeId !== null && typeof beforeId !== 'string')) return Promise.reject(new Error('Invalid collection move.'));
+    return this.run(async state => {
+      const ordering = reconcilePaperOrdering(state), next = moveBefore(ordering.collectionIds, id, beforeId);
+      if (JSON.stringify(next) === JSON.stringify(ordering.collectionIds)) return false;
+      state.paperOrdering = { ...ordering, collectionIds: next };
+      await this.persist(state); return true;
+    });
+  }
+
+  movePaperInCollection(collectionId, arxivId, beforeId) {
+    return this.run(async state => {
+      requirePaperCollection(state, collectionId);
+      const id = normalizeArxivId(arxivId), before = beforeId === null ? null : normalizeArxivId(beforeId);
+      const ordering = reconcilePaperOrdering(state), members = new Set(state.paperMemberships.filter(item => item.collectionId === collectionId).map(item => item.arxivId));
+      const previous = ordering.paperOrders.find(item => item.collectionId === collectionId);
+      const ids = previous?.paperIds || state.favorites.filter(paper => members.has(paper.arxivId)).map(paper => paper.arxivId);
+      const next = moveBefore(ids, id, before);
+      if (JSON.stringify(next) === JSON.stringify(ids)) return false;
+      state.paperOrdering = { ...ordering, paperOrders: [...ordering.paperOrders.filter(item => item.collectionId !== collectionId), { collectionId, paperIds: next }] };
+      await this.persist(state); return true;
+    });
   }
 
   savePaper(input) {
     return this.run(async state => {
       const paper = this.addPaperToDefaultCollection(state, input);
-      await this.storage.write(state);
+      await this.persist(state);
       return structuredClone(paper);
     });
   }
@@ -89,7 +132,7 @@ export class LocalRepository extends PaperRepository {
       const exists = state.paperMemberships.some(item => item.arxivId === paper.arxivId);
       if (exists) this.removePaperEverywhere(state, paper.arxivId);
       else this.addPaperToDefaultCollection(state, paper);
-      await this.storage.write(state);
+      await this.persist(state);
       return exists ? null : paper;
     });
   }
@@ -106,7 +149,7 @@ export class LocalRepository extends PaperRepository {
       const collection = this.newPaperCollection(state, name);
       state.settings.lastUsedPaperCollectionId = collection.id;
       if (paper !== null) this.addPaperMembership(state, paper, collection.id);
-      await this.storage.write(state);
+      await this.persist(state);
       return structuredClone(collection);
     });
   }
@@ -116,7 +159,7 @@ export class LocalRepository extends PaperRepository {
       const collection = requirePaperCollection(state, id);
       collection.name = paperCollectionName(state, name, id);
       collection.updatedAt = this.clock();
-      await this.storage.write(state);
+      await this.persist(state);
       return structuredClone(collection);
     });
   }
@@ -130,14 +173,14 @@ export class LocalRepository extends PaperRepository {
       if (state.settings.lastUsedPaperCollectionId === id) {
         state.settings.lastUsedPaperCollectionId = state.paperCollections[0]?.id ?? null;
       }
-      await this.storage.write(state);
+      await this.persist(state);
     });
   }
 
   addPaperToCollection(input, collectionId) {
     return this.run(async state => {
       const paper = this.addPaperMembership(state, input, collectionId);
-      await this.storage.write(state);
+      await this.persist(state);
       return structuredClone(paper);
     });
   }
@@ -169,7 +212,7 @@ export class LocalRepository extends PaperRepository {
         || state.collections[0];
       if (!collection) collection = this.newCollection(state, "Following");
       const author = this.addMembership(state, input, collection.id);
-      await this.storage.write(state);
+      await this.persist(state);
       return author;
     });
   }
@@ -179,7 +222,7 @@ export class LocalRepository extends PaperRepository {
       const collection = this.newCollection(state, name);
       state.settings.lastUsedAuthorCollectionId = collection.id;
       if (author !== null) this.addMembership(state, author, collection.id);
-      await this.storage.write(state);
+      await this.persist(state);
       return collection;
     });
   }
@@ -189,7 +232,7 @@ export class LocalRepository extends PaperRepository {
       const collection = requireCollection(state, id);
       collection.name = collectionName(state, name, id);
       collection.updatedAt = this.clock();
-      await this.storage.write(state);
+      await this.persist(state);
       return collection;
     });
   }
@@ -202,14 +245,14 @@ export class LocalRepository extends PaperRepository {
       if (state.settings.lastUsedAuthorCollectionId === id) {
         state.settings.lastUsedAuthorCollectionId = state.collections[0]?.id ?? null;
       }
-      await this.storage.write(state);
+      await this.persist(state);
     });
   }
 
   addAuthorToCollection(author, collectionId) {
     return this.run(async state => {
       const record = this.addMembership(state, author, collectionId);
-      await this.storage.write(state);
+      await this.persist(state);
       return record;
     });
   }
@@ -240,14 +283,16 @@ export class LocalRepository extends PaperRepository {
     const memberId = kind === "paper" ? "arxivId" : "authorId";
     const record = structuredClone(state[recordField].find(item => item[idField] === id));
     const before = state[membershipField].filter(item => item[memberId] === id);
+    const orderTargets = kind === 'paper' && state.paperOrdering ? reconcilePaperOrdering(state).paperOrders
+      .filter(order => order.paperIds.includes(id)).map(order => ({ collectionId: order.collectionId, successors: order.paperIds.slice(order.paperIds.indexOf(id) + 1) })) : [];
     remove();
     const removed = before.filter(item => !state[membershipField].some(other => other[memberId] === id && other.collectionId === item.collectionId));
-    await this.storage.write(state);
+    await this.persist(state);
     if (!removed.length) return null;
     for (const [token, receipt] of this.removals) if (receipt.expires <= this.undoNow()) this.removals.delete(token);
     if (this.removals.size >= 100) this.removals.delete(this.removals.keys().next().value);
     const key = `${kind}:${id}`, token = crypto.randomUUID();
-    this.removals.set(token, { kind, id, record, removed: structuredClone(removed),
+    this.removals.set(token, { kind, id, record, removed: structuredClone(removed), orderTargets,
       collectionVersions: Object.fromEntries(removed.map(item => {
         const collectionKey = `${kind}-collection:${item.collectionId}`;
         return [collectionKey, this.entityVersions.get(collectionKey) || 0];
@@ -272,7 +317,16 @@ export class LocalRepository extends PaperRepository {
       const membershipField = kind === "paper" ? "paperMemberships" : "memberships";
       if (!state[recordField].some(item => item[idField] === id)) state[recordField].push(structuredClone(record));
       state[membershipField].push(...structuredClone(removed));
-      await this.storage.write(prepareState(state, this.clock()));
+      if (kind === 'paper' && state.paperOrdering) {
+        state.paperOrdering = reconcilePaperOrdering(state);
+        for (const target of receipt.orderTargets || []) {
+          const order = state.paperOrdering.paperOrders.find(order => order.collectionId === target.collectionId);
+          if (order && removed.some(item => item.collectionId === target.collectionId)) {
+            order.paperIds = moveBefore(order.paperIds, id, target.successors.find(next => order.paperIds.includes(next)) ?? null);
+          }
+        }
+      }
+      await this.persist(prepareState(state, this.clock()));
       this.removals.delete(token);
     });
   }
@@ -290,7 +344,7 @@ export class LocalRepository extends PaperRepository {
         try { migrateQueue(state.followingFeedCache, this.feedAuthors(state), this.clock()); }
         catch { return queue; }
         state.followingFeedCache = queue;
-        await this.storage.write(state);
+        await this.persist(state);
       }
       return structuredClone(queue);
     });
@@ -301,7 +355,7 @@ export class LocalRepository extends PaperRepository {
       const cache = normalizeQueue(input);
       if (!queueMatchesFollowing(cache, this.feedAuthors(state))) throw new Error('Following changed; refresh the Feed.');
       state.followingFeedCache = cache;
-      await this.storage.write(state);
+      await this.persist(state);
       return structuredClone(cache);
     });
   }
@@ -331,14 +385,14 @@ export class LocalRepository extends PaperRepository {
       if (policy.active) {
         policy.active = null; policy.failures = Math.min(32, policy.failures + 1);
         policy.nextAttemptAt = now + retryDelay(policy.failures);
-        state._followingFeedDiscovery = policy; await this.storage.write(state);
+        state._followingFeedDiscovery = policy; await this.persist(state);
       }
       if (!manual && !discoveryDue(queue, authors, now)) return { status: 'fresh', queue };
       if (policy.nextAttemptAt > now) return { status: 'cooldown', queue, nextAttemptAt: policy.nextAttemptAt };
       const token = this.makeId();
       policy.active = { token, followedIds: followedIds(authors), startedAt: now, until: now + FEED_LEASE_MS };
       state._followingFeedDiscovery = policy;
-      await this.storage.write(state);
+      await this.persist(state);
       let evidence = null;
       try {
         const graph = normalizeEvidenceCache(state.followingFeedEvidence);
@@ -361,7 +415,7 @@ export class LocalRepository extends PaperRepository {
       policy.active = null;
       policy.failures = input.complete ? 0 : Math.min(32, policy.failures + 1);
       policy.nextAttemptAt = now + (input.complete ? FEED_MANUAL_INTERVAL : retryDelay(policy.failures));
-      await this.storage.write(state); // Queue and durable lease commit together.
+      await this.persist(state); // Queue and durable lease commit together.
       return structuredClone({ status: input.complete ? 'updated' : 'partial', ...result });
     });
   }
@@ -372,7 +426,7 @@ export class LocalRepository extends PaperRepository {
       if (policy?.active?.token === token) {
         policy.active = null; policy.failures = Math.min(32, policy.failures + 1);
         policy.nextAttemptAt = Date.parse(this.clock()) + retryDelay(policy.failures);
-        await this.storage.write(state);
+        await this.persist(state);
       }
       return { status: 'failed', queue: structuredClone(this.feedQueue(state)) };
     });
@@ -394,7 +448,7 @@ export class LocalRepository extends PaperRepository {
       const live = new Set(state.memberships.map(item => item.authorId));
       if (JSON.stringify(cache.followedIds) !== JSON.stringify(followedIds(state.authors.filter(author => live.has(author.id))))) throw new Error('Following changed; refresh the Feed.');
       state.followingFeedEvidence = cache;
-      await this.storage.write(state);
+      await this.persist(state);
       return structuredClone(cache);
     });
   }
@@ -407,7 +461,7 @@ export class LocalRepository extends PaperRepository {
     if (!value || !Number.isFinite(value.until) || value.until < 0) return Promise.reject(new Error("Invalid arXiv request deadline."));
     return this.run(async state => {
       state._arxivApi = { until: value.until };
-      await this.storage.write(state);
+      await this.persist(state);
       return structuredClone(state._arxivApi);
     });
   }
@@ -417,7 +471,7 @@ export class LocalRepository extends PaperRepository {
       const cache = normalizeCachedAuthorResults(input);
       state.authorPaperCaches = state.authorPaperCaches.filter(item => item.authorId !== cache.authorId);
       state.authorPaperCaches.push(cache);
-      await this.storage.write(state);
+      await this.persist(state);
       return structuredClone(cache);
     });
   }
@@ -438,7 +492,7 @@ export class LocalRepository extends PaperRepository {
     if (typeof enabled !== "boolean") return Promise.reject(new TypeError("The toolbar navigation preference must be true or false."));
     return this.run(async state => {
       state.settings.openXivaryFromToolbarInNewTab = enabled;
-      await this.storage.write(state);
+      await this.persist(state);
       return { openXivaryFromToolbarInNewTab: enabled };
     });
   }
@@ -447,7 +501,7 @@ export class LocalRepository extends PaperRepository {
     if (typeof enabled !== "boolean") return Promise.reject(new TypeError("The LaTeX rendering preference must be true or false."));
     return this.run(async state => {
       state.settings.renderLatexInAbstracts = enabled;
-      await this.storage.write(state);
+      await this.persist(state);
       return { renderLatexInAbstracts: enabled };
     });
   }
@@ -456,7 +510,7 @@ export class LocalRepository extends PaperRepository {
     if (typeof enabled !== "boolean") return Promise.reject(new TypeError("Vim Mode must be true or false."));
     return this.run(async state => {
       state.settings.vimMode = enabled;
-      await this.storage.write(state);
+      await this.persist(state);
       return { vimMode: enabled };
     });
   }
@@ -465,7 +519,7 @@ export class LocalRepository extends PaperRepository {
     return this.run(async state => {
       parseLatexMacros(text); // Validate before changing state or writing anything.
       state.settings.customLatexMacros = text;
-      await this.storage.write(state);
+      await this.persist(state);
       return { customLatexMacros: text };
     });
   }
@@ -474,7 +528,7 @@ export class LocalRepository extends PaperRepository {
     if (typeof enabled !== "boolean") return Promise.reject(new TypeError("The author navigation preference must be true or false."));
     return this.run(async state => {
       state.settings.openAuthorResultsInNewTab = enabled;
-      await this.storage.write(state);
+      await this.persist(state);
       return { openAuthorResultsInNewTab: enabled };
     });
   }
@@ -483,7 +537,7 @@ export class LocalRepository extends PaperRepository {
     if (typeof enabled !== "boolean") return Promise.reject(new TypeError("The link preference must be true or false."));
     return this.run(async state => {
       state.settings.openArxivLinksInNewTab = enabled;
-      await this.storage.write(state);
+      await this.persist(state);
       return structuredClone({ openArxivLinksInNewTab: enabled });
     });
   }
@@ -492,9 +546,24 @@ export class LocalRepository extends PaperRepository {
     if (typeof enabled !== "boolean") return Promise.reject(new TypeError("The author collection preference must be true or false."));
     return this.run(async state => {
       state.settings.organizeFollowedAuthorsIntoCollections = enabled;
-      await this.storage.write(state);
+      await this.persist(state);
       return structuredClone({ organizeFollowedAuthorsIntoCollections: enabled });
     });
+  }
+
+  exportBackup(category, selection) {
+    return this.run(state => exportBackup(state, category, selection, this.clock()));
+  }
+
+  async importBackup(inputs, category) {
+    // Validate every selected file before acquiring the mutation queue or writing.
+    const backup = await parseBackupFiles(inputs, category);
+    return this.run(async state => {
+      const merged = mergeBackup(state, backup);
+      const proposed = prepareState(merged.state, this.clock());
+      await this.persist(proposed);
+      return structuredClone(merged.result);
+    }, false);
   }
 
   exportCategory(category, selection) {
@@ -506,7 +575,7 @@ export class LocalRepository extends PaperRepository {
     return this.run(async state => {
       const merged = mergePortableCategory(state, backup);
       const proposed = prepareState(merged.state, this.clock());
-      await this.storage.write(proposed);
+      await this.persist(proposed);
       return structuredClone(merged.result);
     }, false);
   }
@@ -576,196 +645,16 @@ export class LocalRepository extends PaperRepository {
   }
 }
 
-function validDate(value) {
-  return typeof value === "string" && !Number.isNaN(Date.parse(value));
-}
-
-/** One-time schema 1 -> 2 migration. Favorites are deliberately not rewritten. */
-function migrateFollowing(authors) {
-  const merged = new Map();
-  for (const author of authors) {
-    const oldName = cleanText(author.displayName, "Author name").toLowerCase();
-    const paperId = normalizeArxivId(author.sourceArxivId);
-    const index = author.sourceAuthorIndex;
-    const oldId = `arxiv-author:v1:${paperId}:${index}:${encodeURIComponent(oldName)}`;
-    if (!Number.isSafeInteger(index) || index < 0 || author.id !== oldId
-        || !validDate(author.followedAt) || !validDate(author.updatedAt)) {
-      throw new Error("Invalid followed author data. Migration left existing data unchanged.");
-    }
-    const { sourceArxivId, sourceAuthorIndex, ...retained } = author;
-    const canonical = {
-      ...retained,
-      ...createAuthor(author, author.followedAt),
-      updatedAt: author.updatedAt,
-    };
-    const previous = merged.get(canonical.id);
-    if (!previous) {
-      merged.set(canonical.id, canonical);
-      continue;
-    }
-    // Latest updated record supplies the spelling and optional fields; ties keep
-    // the first stored record. Preserve the earliest time the author was followed.
-    const winner = Date.parse(canonical.updatedAt) > Date.parse(previous.updatedAt) ? canonical : previous;
-    merged.set(canonical.id, {
-      ...winner,
-      followedAt: Date.parse(canonical.followedAt) < Date.parse(previous.followedAt)
-        ? canonical.followedAt : previous.followedAt,
-    });
-  }
-  return [...merged.values()];
-}
-
 function requireCollection(state, id) {
   const collection = state.collections.find(item => item.id === id);
   if (!collection) throw new Error("Collection no longer exists. Refresh and try again.");
   return collection;
 }
 
-function collectionName(state, value, exceptId) {
-  const name = cleanText(value, "Collection name");
-  if (name.length > 80) throw new Error("Collection names must be at most 80 characters.");
-  if (state.collections.some(item => item.id !== exceptId && item.name.toLowerCase() === name.toLowerCase())) {
-    throw new Error("A collection with this name already exists.");
-  }
-  return name;
-}
-
 function requirePaperCollection(state, id) {
   const collection = state.paperCollections.find(item => item.id === id);
   if (!collection) throw new Error("Collection no longer exists. Refresh and try again.");
   return collection;
-}
-
-function paperCollectionName(state, value, exceptId) {
-  const name = cleanText(value, "Collection name");
-  if (name.length > 80) throw new Error("Collection names must be at most 80 characters.");
-  if (state.paperCollections.some(item => item.id !== exceptId && item.name.toLowerCase() === name.toLowerCase())) {
-    throw new Error("A collection with this name already exists.");
-  }
-  return name;
-}
-
-export function prepareState(stored, now) {
-  const state = stored === undefined ? {
-    schemaVersion: 5, favorites: [],
-    paperCollections: [{ id: DEFAULT_PAPER_COLLECTION_ID, name: "Saved Papers", createdAt: now, updatedAt: now }],
-    paperMemberships: [], authors: [], collections: [], memberships: [], authorPaperCaches: [],
-    settings: {
-      lastUsedAuthorCollectionId: null,
-      lastUsedPaperCollectionId: DEFAULT_PAPER_COLLECTION_ID,
-      openXivaryFromToolbarInNewTab: true,
-      openAuthorResultsInNewTab: true,
-      openArxivLinksInNewTab: false,
-      organizeFollowedAuthorsIntoCollections: false,
-    },
-  } : structuredClone(stored);
-  if (!state || ![1, 2, 3, 4, 5].includes(state.schemaVersion) || !Array.isArray(state.favorites)) {
-    throw new Error("Unsupported or damaged library data. Existing data was left unchanged.");
-  }
-  for (const paper of state.favorites) {
-    const validated = createPaper(paper, paper.savedAt);
-    if (paper.arxivId !== validated.arxivId || !validDate(paper.savedAt) || !validDate(paper.updatedAt)) {
-      throw new Error("Invalid saved paper data.");
-    }
-  }
-  if (state.schemaVersion < 3) {
-    if (!Array.isArray(state.following)) throw new Error("Invalid followed author data.");
-    if (state.schemaVersion === 1) state.following = migrateFollowing(state.following);
-    state.authors = state.following;
-    state.collections = [{ id: "collection:following", name: "Following", createdAt: now, updatedAt: now }];
-    state.memberships = state.authors.map(author => ({
-      authorId: author.id, collectionId: "collection:following",
-      addedAt: author.followedAt, updatedAt: author.updatedAt,
-    }));
-    state.settings = { ...state.settings, lastUsedAuthorCollectionId: "collection:following" };
-    delete state.following;
-    state.schemaVersion = 3;
-  }
-  if (![state.authors, state.collections, state.memberships].every(Array.isArray) || !state.settings) {
-    throw new Error("Invalid author collection data.");
-  }
-  if (state.settings.openXivaryFromToolbarInNewTab === undefined) state.settings.openXivaryFromToolbarInNewTab = true;
-  if (state.settings.renderLatexInAbstracts === undefined) state.settings.renderLatexInAbstracts = true;
-  if (state.settings.vimMode === undefined) state.settings.vimMode = false;
-  if (typeof state.settings.vimMode !== "boolean") throw new Error("Invalid Vim Mode preference.");
-  if (typeof state.settings.renderLatexInAbstracts !== "boolean") throw new Error("Invalid LaTeX rendering preference.");
-  if (state.settings.customLatexMacros === undefined) state.settings.customLatexMacros = "";
-  if (typeof state.settings.customLatexMacros !== "string") throw new Error("Invalid LaTeX macro preference.");
-  if (typeof state.settings.openXivaryFromToolbarInNewTab !== "boolean") throw new Error("Invalid toolbar navigation preference.");
-  if (state.settings.openAuthorResultsInNewTab === undefined) state.settings.openAuthorResultsInNewTab = true;
-  if (typeof state.settings.openAuthorResultsInNewTab !== "boolean") throw new Error("Invalid author navigation preference.");
-  if (state.settings.openArxivLinksInNewTab === undefined) state.settings.openArxivLinksInNewTab = false;
-  if (typeof state.settings.openArxivLinksInNewTab !== "boolean") throw new Error("Invalid link preference.");
-  if (state.settings.organizeFollowedAuthorsIntoCollections === undefined) state.settings.organizeFollowedAuthorsIntoCollections = false;
-  if (typeof state.settings.organizeFollowedAuthorsIntoCollections !== "boolean") throw new Error("Invalid author collection preference.");
-  const authorIds = new Set();
-  for (const author of state.authors) {
-    const validated = createAuthor(author, author.followedAt);
-    if (author.id !== validated.id || author.normalizedName !== validated.normalizedName
-        || !validDate(author.followedAt) || !validDate(author.updatedAt) || authorIds.has(author.id)) {
-      throw new Error("Invalid followed author data.");
-    }
-    authorIds.add(author.id);
-  }
-  const collectionIds = new Set();
-  for (const collection of state.collections) {
-    if (typeof collection.id !== "string" || !collection.id.startsWith("collection:")
-        || collectionIds.has(collection.id) || !validDate(collection.createdAt) || !validDate(collection.updatedAt)) {
-      throw new Error("Invalid collection data.");
-    }
-    collectionName(state, collection.name, collection.id);
-    collectionIds.add(collection.id);
-  }
-  const pairs = new Set();
-  for (const item of state.memberships) {
-    const key = JSON.stringify([item.authorId, item.collectionId]);
-    if (!authorIds.has(item.authorId) || !collectionIds.has(item.collectionId) || pairs.has(key)
-        || !validDate(item.addedAt) || !validDate(item.updatedAt)) throw new Error("Invalid collection membership.");
-    pairs.add(key);
-  }
-  const lastUsed = state.settings.lastUsedAuthorCollectionId;
-  if (lastUsed !== null && !collectionIds.has(lastUsed)) throw new Error("Invalid last-used collection.");
-  if (state.schemaVersion === 3) {
-    state.authorPaperCaches = [];
-    state.schemaVersion = 4;
-  }
-  if (!Array.isArray(state.authorPaperCaches)) throw new Error("Invalid author paper cache data.");
-  state.authorPaperCaches = state.authorPaperCaches.map(normalizeCachedAuthorResults);
-  if (state.schemaVersion === 4) {
-    state.paperCollections = [{ id: DEFAULT_PAPER_COLLECTION_ID, name: "Saved Papers", createdAt: now, updatedAt: now }];
-    state.paperMemberships = state.favorites.map(paper => ({
-      arxivId: paper.arxivId, collectionId: DEFAULT_PAPER_COLLECTION_ID,
-      addedAt: paper.savedAt, updatedAt: paper.updatedAt,
-    }));
-    state.settings = { ...state.settings, lastUsedPaperCollectionId: DEFAULT_PAPER_COLLECTION_ID };
-    state.schemaVersion = 5;
-  }
-  if (!Array.isArray(state.paperCollections) || !Array.isArray(state.paperMemberships)) {
-    throw new Error("Invalid paper collection data.");
-  }
-  const paperIds = new Set(state.favorites.map(paper => paper.arxivId));
-  const paperCollectionIds = new Set();
-  for (const collection of state.paperCollections) {
-    if (typeof collection.id !== "string" || !collection.id.startsWith("paper-collection:")
-        || paperCollectionIds.has(collection.id) || !validDate(collection.createdAt) || !validDate(collection.updatedAt)) {
-      throw new Error("Invalid paper collection data.");
-    }
-    paperCollectionName(state, collection.name, collection.id);
-    paperCollectionIds.add(collection.id);
-  }
-  const paperPairs = new Set();
-  for (const item of state.paperMemberships) {
-    const key = JSON.stringify([item.arxivId, item.collectionId]);
-    if (!paperIds.has(item.arxivId) || !paperCollectionIds.has(item.collectionId) || paperPairs.has(key)
-        || !validDate(item.addedAt) || !validDate(item.updatedAt)) throw new Error("Invalid paper collection membership.");
-    paperPairs.add(key);
-  }
-  for (const paperId of paperIds) {
-    if (!state.paperMemberships.some(item => item.arxivId === paperId)) throw new Error("Saved paper has no collection membership.");
-  }
-  const lastUsedPaper = state.settings.lastUsedPaperCollectionId;
-  if (lastUsedPaper !== null && !paperCollectionIds.has(lastUsedPaper)) throw new Error("Invalid last-used paper collection.");
-  return state;
 }
 
 // Per-entity guards detect re-save/re-follow and ABA changes while a receipt lives.

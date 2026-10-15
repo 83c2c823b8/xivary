@@ -20,11 +20,14 @@ account, OAuth, backend or alternative provider.
 | Filters, pickers and request/queue state | Ephemeral |
 
 Settings → RepositoryClient → shared RPC → LocalRepository → SyncStorage →
-BrowserSyncStorage remains the only persistence path. UI/domain code never opens
-native storage or subscribes to storage events. Schema 5 and migrations 1–5 are
-unchanged. Portable `xivary-library` v2 All/collection files remain a separate
-representation: no preferences, caches, last-used pointers or Sync internals.
-Category imports change local library state without acquiring Sync revisions.
+MigrationStorage → BrowserLocalStorage is the local path; SyncStorage separately
+uses BrowserSyncStorage for the four preference registers. UI/domain code never
+opens native storage areas. Local schema 6 initializes through registered
+upgrades from schemas 1–5 before Sync merge/flush, retaining schema-5 research semantics and
+local recovery snapshots. See [upgrade safety](storage-migrations.md).
+Portable `xivary-library` v3 ZIP/JSON backups remain separate: no preferences,
+caches, last-used pointers or Sync internals. Category imports change local
+research state without acquiring Sync revisions.
 
 ## Active Sync v1 contract
 

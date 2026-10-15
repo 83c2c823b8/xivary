@@ -134,11 +134,15 @@ test("local settings default safely, persist through RPC/restart, and isolate in
   assert.equal((await client.getPreferences()).renderLatexInAbstracts, true);
   await repository.savePaper({ arxivId: "2401.00001", title: "Raw $M$", authors: ["Alex Kim"], abstract: "$M$" });
   await repository.followAuthor({ displayName: "Alex Kim" });
+  disk.schemaVersion = 5;
   delete disk.settings.renderLatexInAbstracts;
   delete disk.settings.customLatexMacros;
   const before = structuredClone(disk);
   assert.equal((await client.getPreferences()).renderLatexInAbstracts, true);
-  assert.deepEqual(disk, before, "reading defaults does not replace existing data");
+  for(const key of ["favorites","authors","collections","paperCollections","memberships","paperMemberships"]) assert.deepEqual(disk[key],before[key]);
+  assert.equal(disk.schemaVersion,6);
+  assert.equal(disk.settings.renderLatexInAbstracts,true);
+  assert.equal(disk.settings.customLatexMacros,"");
   await client.setRenderLatexInAbstracts(false);
   await client.setCustomLatexMacros(String.raw`\Stab = \operatorname{Stab}`);
   let restarted = new LocalRepository(storage);

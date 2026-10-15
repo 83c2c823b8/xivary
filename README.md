@@ -1,7 +1,9 @@
 # Xivary
 
-Version **0.4.0** is a keyboard-navigation release candidate, pending the manual
-checks in the [release record](docs/release.md#v040-release-candidate). No upload or publication has occurred.
+Version **0.5.0** adds an incremental research discovery Feed, collection ordering,
+portable backups and automatic storage upgrades. See the
+[release record](docs/release.md#v050--2026-10-15) for verification and remaining
+manual distribution checks. No extension-store submission is included.
 
 Library (Bookmarks), Following, Offline and Author Results share a Settings gear in their
 page header. It opens the existing Settings page in the current tab, including
@@ -34,6 +36,13 @@ library synchronization is blocked. The audit includes reproducible capacity
 measurements and safety counterexamples. It does not enable library uploads.
 
 ## Features
+
+- An incremental research Feed for recent papers by followed authors and direct
+  coauthors, with a small terminology-backed related-area source. It retains a
+  bounded local queue, finite pagination and stable bookmark behavior.
+- Small, selectable, non-interactive canonical arXiv IDs on shared paper rows.
+- Contextual drag/keyboard ordering of Library collections and their papers, with
+  automatic upgrade safety and lossless version-3 portable backups.
 
 - A compact **Offline** tab for local PDFs, with discreet save icons on paper rows
   and arXiv abstracts. Offline title clicks use Chrome’s native PDF viewer; PDF
@@ -73,7 +82,7 @@ measurements and safety counterexamples. It does not enable library uploads.
 - A shared Settings gear in Library, Following and Author Results.
 - Settings for opening arXiv links in a new tab and optionally organizing followed
   authors into collections.
-- Explicit JSON export/import for backing up or transferring Library and Following
+- Portable multi-file ZIP/JSON backups for transferring Library, Following and Collections
   data without exposing storage or sync internals.
 
 The separate field-aware Search page remains packaged for direct testing but is not
@@ -121,23 +130,28 @@ Legacy Sync v1 library records are ignored and left untouched remotely; they can
 restore, overwrite or delete local items. Older extensions can still sync library
 data among themselves. New installations receive preferences only. Preferences
 keep logical revision/replica conflict ordering, pending writes and local-first
-retry behavior. No schema or portable-file migration is needed. See
+retry behavior. Installed storage upgrades run automatically; obsolete portable file formats are not imported. See
 [settings-only migration](docs/settings-only-sync-migration.md) and
 [Sync design](docs/chrome-sync.md). Real Chrome-account propagation remains a
 manual release check; dedicated test profiles do not prove it.
 It sends author-name searches to `https://export.arxiv.org/` when loading or refreshing
 an author feed. It does not send library data to a project-owned service.
 
-Settings exports or imports Bookmarks and Following independently. Export opens a
-small selector for all items or one existing collection. A version-2
-`xivary-library` JSON file identifies that selection and contains only its
-papers/authors, collection definitions and memberships. Import also accepts an
-older combined version-1 backup but applies only the chosen Bookmarks or Following
-section. Preferences have no manual file transfer; the four boolean settings use
-Chrome Sync, while last-used collection pointers remain local. Files exclude feed
-caches, last-used choices and every Chrome Sync
-revision, tombstone, replica or retry field. See
-[import/export](docs/import-export.md) for formats and merge rules.
+Settings offers Export All / Import All and independent Bookmarks/Following
+transfers. Version-3 `xivary-library` backups use one ZIP with individual record
+files, a manifest and explicit ordering. The selector offers all items as ZIP
+or a self-contained collection as JSON; import accepts multiple JSON files.
+Custom names/metadata and shared memberships survive a fresh-profile round trip.
+Existing profiles merge conservatively without rearranging unrelated records.
+Preferences, Offline PDF bytes, Feed caches, last-used pointers and Chrome Sync
+bookkeeping are excluded. See [format and limits](docs/import-export.md).
+
+Library collections offer Reorder collections and Reorder papers in their
+contextual menus. Temporary handles support dragging and keyboard moves; moves
+save immediately, Done exits, and ordinary browsing stays compact. All Saved and
+New collection remain fixed, with a subtle divider below All Saved. Each
+collection owns its paper order; All Saved retains its existing ordering. See
+[ordering behavior](docs/collection-reordering.md).
 
 See [PRIVACY.md](PRIVACY.md) for the stored data, network behavior, and permission
 rationale.
@@ -172,8 +186,8 @@ npm run package:firefox
 ```
 
 `npm run package` retains Chromium as the default and writes
-`dist/xivary-0.4.0-chromium.zip`; `npm run package:firefox` writes
-`dist/xivary-0.4.0-firefox.zip`. The ZIP builder sorts entries, fixes timestamps to
+`dist/xivary-0.5.0-chromium.zip`; `npm run package:firefox` writes
+`dist/xivary-0.5.0-firefox.zip`. The ZIP builder sorts entries, fixes timestamps to
 1980-01-01 UTC and includes the project and bundled dependency licenses. Rebuilding unchanged sources with
 the same zip implementation produces byte-identical archives. Unpacked artifacts
 are also generated under
@@ -235,10 +249,13 @@ See [docs/architecture.md](docs/architecture.md) and
   installation and declared minimum versions still require verification.
 - There is no mobile application. The extension targets desktop browsers.
 
-## Future milestone
+## Discovery limits
 
-Research Feed is postponed to **0.5.0**. It is not implemented or included in
-0.4.0; the existing per-author results pages remain available.
+Feed keeps up to 100 papers initially submitted within 30 days, with demand-driven
+12-hour discovery and seven-day coauthor evidence caching. Name-based identity and
+API budgets limit coverage. Selective terminology-backed related areas supplement
+Following and direct coauthors; category-only and citation discovery remain deferred.
+See [Feed semantics and budgets](docs/following-feed.md).
 
 ## License
 
@@ -256,3 +273,8 @@ collection menus, the 300px popup and keyboard conventions, and
 Bundled [KaTeX](https://katex.org/) 0.19.0 retains its MIT license in
 [`extension/vendor/katex/LICENSE`](extension/vendor/katex/LICENSE). JavaScript, CSS
 and math fonts are packaged locally; no CDN or extra permissions are used.
+
+Storage upgrades run automatically through a shared repository barrier, independently
+of the manifest version. Local schema 6 preserves installed data and retains a
+local recovery snapshot before migration; normal updates do not require manual
+Export/Import. See [upgrade safety](docs/storage-migrations.md).

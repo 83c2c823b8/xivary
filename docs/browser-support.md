@@ -1,6 +1,22 @@
 # Browser support and verification
 
-## Final source verification — 2026-10-14
+## v0.5.0 — 2026-10-15
+
+Current extension version is **0.5.0**, with local schema 6 and portable backup 3.
+Chrome 154 and Firefox 157 fixture regressions pass. Additional installed Chrome
+checks cover incremental Feed, native Offline PDFs, clean-profile portable backup
+restoration, collection ordering, all paper-list IDs and actual storage upgrades
+(including unchanged-version reload, quota recovery and profile restart).
+See [release commands, artifacts and evidence](release.md#v050--2026-10-15).
+
+These are disposable unsigned-in source-build checks, not store/signed updates or
+Google-account propagation. Live arXiv availability was not rechecked. Minimum
+browser versions, Firefox native Offline PDF/toolbar/file-chooser flows and
+physical assistive/IME/macOS behavior retain the manual limitations below.
+Earlier milestone results are historical and do not override the 0.5.0 record.
+
+
+## Final source verification — 2026-10-14 (historical)
 
 Chrome 154 and Firefox 157 fixture suites pass with the completed Offline, author
 loading and interaction changes. Chrome additionally verifies native offline PDF
@@ -15,7 +31,7 @@ remain unverified. Earlier milestone results below retain their historical scope
 
 ## v0.4.0 release candidate
 
-The current product version is **0.4.0**. See the [release record](release.md#v040-release-candidate)
+The product version at this milestone was **0.4.0**. See the [release record](release.md#v040-release-candidate)
 for current commands, evidence, source-upgrade checks and manual release gates.
 Vim Mode and the shared arXiv scheduler use the same implementation in both
 packages. Native Chrome/Firefox Undo hover/focus, stripped paper-row and keyboard

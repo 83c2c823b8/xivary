@@ -8,6 +8,7 @@
   <aside class="collection-sidebar" aria-label="Library collections">
     <nav aria-label="Paper collections"><ul id="collection-list" class="collection-list"></ul></nav>
     <div class="collection-tools">
+      <button id="reorder-done" type="button" hidden>Done</button>
       <button id="show-create" class="quiet-action" type="button" aria-expanded="false" aria-controls="create-form"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span>New collection</span></button>
       <form id="create-form" class="inline-create" hidden>
         <label class="visually-hidden" for="collection-name">New collection name</label>
@@ -23,7 +24,7 @@
     <button type="submit">Apply</button><button id="clear-years" type="button">Clear range</button>
     <span id="year-feedback" class="metadata" role="status" aria-live="polite"></span>
   </form>
-    <p id="status" class="status" role="status" aria-live="polite"></p>
+    <p id="status" class="status" role="status" aria-live="polite"></p><button id="retry-storage" type="button" hidden>Retry loading</button>
     <ul id="papers" class="paper-list"></ul>
     <p id="empty" class="empty" hidden>No saved papers.</p><button id="clear-filter" type="button" class="clear-filter" hidden>Clear search</button>
   </section>

@@ -1,6 +1,8 @@
 import { REPOSITORY_CHANNEL } from "../repository/repository-client.js";
 
 const methods = new Map([
+  ["initialize", 0],
+  ['exportBackup', 2], ['importBackup', 2],
   ["getFollowingFeedCache", 0], ["putFollowingFeedCache", 1],
   ['beginFollowingFeedDiscovery', 1], ['commitFollowingFeedDiscovery', 1], ['failFollowingFeedDiscovery', 1],
   ["getFollowingFeedEvidence", 0], ["putFollowingFeedEvidence", 1],
@@ -9,6 +11,7 @@ const methods = new Map([
   ["setVimMode", 1],
   ["setRenderLatexInAbstracts", 1], ["setCustomLatexMacros", 1],
   ["listFavorites", 0], ["getPaperLibrary", 0], ["savePaper", 1],
+  ['movePaperCollection', 2], ['movePaperInCollection', 3],
   ["listFollowing", 0], ["toggleFavorite", 1], ["removeFavorite", 1],
   ["createPaperCollection", 2], ["renamePaperCollection", 2], ["deletePaperCollection", 1],
   ["addPaperToCollection", 2], ["removePaperFromCollection", 2],

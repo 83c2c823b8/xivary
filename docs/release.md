@@ -1,5 +1,99 @@
 # Xivary release records
 
+## v0.5.0 — 2026-10-15
+
+Release preparation started in the Xivary repository on `master`, at `f8a3e44`,
+with the completed Feed commit one ahead of `origin/master`. Fetch confirmed no
+unexpected upstream commits and no existing `v0.5.0` tag. All completed pending
+Xivary runtime, documentation and test work is included; logs, screenshots,
+disposable browser profiles and generated packages remain outside committed source.
+The previous release records below are historical.
+
+### Included behavior and independent versions
+
+- Incremental recent-paper discovery: 30 days from original submission, at most
+  100 retained papers, 25-paper local pages, twelve-hour demand-driven discovery,
+  seven-day direct-coauthor evidence and bounded terminology-backed related areas.
+  Fresh openings avoid arXiv requests; failures retain usable cached data. Identity
+  is name-based, one-hop and explicitly limited; citation discovery is deferred.
+- Canonical non-interactive arXiv IDs in shared paper rows, including legacy IDs.
+- Contextual handle-only drag and keyboard collection/paper ordering, independent
+  per-collection paper order, fixed All Saved/New collection and a restrained divider.
+- Version-3 portable multi-file ZIP/JSON backups with custom titles, aliases,
+  memberships and explicit ordering; conservative atomic import; compact native
+  All/Collections export selectors and 14px/40px select typography. Internal
+  individual-record serialization/import is retained without individual UI options.
+- Automatic schema 1–5 upgrades to local schema 6, durable recovery snapshots and
+  a shared startup/read barrier. The Library `collectionIds` crash is repaired by
+  validating/adapting the old worker's missing-ordering RPC response, rather than
+  clearing data. The browser regression fixture is now self-contained and still
+  tests unchanged-manifest-version upgrades.
+- Existing independent Offline PDF storage/native Chrome reading, bookmark/Follow
+  actions, local TeX rendering and `\Hom = \operatorname{Hom}` example are retained.
+
+Authoritative package and common Chromium manifest versions are **0.5.0**. Firefox
+inherits that version. The local schema remains **6**, Feed queue **3**, portable
+backup **3**, preference Sync **1**, Offline IndexedDB **2** and recovery IndexedDB
+**1**. No schema version changes merely because of this release number.
+
+### Verification
+
+| Check | Result |
+| --- | --- |
+| `npm test` | 322/322 pass, no failures/skips; includes prior-schema migration, two-device Sync isolation, backup/security and reproducible package checks |
+| `npm run build` | Chromium/Firefox production trees, 177 runtime files each, version 0.5.0 |
+| First-party `node --check` | 147 JS/MJS files pass |
+| `npm run test:browser` | Chrome 154 full fixture/geometry, Library, Following, collections, Settings, KaTeX, Vim, popup and Undo pass |
+| `npm run test:firefox` | Firefox 157 full fixture suite and local-only ZIP repository round trip pass using documented direct binaries |
+| `npm run test:feed` | Incremental insertion/retention, fresh-cache zero requests, one-hop/related guards, UTC/revisions, finite pagination, bookmarks, rate limits/backoff, offline and worker/browser restart pass |
+| `npm run test:offline` | Native Chrome PDF render without network, worker/restart retention, real IndexedDB upgrade, quota/cancellation/version rollback, 20-MiB copy and bookmark independence pass |
+| `npm run test:arxiv-loading` | Local TLS streamed results, three-second pacing, 429 retry, cancellation, cache retention and worker restart pass |
+| `node scripts/backup-smoke.mjs` | Native single-ZIP Export All → fresh-profile Import, custom metadata/names/aliases, shared membership/order, no restore API/Sync requests and independent PDF retention pass |
+| `node scripts/reorder-smoke.mjs` | Native handle drag/keyboard, filters/cancellation, per-collection independence, accessibility/narrow layout and worker/profile restart pass |
+| `node scripts/migration-smoke.mjs` | Exact crash/DTO repair, actual unchanged-version schema 5→6 reload, metadata/order/membership/Feed/PDF retention, recoverable Retry, suspension/reload/restart pass |
+| `node scripts/migration-quota-smoke.mjs` | Six-MiB annotation survives actual local quota fallback to an independent durable recovery IDB snapshot before activation |
+| `node scripts/paper-ids-smoke.mjs` | All six paper-list contexts, canonical/legacy IDs, StaticText/text selection, unchanged actions and 1280px/360px layouts pass |
+| `npm run test:upgrade` | Retained 0.2/0.3 source builds → 0.5.0 with same ID/profile, metadata/settings/collections/exports and restart preservation pass |
+| `npm run test:release` | Native all/collection/empty collection transfers, category/Sync isolation, real alarm/worker recovery, extension reload and full profile restart pass |
+| Both packaging commands and archive inspection | Root manifest 0.5.0, 177 source-matched files, CRC/path/structure/license/fixed timestamp checks pass |
+| `git diff --check` | Pass |
+
+Native suite logs and screenshots are retained locally under
+`/tmp/xivary-050-verification` and the focused scripts' documented screenshot paths;
+they are not packaged or committed. Rendered Library, Feed desktop/narrow,
+migration-restored Library and ordering screenshots were inspected. Opened native
+Linux dropdown appearance was separately checked during the unchanged styling
+milestone; native optgroup boldness/indentation remains platform-controlled.
+
+### Artifacts
+
+| Browser | Artifact | Files | Bytes | SHA-256 |
+| --- | --- | --- | --- | --- |
+| Chromium | `dist/xivary-0.5.0-chromium.zip` | 177 | 1339184 | `43191ae19cd04144e0496dbb6b557ce47f9c29e893601e5e8e8cde2cace4a33e` |
+| Firefox | `dist/xivary-0.5.0-firefox.zip` | 177 | 1339250 | `9e611da577daa1da5bc601af0a8d929941f4e7e47e8d20e954d8e032e06cedbb` |
+
+Reproduce with `npm run package` and `npm run package:firefox`, inspect with
+`unzip -t` / `unzip -p <archive> manifest.json`, and compare `sha256sum`.
+Archives contain only runtime files/generated manifests and retained licenses,
+with no tests, credentials, personal storage, bookmarks, Following records,
+collections, Feed caches or PDF bytes. `dist/` remains ignored by Git.
+
+### Scope and remaining manual checks
+
+This is a source/tag/package release, not Chrome Web Store or Firefox Add-ons
+submission, signing or publication. Normal installed data upgrades automatically;
+obsolete portable backup versions intentionally remain unsupported by Settings.
+Fixture-backed browser tests use disposable unsigned-in profiles, never normal
+user profiles. They do not prove same-account Google propagation, signed/store
+upgrades, declared minimum browser versions, Firefox native offline PDF reading,
+Firefox's actual toolbar/file chooser flows, or physical IME/assistive/macOS behavior.
+Production arXiv traffic was not repeated for this release; earlier live Feed
+verification remains historical, not a current upstream-availability claim.
+Bounded/name-based discovery can miss results or include namesakes. Category-only
+filler, citations, external recommendation services and backend/library Sync are
+not implemented.
+
+
 ## Final source verification and Git handoff — 2026-10-14
 
 The current working version remains **0.4.0**. This finalization adds the compact

@@ -6,6 +6,7 @@ const icons = {
   authors: '<circle cx="10" cy="8" r="4"/><path d="M3 21v-2a7 7 0 0 1 14 0v2M17 4a4 4 0 0 1 0 8m3 9v-2a7 7 0 0 0-2-5"/>',
   rename: '<path d="m4 16-.75 4.75L8 20l10.4-10.4a2.1 2.1 0 0 0-3-3L5 17Z"/><path d="m14.5 7.5 3 3"/>',
   delete: '<path d="M4 7h16M9 3h6l1 4H8l1-4Zm-3 4 1 14h10l1-14M10 11v6m4-6v6"/>',
+  reorder: '<path d="M8 4v16m-3-3 3 3 3-3M16 20V4m-3 3 3-3 3 3"/>',
 };
 let activeMenu;
 
@@ -20,7 +21,7 @@ function icon(kind) {
 
 export function closeCollectionMenu() { activeMenu?.(); }
 
-export function collectionSidebarRow(entry, { selected, aggregateIcon, select, rename, remove }) {
+export function collectionSidebarRow(entry, { selected, aggregateIcon, select, rename, remove, extraActions = [], menuTrigger = false }) {
   const row = document.createElement('div'); row.className = 'collection-row';
   const button = document.createElement('button'); button.type = 'button'; button.className = 'collection-link';
   button.dataset.collectionId = entry.id;
@@ -41,20 +42,27 @@ export function collectionSidebarRow(entry, { selected, aggregateIcon, select, r
     button.addEventListener('dblclick', event => { if (button.disabled) return; event.preventDefault(); closeCollectionMenu(); rename(); });
     button.addEventListener('contextmenu', event => {
       if (button.disabled) return;
-      event.preventDefault(); openMenu(button, entry, rename, remove, { x: event.clientX, y: event.clientY });
+      event.preventDefault(); openMenu(button, entry, rename, remove, { x: event.clientX, y: event.clientY }, extraActions);
     });
     button.addEventListener('keydown', event => {
       if (button.disabled || event.target !== button) return;
       if (event.key === 'F2') { event.preventDefault(); closeCollectionMenu(); rename(); }
       else if (event.key === 'ContextMenu' || (event.key === 'F10' && event.shiftKey)) {
-        event.preventDefault(); openMenu(button, entry, rename, remove);
+        event.preventDefault(); openMenu(button, entry, rename, remove, undefined, extraActions);
       }
     });
+    if (menuTrigger) {
+      const more = document.createElement('button'); more.type = 'button'; more.className = 'collection-more';
+      more.setAttribute('aria-label', `Actions for ${entry.name}`); more.setAttribute('aria-haspopup', 'menu'); more.setAttribute('aria-expanded', 'false');
+      more.innerHTML = '<svg viewBox="0 0 18 18" aria-hidden="true"><circle cx="4" cy="9" r="1"/><circle cx="9" cy="9" r="1"/><circle cx="14" cy="9" r="1"/></svg>';
+      more.addEventListener('click', () => openMenu(more, entry, rename, remove, undefined, extraActions));
+      row.append(more);
+    }
   }
   return row;
 }
 
-function openMenu(anchor, entry, rename, remove, point) {
+function openMenu(anchor, entry, rename, remove, point, extraActions = []) {
   closeCollectionMenu();
   const menu = document.createElement('div'); menu.className = 'collection-menu'; menu.setAttribute('role', 'menu');
   menu.setAttribute('aria-label', `Manage ${entry.name}`);
@@ -69,11 +77,11 @@ function openMenu(anchor, entry, rename, remove, point) {
   }
   const dismiss = () => close();
   function outside(event) { if (!menu.contains(event.target) && !anchor.contains(event.target)) close(); }
-  const items = [['rename', 'Rename', rename], ['delete', 'Delete collection', remove]].map(([action, text, operation]) => {
+  const items = [['rename', 'Rename', rename], ['delete', 'Delete collection', remove], ...extraActions].map(([action, text, operation]) => {
     const item = document.createElement('button'); item.type = 'button'; item.setAttribute('role', 'menuitem'); item.tabIndex = -1;
     item.dataset.action = action;
     const label = document.createElement('span'); label.textContent = text;
-    item.append(icon(action), label);
+    item.append(icon(action.startsWith('reorder-') ? 'reorder' : action), label);
     item.addEventListener('click', () => { if (closed) return; close(true); operation(); });
     menu.append(item); return item;
   });

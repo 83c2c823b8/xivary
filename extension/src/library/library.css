@@ -11,6 +11,25 @@
 .library-content .bookmark:hover { background: #e8eaed; border-color: var(--border-strong); }
 .library-content .empty { padding: 16px 2px 4px; }
 .clear-filter { margin-bottom: 16px; }
+.collection-list > .collection-item:first-child { padding-bottom: 8px; margin-bottom: 8px; border-bottom: 1px solid var(--border); }
+.collection-row, .collection-item, .library-content .paper-row { position: relative; }
+.collection-more { position: absolute; right: -10px; top: 8px; width: 20px; min-height: 28px; padding: 0; border: 0; background: transparent; color: var(--muted); opacity: 0; pointer-events: none; }
+.collection-more svg { width: 18px; height: 18px; fill: currentColor; }
+.collection-row:hover .collection-more, .collection-row:focus-within .collection-more { opacity: 1; pointer-events: auto; }
+.reorder-handle { position: absolute; left: -12px; top: 6px; width: 18px; min-height: 32px; padding: 0; border: 0; background: transparent; color: var(--muted); cursor: grab; touch-action: none; user-select: none; opacity: 0; pointer-events: none; }
+.library-content .reorder-handle { left: -22px; }
+.reorder-handle svg { width: 18px; height: 24px; fill: currentColor; }
+.reorderable:hover > .reorder-handle, .reorderable:focus-within > .reorder-handle { opacity: 1; pointer-events: auto; }
+.reorder-dragging { opacity: .55; }
+.drop-before::before, .drop-after::after { content: ''; position: absolute; left: 0; right: 0; height: 2px; background: var(--border-strong); pointer-events: none; }
+.drop-before::before { top: -2px; }
+.drop-after::after { bottom: -2px; }
+#reorder-done { min-height: 30px; padding: 4px 10px; margin: 0 0 4px 10px; }
+@media (max-width: 860px) {
+  .collection-more { right: -8px; }
+  .library-content .paper-row.reorderable { padding-left: 24px; }
+  .library-content .reorder-handle { left: 0; }
+}
 @media (max-width: 480px) {
   .library-toolbar { grid-template-columns: auto minmax(0, 1fr); }
   .library-toolbar #date-range { grid-column: 1; grid-row: 3; }

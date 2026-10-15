@@ -1,4 +1,5 @@
-import { prepareState } from "./local-repository.js";
+import { prepareState } from "./local-schema.js";
+import { migratingStorage } from "./migration-storage.js";
 import { SYNC_VERSION, equal, projectState, recordChanges, validateRecord,
   mergeRecord, materialize, assertQuota, PREFERENCES, syncKey, isPreferenceKey } from "./sync-model.js";
 
@@ -11,7 +12,9 @@ const WRITE_INTERVAL_MS = 2100; // Below both documented write-rate ceilings.
  */
 export class SyncStorage {
   constructor(local, transport, { now = () => Date.now(), makeId = () => crypto.randomUUID() } = {}) {
-    this.local = local;
+    this.local = migratingStorage(local, () => new Date(now()).toISOString());
+    this.initializesLocalStorage = true;
+    this.migrationLockIdentity = this.local.migrationLockIdentity;
     this.transport = transport;
     this.now = now;
     this.makeId = makeId;

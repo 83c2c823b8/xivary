@@ -42,10 +42,10 @@ test("schema 2 follows migrate to Following once, preserving author and favorite
   assert.equal(library.collections[0].name, "Following");
   assert.deepEqual(library.memberships, authors.map(author => ({ authorId: author.id, collectionId: library.collections[0].id, addedAt: now, updatedAt: now })));
   assert.deepEqual((await storage.read()).favorites, favorites);
-  assert.equal((await storage.read()).schemaVersion, 5);
+  assert.equal((await storage.read()).schemaVersion, 6);
   await repository.listFollowing();
   await new LocalRepository(storage).getAuthorLibrary();
-  assert.equal(writes(), 1);
+  assert.equal(writes(), 2, "recovery journal and complete active state");
 });
 
 test("new follows use the last explicitly created or added collection", async () => {
@@ -211,7 +211,7 @@ test("legacy unclassified follows remain accessible after enabling organization 
   const authors = [createAuthor(alex, now), createAuthor(renee, now)];
   const { repository, storage, writes } = fixture({ schemaVersion: 2, favorites: [], following: authors });
   const before = await repository.getAuthorLibrary();
-  assert.equal(writes(), 1);
+  assert.equal(writes(), 2, "recovery journal and complete active state");
   assert.equal(before.collections[0].name, "Following");
   await repository.setOrganizeFollowedAuthorsIntoCollections(true);
   assert.deepEqual(await repository.listFollowing(), authors);
@@ -236,6 +236,7 @@ test("missing legacy organization preference defaults safely; malformed collecti
   const { repository, storage } = fixture();
   await repository.followAuthor(alex);
   const state = await storage.read();
+  state.schemaVersion = 5;
   delete state.settings.organizeFollowedAuthorsIntoCollections;
   await storage.write(state);
   const upgraded = new LocalRepository(storage);

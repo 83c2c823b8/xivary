@@ -49,6 +49,7 @@ test("actual Chrome background wires sync events, alarms, startup and repository
     id: "test-sync-extension", getManifest: () => ({ background: { service_worker: "entry.js" } }),
     onConnect: { addListener: fn => { assert.equal(typeof fn, "function"); } },
     onMessage: { addListener: fn => { messageHandler = fn; } },
+    onInstalled: { addListener: fn => { assert.equal(typeof fn,"function"); } },
     onStartup: { addListener: fn => { startupHandler = fn; } },
     sendMessage(message) { return new Promise(resolve => messageHandler(message, { id: this.id }, resolve)); },
   };
@@ -81,7 +82,7 @@ test("actual Chrome background wires sync events, alarms, startup and repository
   storageHandler({ [key]: { oldValue, newValue: synced[key] } }, "sync");
   assert.equal((await client.getPreferences()).openArxivLinksInNewTab, true);
   startupHandler(); await client.listFavorites();
-  assert.equal(local[STORAGE_KEY].schemaVersion, 5);
+  assert.equal(local[STORAGE_KEY].schemaVersion, 6);
   assert.equal(local[STORAGE_KEY]._chromeSync.counter, 100);
 });
 
@@ -96,6 +97,8 @@ for (const namespace of ["chrome", "browser"]) {
     const runtime = {
       id: "test-extension",
       onConnect: { addListener: fn => { assert.equal(typeof fn, "function"); } },
+      onInstalled: { addListener(listener) { assert.equal(typeof listener,"function"); } },
+      onStartup: { addListener(listener) { assert.equal(typeof listener,"function"); } },
       onMessage: { addListener(listener) { assert.equal(handler, undefined); handler = listener; } },
       sendMessage(message) {
         assert.equal(this, runtime);
@@ -118,7 +121,7 @@ for (const namespace of ["chrome", "browser"]) {
     const client = new RepositoryClient();
     await client.savePaper({ arxivId: "2401.00001", title: "Portable paper", authors: ["Alex Kim"] });
     await client.followAuthor({ displayName: "Alex Kim" });
-    assert.equal(values[STORAGE_KEY].schemaVersion, 5);
+    assert.equal(values[STORAGE_KEY].schemaVersion, 6);
     assert.equal((await client.listFavorites()).length, 1);
     assert.equal((await client.listFollowing()).length, 1);
     await assert.rejects(client.savePaper({}), /arXiv ID/);

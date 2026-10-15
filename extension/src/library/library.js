@@ -8,6 +8,8 @@ import { confirmCollectionDeletion } from "../ui/confirm-collection.js";
 import { RepositoryClient } from "../repository/repository-client.js";
 import { paperRow } from "../ui/paper-row.js";
 import { openPaperCollectionPicker } from "../ui/paper-collection-picker.js";
+import { orderedRecords } from '../domain/paper-ordering.js';
+import { bindReorder } from '../ui/reorder.js';
 
 const repository = new RepositoryClient();
 bindVimMode(repository);
@@ -18,8 +20,18 @@ let busy = false;
 let editingId = null;
 let loadRevision = 0;
 let renderedCollections;
+let reorderMode = null;
 const paperRows = new Map();
 const timeFilter = publicationTimeFilter(render);
+const collectionReorder = bindReorder(element('collection-list'), { move: (id, before, name) => saveMove('collections', id, before, name) });
+const paperReorder = bindReorder(element('papers'), { move: (id, before, name) => saveMove('papers', id, before, name) });
+element('reorder-done').addEventListener('click', () => endReorder());
+window.addEventListener('keydown', event => {
+  if (event.key === 'Escape' && reorderMode && !collectionReorder.dragging && !paperReorder.dragging && !document.querySelector('dialog[open],.arxiv-collection-picker,.collection-menu')) {
+    event.preventDefault(); endReorder();
+  }
+});
+window.addEventListener('pagehide', () => { collectionReorder.cancel(); paperReorder.cancel(); });
 
 bindCollectionRenameOutside({
   getForm: () => document.querySelector("[data-rename-id]")?.closest("form"),
@@ -33,22 +45,29 @@ element("clear-filter").addEventListener("click", () => {
 });
 const closeCreate = bindCollectionCreate({
   trigger: element("show-create"), form: element("create-form"), input: element("collection-name"),
-  onOpen: () => { editingId = null; renderCollections(); },
+  onOpen: () => { endReorder(false); editingId = null; renderCollections(); },
   create: name => mutate(async () => { const collection = await repository.createPaperCollection(name); selected = collection.id; }, { propagateError: true }),
 });
-window.addEventListener("focus", () => { if (!busy) void load(); });
+window.addEventListener("focus", () => { if (!busy && !collectionReorder.dragging && !paperReorder.dragging) void load(); });
+element('retry-storage').addEventListener('click', () => void load());
+setDisabled(true);
 void load();
 
 async function load() {
   const revision = ++loadRevision;
+  element('retry-storage').hidden = true;
   try {
     const snapshot = await repository.getPaperLibrary();
     if (revision !== loadRevision) return;
     library = snapshot;
     if (!library.collections.some(collection => collection.id === selected)) selected = "";
+    if (!selected && reorderMode === 'papers') { paperReorder.clear(); reorderMode = null; }
     render();
     setStatus("");
-  } catch (error) { if (revision === loadRevision) setStatus(error.message, true); }
+  } catch (error) { if (revision === loadRevision) {
+    setDisabled(true);element('retry-storage').hidden = false;element('retry-storage').disabled = false;
+    setStatus(`Could not initialize Library: ${error.message}`, true);
+  } }
 }
 
 function render() {
@@ -56,10 +75,12 @@ function render() {
   renderCollections();
   const ids = selected ? new Set(library.memberships.filter(item => item.collectionId === selected).map(item => item.arxivId)) : null;
   const query = element("filter").value.trim().toLowerCase();
-  const inCollection = library.papers.filter(paper => !ids || ids.has(paper.arxivId));
+  let inCollection = library.papers.filter(paper => !ids || ids.has(paper.arxivId));
+  const order = selected && library.ordering.paperOrders.find(order => order.collectionId === selected);
+  if (order) inCollection = orderedRecords(inCollection, order.paperIds);
   const date = timeFilter.values();
-  const active = Boolean(query) || date.range !== "any";
-  const visible = filterPublicationDates(inCollection.filter(paper => [paper.title, ...paper.authors.map(author => author.displayName), ...(paper.categories || [])].join(" ").toLowerCase().includes(query)), date);
+  const active = reorderMode !== 'papers' && (Boolean(query) || date.range !== "any");
+  const visible = reorderMode === 'papers' ? inCollection : filterPublicationDates(inCollection.filter(paper => [paper.title, ...paper.authors.map(author => author.displayName), ...(paper.categories || [])].join(" ").toLowerCase().includes(query)), date);
   const nodes = visible.map(paper => {
     const signature = JSON.stringify([paper, library.settings.openArxivLinksInNewTab]);
     let cached = paperRows.get(paper.arxivId);
@@ -72,6 +93,10 @@ function render() {
       }) };
       paperRows.set(paper.arxivId, cached);
     }
+    if (reorderMode === 'papers') {
+      cached.node.dataset.reorderId = paper.arxivId;
+      paperReorder.attach(cached.node, paper.arxivId, paper.title);
+    }
     return cached.node;
   });
   const existing = [...element("papers").children];
@@ -83,25 +108,26 @@ function render() {
     : `${inCollection.length} ${inCollection.length === 1 ? "paper" : "papers"}`;
   element("empty").textContent = active ? "No matching papers." : selected ? "No papers in this collection." : "No saved papers.";
   element("empty").hidden = visible.length > 0;
-  element("clear-filter").hidden = !query || visible.length > 0;
+  element("clear-filter").hidden = reorderMode === 'papers' || !query || visible.length > 0;
   setDisabled(busy);
+  element('reorder-done').hidden = !reorderMode;
 }
 
 function renderCollections(preserveRows = false) {
   const entries = [
     { id: "", name: "All Saved", count: library.papers.length },
-    ...library.collections.map(collection => ({
+    ...orderedRecords(library.collections, library.ordering.collectionIds).map(collection => ({
       ...collection,
       count: library.memberships.filter(item => item.collectionId === collection.id).length,
     })),
   ];
-  const signature = JSON.stringify([selected, editingId, entries]);
+  const signature = JSON.stringify([selected, editingId, entries, reorderMode]);
   if (signature === renderedCollections) return;
   // A focus refresh with unchanged data must not discard menu/input focus.
   closeCollectionMenu();
   const previous = renderedCollections && JSON.parse(renderedCollections);
   renderedCollections = signature;
-  if (!editingId && previous?.[1] === null && JSON.stringify(previous[2]) === JSON.stringify(entries)) {
+  if (!editingId && previous?.[1] === null && previous[3] === reorderMode && JSON.stringify(previous[2]) === JSON.stringify(entries)) {
     updateSidebarSelection(element("collection-list"), selected);
     return;
   }
@@ -114,9 +140,15 @@ function renderCollections(preserveRows = false) {
     }
     const row = collectionSidebarRow(entry, {
       selected, aggregateIcon: "papers",
-      select: () => { selected = entry.id; editingId = null; closeCreate(); render(); },
+      select: () => { if (reorderMode === 'papers') endReorder(false); selected = entry.id; editingId = null; closeCreate(); render(); },
       rename: () => renameCollection(entry), remove: () => deleteCollection(entry),
+      menuTrigger: !reorderMode,
+      extraActions: [['reorder-collections', 'Reorder collections', () => beginReorder('collections', entry.id)], ['reorder-papers', 'Reorder papers', () => beginReorder('papers', entry.id)]],
     });
+    if (entry.id && reorderMode === 'collections') {
+      item.dataset.reorderId = entry.id;
+      collectionReorder.attach(row, entry.id, entry.name);
+    }
     item.append(row);
     return item;
   };
@@ -130,6 +162,7 @@ function renderCollections(preserveRows = false) {
 }
 
 function renameCollection(entry) {
+  endReorder(false);
   editingId = entry.id;
   closeCreate();
   renderCollections();
@@ -137,6 +170,7 @@ function renameCollection(entry) {
 }
 
 function deleteCollection(entry) {
+  endReorder(false);
   editingId = null;
   closeCreate();
   confirmCollectionDeletion(entry, "Deleting removes this collection and its memberships. Papers saved only here are removed from Bookmarks; papers in other collections remain saved.", () => mutate(async () => {
@@ -188,14 +222,45 @@ async function mutate(operation, { focusCollectionId, propagateError = false } =
     await load();
     setDisabled(false);
     if (focusCollectionId) focusCollectionAction(focusCollectionId);
+    return true;
   }
   catch (error) { setStatus(error.message, true); if (propagateError) throw error; }
   finally { busy = false; setDisabled(false); }
 }
 
-function setDisabled(value) { document.querySelectorAll("button,input").forEach(node => { node.disabled = value; }); }
+function setDisabled(value) { document.querySelectorAll("button,input").forEach(node => { node.disabled = value || (reorderMode === 'papers' && ['filter','date-range','year-from','year-to'].includes(node.id)); }); }
 function setStatus(message, error = false) { element("status").textContent = message; element("status").classList.toggle("error", error); }
 
 function focusCollectionAction(id) {
   (document.querySelector(`[data-collection-id="${CSS.escape(id)}"]`) ?? element("collection-list").querySelector("[aria-current=page]"))?.focus();
+}
+
+function beginReorder(mode, collectionId) {
+  if (busy) return;
+  collectionReorder.clear(); paperReorder.clear(); editingId = null; closeCreate();
+  reorderMode = mode;
+  if (mode === 'papers') selected = collectionId;
+  render();
+  setStatus(mode === 'papers' ? 'Reordering the complete collection. Changes save immediately.' : 'Reordering collections. Changes save immediately.');
+  const target = mode === 'papers' ? element('papers').querySelector('.reorder-handle') : document.querySelector(`[data-reorder-handle="${CSS.escape(collectionId)}"]`);
+  (target || element('reorder-done')).focus();
+}
+function endReorder(focus = true) {
+  if (!reorderMode) return;
+  collectionReorder.clear(); paperReorder.clear(); reorderMode = null;
+  if (library) render(); setStatus('');
+  if (focus) focusCollectionAction(selected);
+}
+async function saveMove(mode, id, beforeId, name) {
+  if (busy || reorderMode !== mode) return;
+  const collectionId = selected;
+  let changed = false;
+  const success = await mutate(async () => {
+    changed = await (mode === 'collections' ? repository.movePaperCollection(id, beforeId) : repository.movePaperInCollection(collectionId, id, beforeId));
+  });
+  if (success && changed) {
+    const ids = mode === 'collections' ? library.ordering.collectionIds : library.ordering.paperOrders.find(item => item.collectionId === collectionId)?.paperIds || [];
+    setStatus(`Moved ${name} to position ${ids.indexOf(id) + 1} of ${ids.length}.`);
+  }
+  document.querySelector(`[data-reorder-handle="${CSS.escape(id)}"]`)?.focus({ preventScroll: true });
 }

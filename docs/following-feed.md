@@ -5,7 +5,7 @@ It extends the existing Following Feed, shared paper rows and paced arXiv client
 Discovery uses local deterministic rules, without a backend, external recommendation
 service, engagement tracking, polling, notifications or additional navigation tabs.
 Citation APIs, citation graphs and citation-author recommendations are deferred.
-The extension version remains 0.4.0.
+The extension version is 0.5.0; Feed queue versions remain independent.
 
 ## Eligibility, retention and ordering
 
@@ -93,7 +93,7 @@ and in relevant tooltips.
 ## Incremental persistence and atomic commits
 
 `followingFeedCache` has independent **format version 3** inside the existing local
-schema-5 envelope. It holds normalized entries/reasons/provenance, canonical IDs,
+research envelope (currently schema 6). It holds normalized entries/reasons/provenance, canonical IDs,
 original timestamps, followed-name scope, last full successful discovery time,
 last committed partial/full cycle time, coverage flags and a bounded area cache.
 An eligible seen-ID ledger (maximum 5000 IDs/timestamps, without duplicate metadata)
@@ -206,6 +206,10 @@ regions, and local pagination focuses the first newly displayed title. No perman
 filters, scores, colorful badges, large cards or scheduling settings are added.
 
 ## Verification
+
+Current 0.5.0 source/package verification is in the
+[release record](release.md#v050--2026-10-15). The records below describe the
+earlier Feed milestone before release preparation.
 
 The incremental milestone began from the existing uncommitted discovery implementation.
 Its archive-free baseline passed 268 unit tests and the installed Chrome discovery

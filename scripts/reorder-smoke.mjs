@@ -1,0 +1,120 @@
+import assert from 'node:assert/strict';
+import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { ChromiumTestSession } from './chromium-test-session.mjs';
+
+const root=fileURLToPath(new URL('../',import.meta.url));
+const temporary=await mkdtemp(join(tmpdir(),'xivary-reorder-')),profile=join(temporary,'profile');
+const screenshots='/tmp/xivary-reorder-screenshots';await mkdir(screenshots,{recursive:true});
+let chrome=new ChromiumTestSession(profile),extensionId;
+const paper=i=>({arxivId:`2610.${String(i).padStart(5,'0')}`,title:`Reordering paper ${i}`,authors:['Alex Kim'],publishedAt:'2020-01-01T00:00:00Z',categories:['math.SG']});
+const client=expression=>`(async()=>{const {RepositoryClient}=await import('../repository/repository-client.js');const repository=new RepositoryClient();return ${expression};})()`;
+async function key(page,key,code=key) {for(const type of ['keyDown','keyUp'])await chrome.send('Input.dispatchKeyEvent',{type,key,code},page.sessionId);}
+async function shot(page,name) {await chrome.evaluate(page.sessionId,'document.fonts.ready');const {data}=await chrome.send('Page.captureScreenshot',{},page.sessionId);await writeFile(join(screenshots,name),Buffer.from(data,'base64'));}
+async function menu(page,id,action) {
+  await chrome.evaluate(page.sessionId,`document.querySelector('.collection-link[data-collection-id="${id}"]').focus()`);
+  await chrome.send('Input.dispatchKeyEvent',{type:'keyDown',key:'F10',code:'F10',modifiers:8},page.sessionId);
+  await chrome.send('Input.dispatchKeyEvent',{type:'keyUp',key:'F10',code:'F10',modifiers:8},page.sessionId);
+  await chrome.until(page.sessionId,"!!document.querySelector('.collection-menu')");
+  await chrome.click(page.sessionId,`.collection-menu [data-action="${action}"]`);
+}
+async function drag(page,selector,destination,{cancel=false}={}) {
+  await chrome.evaluate(page.sessionId,`document.querySelector(${JSON.stringify(selector)}).focus();document.querySelector(${JSON.stringify(selector)}).scrollIntoView({block:'nearest'})`);
+  const point=await chrome.evaluate(page.sessionId,`(()=>{const r=document.querySelector(${JSON.stringify(selector)}).getBoundingClientRect();return {x:r.left+r.width/2,y:r.top+r.height/2}})()`);
+  await chrome.send('Input.dispatchMouseEvent',{type:'mouseMoved',...point},page.sessionId);
+  await chrome.send('Input.dispatchMouseEvent',{type:'mousePressed',...point,button:'left',buttons:1,clickCount:1},page.sessionId);
+  for(let step=1;step<=4;step++)await chrome.send('Input.dispatchMouseEvent',{type:'mouseMoved',x:point.x,y:point.y+(destination-point.y)*step/4,buttons:1},page.sessionId);
+  const marked=await chrome.evaluate(page.sessionId,"!!document.querySelector('.drop-before,.drop-after')");
+  if(!marked)console.log(JSON.stringify({selector,point,destination,debug:await chrome.evaluate(page.sessionId,"({active:document.activeElement.outerHTML,items:[...document.querySelectorAll('[data-reorder-id]')].map(node=>({id:node.dataset.reorderId,class:node.className})),status:document.querySelector('#status').textContent})")},null,2));
+  assert.ok(marked);
+  if(cancel)await key(page,'Escape');
+  await chrome.send('Input.dispatchMouseEvent',{type:'mouseReleased',x:point.x,y:destination,button:'left',buttons:0,clickCount:1},page.sessionId);
+}
+const collectionIds=page=>chrome.evaluate(page.sessionId,"[...document.querySelectorAll('.collection-link')].map(node=>node.dataset.collectionId)");
+const paperIds=page=>chrome.evaluate(page.sessionId,"[...document.querySelectorAll('#papers .paper-row h2 a')].map(node=>node.href.split('/abs/')[1])");
+try {
+  extensionId=(await chrome.send('Extensions.loadUnpacked',{path:join(root,'dist/chromium')})).id;
+  console.log((await chrome.send('Browser.getVersion')).product);
+  chrome.listeners.push(message=>{if(message.method==='Runtime.exceptionThrown')console.log(JSON.stringify(message.params.exceptionDetails));});
+  let page=await chrome.page(`chrome-extension://${extensionId}/src/library/library.html`);
+  await chrome.send('Emulation.setDeviceMetricsOverride',{width:1280,height:1000,deviceScaleFactor:1,mobile:false},page.sessionId);
+  await chrome.until(page.sessionId,"document.querySelector('#count')?.textContent==='0 papers'");
+  const created=await chrome.evaluate(page.sessionId,client(`(async()=>{
+    const seed=(await repository.getPaperLibrary()).collections[0];await repository.renamePaperCollection(seed.id,'Initial collection');
+    const a=await repository.createPaperCollection('Algebra',${JSON.stringify(paper(1))});
+    const b=await repository.createPaperCollection('Geometry',${JSON.stringify(paper(1))});
+    const saved=await repository.createPaperCollection('Saved Papers',${JSON.stringify(paper(1))});
+    for(const collection of [a,b])for(const p of ${JSON.stringify([paper(2),paper(3)])})await repository.addPaperToCollection(p,collection.id);
+    return {seed:seed.id,a:a.id,b:b.id,saved:saved.id};})()`));
+  await chrome.send('Page.reload',{},page.sessionId);await chrome.until(page.sessionId,"document.querySelectorAll('.collection-link').length===5");
+  const initial=['',created.seed,created.a,created.b,created.saved];assert.deepEqual(await collectionIds(page),initial);
+  assert.equal(await chrome.evaluate(page.sessionId,"document.querySelectorAll('.reorder-handle').length"),0);
+  const divider=await chrome.evaluate(page.sessionId,"(()=>{const item=document.querySelector('.collection-item'),row=item.querySelector('.collection-row');return {border:getComputedStyle(item).borderBottomWidth,color:getComputedStyle(item).borderBottomColor,shadow:getComputedStyle(row).boxShadow,background:getComputedStyle(row).backgroundColor}})()");
+  assert.equal(divider.border,'1px');assert.equal(divider.shadow,'none');assert.equal(divider.background,'rgb(232, 234, 237)');await shot(page,'normal.png');
+  await chrome.click(page.sessionId,`.collection-link[data-collection-id="${created.b}"]`);
+  await menu(page,created.saved,'reorder-collections');
+  assert.equal(await chrome.evaluate(page.sessionId,"document.querySelector('.collection-link[aria-current]').dataset.collectionId"),created.b);
+  assert.equal(await chrome.evaluate(page.sessionId,"document.querySelectorAll('.reorder-handle').length"),4);
+  const firstTop=await chrome.evaluate(page.sessionId,"document.querySelectorAll('.collection-item')[1].getBoundingClientRect().top+1");
+  const labelCounts=await chrome.evaluate(page.sessionId,"[...document.querySelectorAll('.collection-link')].map(node=>[node.dataset.collectionId,node.querySelector('.collection-count').textContent])");
+  await drag(page,`[data-reorder-handle="${created.saved}"]`,firstTop);
+  await chrome.until(page.sessionId,"document.querySelector('#status').textContent.startsWith('Moved') && !document.querySelector('#reorder-done').disabled");
+  assert.deepEqual(await collectionIds(page),['',created.saved,created.seed,created.a,created.b]);
+  const afterCounts=await chrome.evaluate(page.sessionId,"[...document.querySelectorAll('.collection-link')].map(node=>[node.dataset.collectionId,node.querySelector('.collection-count').textContent])");
+  assert.deepEqual(afterCounts.sort(),labelCounts.sort());
+  assert.equal(await chrome.evaluate(page.sessionId,"document.querySelector('.collection-link[aria-current]').dataset.collectionId"),created.b);
+  await chrome.evaluate(page.sessionId,`document.querySelector('[data-reorder-handle="${created.saved}"]').focus()`);await key(page,'ArrowDown');
+  await chrome.until(page.sessionId,"!document.querySelector('#reorder-done').disabled && document.querySelector('#status').textContent.includes('position 2')");
+  assert.deepEqual(await collectionIds(page),['',created.seed,created.saved,created.a,created.b]);
+  const orderBeforeCancel=await collectionIds(page);await drag(page,`[data-reorder-handle="${created.b}"]`,firstTop,{cancel:true});
+  assert.deepEqual(await collectionIds(page),orderBeforeCancel);
+  await shot(page,'collection-mode.png');await chrome.click(page.sessionId,'#reorder-done');
+  assert.equal(await chrome.evaluate(page.sessionId,"document.querySelectorAll('.reorder-handle').length"),0);
+  await chrome.send('Page.reload',{},page.sessionId);await chrome.until(page.sessionId,"document.querySelectorAll('.collection-link').length===5");assert.deepEqual(await collectionIds(page),orderBeforeCancel);
+  // Both filters hide papers normally; reorder mode exposes all members intact.
+  await chrome.click(page.sessionId,`.collection-link[data-collection-id="${created.a}"]`);
+  await chrome.evaluate(page.sessionId,"document.querySelector('#filter').value='no match';document.querySelector('#filter').dispatchEvent(new Event('input',{bubbles:true}))");
+  await chrome.click(page.sessionId,'#date-range');await chrome.click(page.sessionId,'.time-menu [data-range=year]');
+  assert.equal((await paperIds(page)).length,0);
+  await menu(page,created.a,'reorder-papers');assert.deepEqual(await paperIds(page),[1,2,3].map(i=>paper(i).arxivId));
+  assert.equal(await chrome.evaluate(page.sessionId,"document.querySelector('#filter').disabled && document.querySelector('#date-range').disabled"),true);
+  assert.equal(await chrome.evaluate(page.sessionId,"document.querySelectorAll('.paper-row[draggable=true]').length"),0);
+  const beforeTargets=(await chrome.send('Target.getTargets')).targetInfos.map(target=>target.url).filter(url=>url.includes('arxiv.org'));
+  const lastBottom=await chrome.evaluate(page.sessionId,"document.querySelector('#papers').getBoundingClientRect().bottom-2");
+  await drag(page,`[data-reorder-handle="${paper(1).arxivId}"]`,lastBottom);
+  await chrome.until(page.sessionId,"!document.querySelector('#reorder-done').disabled && document.querySelector('#status').textContent.includes('position 3')");
+  assert.deepEqual(await paperIds(page),[2,3,1].map(i=>paper(i).arxivId));
+  assert.deepEqual((await chrome.send('Target.getTargets')).targetInfos.map(target=>target.url).filter(url=>url.includes('arxiv.org')),beforeTargets);
+  assert.equal(await chrome.evaluate(page.sessionId,"document.querySelectorAll('.bookmark,.offline-action').length"),6);
+  await chrome.evaluate(page.sessionId,`document.querySelector('[data-reorder-handle="${paper(1).arxivId}"]').focus()`);await key(page,'ArrowUp');
+  await chrome.until(page.sessionId,"!document.querySelector('#reorder-done').disabled && document.querySelector('#status').textContent.includes('position 2')");
+  assert.deepEqual(await paperIds(page),[2,1,3].map(i=>paper(i).arxivId));
+  const paperTop=await chrome.evaluate(page.sessionId,"document.querySelector('#papers').getBoundingClientRect().top+1");
+  await drag(page,`[data-reorder-handle="${paper(3).arxivId}"]`,paperTop,{cancel:true});assert.deepEqual(await paperIds(page),[2,1,3].map(i=>paper(i).arxivId));
+  await shot(page,'paper-mode.png');
+  await chrome.send('Emulation.setDeviceMetricsOverride',{width:360,height:900,deviceScaleFactor:1,mobile:false},page.sessionId);
+  assert.equal(await chrome.evaluate(page.sessionId,'document.documentElement.scrollWidth<=innerWidth'),true);
+  assert.equal(await chrome.evaluate(page.sessionId,`(()=>{const row=document.querySelector('.paper-row'),grip=row.querySelector('.reorder-handle').getBoundingClientRect(),title=row.querySelector('h2').getBoundingClientRect();return grip.left>=0 && grip.right<=title.left})()`),true);
+  await shot(page,'narrow-mode.png');
+  await chrome.send('Emulation.clearDeviceMetricsOverride',{},page.sessionId);
+  const ax=await chrome.send('Accessibility.getFullAXTree',{},page.sessionId);assert.ok(ax.nodes.some(node=>node.role?.value==='button'&&node.name?.value==='Move Reordering paper 1'));
+  await chrome.click(page.sessionId,'#reorder-done');assert.equal((await paperIds(page)).length,0);
+  assert.equal(await chrome.evaluate(page.sessionId,"document.querySelector('#filter').value==='no match' && !document.querySelector('#filter').disabled && document.querySelector('#range-label').textContent==='Past year'"),true);
+  await chrome.evaluate(page.sessionId,"document.querySelector('#filter').value='';document.querySelector('#filter').dispatchEvent(new Event('input',{bubbles:true}))");
+  await chrome.click(page.sessionId,'#date-range');await chrome.click(page.sessionId,'.time-menu [data-range=any]');
+  await chrome.click(page.sessionId,`.collection-link[data-collection-id="${created.b}"]`);assert.deepEqual(await paperIds(page),[1,2,3].map(i=>paper(i).arxivId));
+  await chrome.click(page.sessionId,`.collection-link[data-collection-id="${created.a}"]`);assert.deepEqual(await paperIds(page),[2,1,3].map(i=>paper(i).arxivId));
+  await chrome.click(page.sessionId,'.paper-row .bookmark');await chrome.until(page.sessionId,"!!document.querySelector('.arxiv-collection-picker')");await key(page,'Escape');
+  const persisted=(await chrome.evaluate(page.sessionId,client('repository.getPaperLibrary()'))).ordering;
+  await chrome.send('ServiceWorker.enable',{},page.sessionId);await chrome.send('ServiceWorker.stopAllWorkers',{},page.sessionId);
+  assert.deepEqual((await chrome.evaluate(page.sessionId,client('repository.getPaperLibrary()'))).ordering,persisted);
+  await chrome.close();chrome=new ChromiumTestSession(profile);assert.equal((await chrome.send('Extensions.loadUnpacked',{path:join(root,'dist/chromium')})).id,extensionId);
+  page=await chrome.page(`chrome-extension://${extensionId}/src/library/library.html`);await chrome.until(page.sessionId,"document.querySelectorAll('.collection-link').length===5");
+  assert.deepEqual(await collectionIds(page),orderBeforeCancel);assert.equal(await chrome.evaluate(page.sessionId,"document.querySelectorAll('.reorder-handle').length"),0);
+  assert.deepEqual((await chrome.evaluate(page.sessionId,client('repository.getPaperLibrary()'))).ordering,persisted);
+  await chrome.click(page.sessionId,`.collection-link[data-collection-id="${created.a}"]`);assert.deepEqual(await paperIds(page),[2,1,3].map(i=>paper(i).arxivId));
+  assert.equal(await chrome.evaluate(page.sessionId,"document.querySelector('#show-create').closest('.collection-tools').lastElementChild.id==='create-form'"),true);
+  console.log(`REORDER PASS: native handle-only collection/paper drag, Saved Papers, fixed aggregate/New control, independent orders, keyboard/cancellation, both filters, actions, AX/narrow layout, worker suspension/profile restart; screenshots ${screenshots}`);
+} finally {await chrome.close();await rm(temporary,{recursive:true,force:true});}

@@ -1,3 +1,4 @@
+import { normalizeLibrarySnapshot } from '../domain/library-snapshot.js';
 import { PaperRepository } from "./paper-repository.js";
 import { getBrowserApi } from "../platform/browser-api.js";
 
@@ -76,8 +77,14 @@ export class RepositoryClient extends PaperRepository {
     return response.result;
   }
 
+  exportBackup(category, selection = { kind: 'all' }) { return this.request('exportBackup', [category, selection]); }
+  importBackup(inputs, category = 'all') { return this.request('importBackup', [inputs, category]); }
+
   listFavorites() { return this.request("listFavorites"); }
-  getPaperLibrary() { return this.request("getPaperLibrary"); }
+  async initialize() { return this.request("initialize"); }
+  async getPaperLibrary() { return normalizeLibrarySnapshot(await this.request("getPaperLibrary")); }
+  movePaperCollection(id, beforeId) { return this.request('movePaperCollection', [id, beforeId]); }
+  movePaperInCollection(collectionId, arxivId, beforeId) { return this.request('movePaperInCollection', [collectionId, arxivId, beforeId]); }
   savePaper(paper) { return this.request("savePaper", [paper]); }
   listFollowing() { return this.request("listFollowing"); }
   toggleFavorite(paper) { return this.request("toggleFavorite", [paper]); }

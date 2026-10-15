@@ -287,7 +287,7 @@ test("all schema 1–4 migrations remain lossless local operations before prefer
     await a.repo.getPreferences(); await n.settle();
     assert.deepEqual(library(await a.local.read()), library(expected));
     assert.equal((await a.local.read()).future, "keep");
-    assert.equal((await a.local.read()).schemaVersion, 5);
+    assert.equal((await a.local.read()).schemaVersion, 6);
     assert.deepEqual((await a.local.read())._chromeSync.bootstrapSnapshot, { settings: Object.fromEntries(PREFERENCES.map(name => [name, ["openAuthorResultsInNewTab", "openXivaryFromToolbarInNewTab"].includes(name)])) });
     for (const [key, value] of Object.entries(legacy)) assert.deepEqual(n.server[key], value);
   }
@@ -622,6 +622,7 @@ test("portable category imports remain local and leave preference values and rev
 test("new author-navigation preference upgrades old schema-5/v1 replicas and propagates without library data", async () => {
   const old = network(), previous = old.device("a"); await old.settle();
   const disk = await previous.local.read(), remote = clone(old.server), key = syncKey("s", "openAuthorResultsInNewTab");
+  disk.schemaVersion = 5; delete disk._storageMigrationJournal;
   delete disk.settings.openAuthorResultsInNewTab; delete disk._chromeSync.records[key]; delete remote[key];
   const n = network(remote), a = n.device("a", disk); n.advance(); await n.settle();
   const b = n.device("b"); await n.settle();
@@ -640,6 +641,7 @@ test("new author-navigation preference upgrades old schema-5/v1 replicas and pro
 test("new toolbar preference upgrades old schema-5/v1 replicas and propagates without library data", async () => {
   const old = network(), previous = old.device("a"); await old.settle();
   const disk = await previous.local.read(), remote = clone(old.server), key = syncKey("s", "openXivaryFromToolbarInNewTab");
+  disk.schemaVersion = 5; delete disk._storageMigrationJournal;
   delete disk.settings.openXivaryFromToolbarInNewTab; delete disk._chromeSync.records[key]; delete remote[key];
   const n = network(remote), a = n.device("a", disk); n.advance(); await n.settle();
   const b = n.device("b"); await n.settle();
@@ -653,4 +655,57 @@ test("new toolbar preference upgrades old schema-5/v1 replicas and propagates wi
   assert.deepEqual(await b.repo.listFollowing(), []);
   const file = await a.repo.exportCategory("bookmarks", { kind: "all" });
   assert.equal(JSON.stringify(file).includes("openXivaryFromToolbarInNewTab"), false);
+});
+
+test('Library ordering stays local across two devices, preference delivery and worker recreation', async () => {
+  const n = network(), a = n.device('order-a'), b = n.device('order-b');
+  for (const d of [a,b]) {
+    await d.repo.savePaper(paper); await d.repo.savePaper(other);
+    const c = await d.repo.createPaperCollection('Ordered', paper);
+    await d.repo.addPaperToCollection(other, c.id); d.collectionId = c.id;
+  }
+  await n.settle();
+  const remote = clone(n.server), uploads = a.writes + b.writes;
+  await a.repo.movePaperCollection(a.collectionId, defaultId);
+  await a.repo.movePaperInCollection(a.collectionId, other.arxivId, paper.arxivId);
+  const ordering = (await a.repo.getPaperLibrary()).ordering;
+  await n.settle();
+  assert.deepEqual(n.server, remote); assert.equal(a.writes + b.writes, uploads);
+  assert.equal((await b.local.read()).paperOrdering.paperOrders.length, 0);
+  await b.repo.setOpenArxivLinksInNewTab(true); await n.settle();
+  a.restart(); b.restart();
+  assert.deepEqual((await a.repo.getPaperLibrary()).ordering, ordering);
+  assert.equal((await b.local.read()).paperOrdering.paperOrders.length, 0);
+  assert.equal((await a.repo.getPreferences()).openArxivLinksInNewTab, true);
+});
+
+test('multi-file backup import keeps research records local across two-device preference delivery',async()=>{
+  const n=network(),a=n.device('backup-a'),b=n.device('backup-b');
+  await a.repo.savePaper(paper);await a.repo.savePaper(other);await a.repo.followAuthor(author);
+  const c=await a.repo.createPaperCollection('Portable order',paper);await a.repo.addPaperToCollection(other,c.id);
+  await a.repo.movePaperInCollection(c.id,other.arxivId,paper.arxivId);await n.settle();
+  const remote=clone(n.server),uploads=a.writes+b.writes;
+  const backup=await a.repo.exportBackup('all',{kind:'all'});
+  await b.repo.importBackup([{kind:'zip',data:backup.base64}],'all');await n.settle();
+  assert.deepEqual(n.server,remote);assert.equal(a.writes+b.writes,uploads);
+  assert.deepEqual((await b.repo.getPaperLibrary()).ordering,(await a.repo.getPaperLibrary()).ordering);
+  await b.repo.movePaperInCollection(c.id,paper.arxivId,other.arxivId);await b.repo.setOpenAuthorResultsInNewTab(false);await n.settle();
+  assert.equal((await a.repo.getPreferences()).openAuthorResultsInNewTab,false);
+  assert.notDeepEqual((await b.repo.getPaperLibrary()).ordering,(await a.repo.getPaperLibrary()).ordering);
+});
+
+test('schema-5 migration retains research data and ordering while old-device preference updates remain independent',async()=>{
+  const original=prepareState(undefined,date);original.schemaVersion=5;
+  const saved=createPaper({...paper,title:'My migration title',note:'Keep my annotation'},date);
+  original.favorites=[saved];original.paperMemberships=[{arxivId:saved.arxivId,collectionId:defaultId,addedAt:date,updatedAt:date}];
+  original.paperOrdering={version:1,collectionIds:[defaultId],paperOrders:[{collectionId:defaultId,paperIds:[saved.arxivId]}]};
+  original.customSortPreference='do not reset';
+  const preference=syncKey('s','openAuthorResultsInNewTab'),n=network({...legacy,[preference]:record(false,100,'old-schema-peer')}),a=n.device('migration-a',original),b=n.device('migration-b');
+  const libraryBefore=library(original),orderBefore=clone(original.paperOrdering);
+  await Promise.all([a.repo.initialize(),b.repo.initialize()]);await n.settle();
+  assert.equal((await a.local.read()).schemaVersion,6);assert.deepEqual(library(await a.local.read()),libraryBefore);assert.deepEqual((await a.local.read()).paperOrdering,orderBefore);
+  assert.equal((await a.repo.getPreferences()).openAuthorResultsInNewTab,false);
+  for(const [key,value]of Object.entries(legacy))assert.deepEqual(n.server[key],value);
+  const revisions=clone(n.server),uploads=a.writes+b.writes;a.restart();await a.repo.initialize();await n.settle();assert.deepEqual(n.server,revisions);assert.equal(a.writes+b.writes,uploads);
+  await b.repo.setOpenAuthorResultsInNewTab(true);await n.settle();assert.equal((await a.repo.getPreferences()).openAuthorResultsInNewTab,true);assert.deepEqual(library(await a.local.read()),libraryBefore);
 });

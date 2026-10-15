@@ -9,6 +9,7 @@ import { ChromiumTestSession, waitFor } from './chromium-test-session.mjs';
 // Historical source builds, not published store binaries. Keep one installed
 // identity and profile for each upgrade; never uninstall or clear its storage.
 const root = fileURLToPath(new URL('../', import.meta.url));
+const releaseVersion = JSON.parse(await readFile(join(root, 'extension/manifest.json'), 'utf8')).version;
 const temporary = await mkdtemp(join(tmpdir(), 'xivary-upgrade-'));
 const snapshots = ['124f5e7', '8bbf3fd', '72a0d3f']; // 0.2.0/0.3.0 preparation and pre-candidate Vim/LaTeX source
 const fields = ['favorites', 'authors', 'paperCollections', 'collections', 'paperMemberships', 'memberships', 'authorPaperCaches'];
@@ -84,8 +85,9 @@ try {
       assert.equal((await chrome.send('Extensions.loadUnpacked', { path: extension })).id, id);
       await enable();
       session = await settings();
-      assert.equal(await chrome.evaluate(session, 'chrome.runtime.getManifest().version'), '0.4.0');
+      assert.equal(await chrome.evaluate(session, 'chrome.runtime.getManifest().version'), releaseVersion);
       const after = await chrome.evaluate(session, state);
+      assert.equal(after.schemaVersion, 6);
       for (const field of fields) assert.deepEqual(after[field], before[field], `${previousVersion} upgrade: ${field}`);
       for (const [key, value] of Object.entries(before.settings)) assert.deepEqual(after.settings[key], value, `retain setting ${key}`);
       assert.equal(after._chromeSync.id, before._chromeSync.id);
@@ -113,7 +115,7 @@ try {
       const sync = await chrome.evaluate(session, 'chrome.storage.sync.get(null)');
       assert.equal(Object.keys(sync).some(key => /vimMode|customLatexMacros|renderLatexInAbstracts/.test(key)), false);
       assert.deepEqual(runtimeErrors, []);
-      console.log(`UPGRADE PASS: source ${previousVersion} (${snapshot}) → 0.4.0, same ID/profile, schema 5, papers/authors/collections/memberships/settings/exports retained; local Vim/macros reload/restart; page/worker errors absent`);
+      console.log(`UPGRADE PASS: source ${previousVersion} (${snapshot}) → ${releaseVersion}, same ID/profile, schema 5→6, papers/authors/collections/memberships/settings/exports retained; local Vim/macros reload/restart; page/worker errors absent`);
     } finally { await chrome.close(); }
   }
 } finally { await rm(temporary, { recursive: true, force: true }); }

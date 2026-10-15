@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readBackupZip } from "../extension/src/repository/backup-zip.js";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -44,8 +45,8 @@ try {
   await chrome.evaluate(session, client("repository.setOrganizeFollowedAuthorsIntoCollections(true)"));
   await chrome.send("Page.reload", {}, session);
   await chrome.until(session, "document.readyState === 'complete' && document.querySelector('#open-arxiv-new-tab').checked && document.querySelector('#organize-author-collections').checked");
-  assert.deepEqual(await chrome.evaluate(session, "[...document.querySelectorAll('[data-import]')].map(node => node.dataset.import)"), ["bookmarks", "following"]);
-  assert.deepEqual(await chrome.evaluate(session, "[...document.querySelectorAll('[data-export]')].map(node => node.dataset.export)"), ["bookmarks", "following"]);
+  assert.deepEqual(await chrome.evaluate(session, "[...document.querySelectorAll('[data-import]')].map(node => node.dataset.import)"), ["all", "bookmarks", "following"]);
+  assert.deepEqual(await chrome.evaluate(session, "[...document.querySelectorAll('[data-export]')].map(node => node.dataset.export)"), ["all", "bookmarks", "following"]);
 
   // Emulate an existing pre-cutover local replica and retained legacy remote
   // records in this disposable profile. No production cleanup API is added.
@@ -76,15 +77,33 @@ try {
     const previous = new Set(downloads.keys());
     await chrome.click(session, `[data-export="${category}"]`);
     await chrome.until(session, "document.querySelector('#export-dialog').open");
+    const library = await chrome.evaluate(session, client(`repository.${category === 'bookmarks' ? 'getPaperLibrary' : 'getAuthorLibrary'}()`));
+    const selector = await chrome.evaluate(session, `(() => {
+      const node = document.querySelector('#export-selection');
+      return { groups: [...node.querySelectorAll('optgroup')].map(group => group.label),
+        options: [...node.options].map(option => ({ value: option.value, label: option.textContent, group: option.parentElement.tagName })) };
+    })()`);
+    assert.deepEqual(selector.groups, ['Collections']);
+    assert.deepEqual(selector.options, [
+      { value: 'all', label: `All ${category}`, group: 'SELECT' },
+      ...library.collections.map(item => ({ value: item.id, label: item.name, group: 'OPTGROUP' })),
+    ]);
     await chrome.evaluate(session, `document.querySelector('#export-selection').value = ${JSON.stringify(selection)}`);
     assert.equal(await chrome.evaluate(session, "document.querySelector('#export-selection').value"), selection);
     await chrome.click(session, "#confirm-export");
     const download = await waitFor(() => [...downloads.values()].find(item => !previous.has(item.guid) && item.state === "completed"), `${category} download`);
     const path = join(downloadsPath, download.guid);
-    const data = JSON.parse(await readFile(path, "utf8"));
-    assert.equal(data.category, category);
-    assert.equal(data.version, 2);
-    assert.equal(Object.hasOwn(data, "preferences"), false);
+    const bytes = await readFile(path);
+    let data;
+    if (download.suggestedFilename.endsWith('.zip')) {
+      const files = await readBackupZip(new Uint8Array(bytes));
+      data = JSON.parse(files.find(file => file.path.endsWith('/manifest.json')).text);
+      data.records = files.filter(file => !/\/(manifest|ordering)\.json$/.test(file.path)).map(file => JSON.parse(file.text));
+    } else data = JSON.parse(bytes.toString('utf8'));
+    assert.ok(data.sections.includes(category)); assert.equal(data.version, 3);
+    assert.equal(Object.hasOwn(data, 'preferences'), false);
+    data.paperMemberships = data.records.filter(record => record.category === 'bookmarks').flatMap(record => record.memberships);
+    data.authorMemberships = data.records.filter(record => record.category === 'following').flatMap(record => record.memberships);
     assert.match(download.suggestedFilename, new RegExp(`^xivary-${category}-`));
     await chrome.until(session, "!document.querySelector('#export-dialog').open");
     return { data, path };
@@ -96,7 +115,7 @@ try {
     const chooser = await waitFor(() => choosers[previous], `${category} file chooser`);
     await chrome.send("DOM.setFileInputFiles", { files: [path], backendNodeId: chooser.backendNodeId }, session);
     await chrome.until(session, `!document.querySelector('[data-import="${category}"]').disabled && (${successful
-      ? "document.querySelector('#status').textContent.includes('imported into')"
+      ? "document.querySelector('#status').textContent.includes('imported')"
       : "document.querySelector('#status').classList.contains('error') && document.querySelector('#status').textContent.includes('not valid JSON')"})`);
   }
 
@@ -104,8 +123,21 @@ try {
     ["bookmarks", paperCollection, "getPaperLibrary", "deletePaperCollection"],
     ["following", authorCollection, "getAuthorLibrary", "deleteAuthorCollection"],
   ]) {
+    // Both categories can have the same visible name; selection must use IDs.
+    const empty = await chrome.evaluate(session, client(`repository.${category === 'bookmarks' ? 'createPaperCollection' : 'createAuthorCollection'}('Empty — shared name')`));
     const all = await exportFile(category, "all");
     assert.deepEqual(all.data.selection, { kind: "all" });
+    const beforeSectionImport = await chrome.evaluate(session, client(`repository.${getLibrary}()`));
+    await importFile(category, all.path);
+    assert.deepEqual(await chrome.evaluate(session, client(`repository.${getLibrary}()`)), beforeSectionImport);
+    const emptyBackup = await exportFile(category, empty.id);
+    assert.deepEqual(emptyBackup.data.selection, { kind: 'collection', collectionId: empty.id });
+    assert.equal(emptyBackup.data.records.length, 1);
+    await chrome.evaluate(session, client(`repository.${deleteCollection}(${JSON.stringify(empty.id)})`));
+    await importFile(category, emptyBackup.path);
+    const emptyRestored = await chrome.evaluate(session, client(`repository.${getLibrary}()`));
+    assert.ok(emptyRestored.collections.some(item => item.id === empty.id && item.name === empty.name));
+    assert.equal(emptyRestored.memberships.filter(item => item.collectionId === empty.id).length, 0);
     const selected = await exportFile(category, collection.id);
     assert.deepEqual(selected.data.selection, { kind: "collection", collectionId: collection.id });
     const membershipField = category === "bookmarks" ? "paperMemberships" : "authorMemberships";
@@ -129,7 +161,7 @@ try {
     const otherPointer = category === "bookmarks" ? "lastUsedAuthorCollectionId" : "lastUsedPaperCollectionId";
     assert.equal(otherSettingsAfter[otherPointer], otherSettingsBefore[otherPointer]);
     assert.deepEqual(await chrome.evaluate(session, client("repository.getPreferences()")), { openArxivLinksInNewTab: true, organizeFollowedAuthorsIntoCollections: true, openAuthorResultsInNewTab: true, openXivaryFromToolbarInNewTab: true, vimMode: false, renderLatexInAbstracts: true, customLatexMacros: "" });
-    console.log(`Release flow PASS: ${category} All/collection download, native file chooser import, restoration, repeat and non-interference`);
+    console.log(`Release flow PASS: ${category} only All/Collections options, section/collection/empty collection download and native file chooser round trips, stable IDs/shared display names, repeat and non-interference`);
   }
 
   const downloadCount = downloads.size;

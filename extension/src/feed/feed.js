@@ -103,10 +103,10 @@ function render() {
     let row = rows.get(paper.arxivId);
     if (row?.signature !== signature) {
       const node = paperRow(paper, { repository, saved: savedIds.has(paper.arxivId), showAbstract: false,
+        datePrefix: 'Submitted ', dateTimeZone: 'UTC',
         openArxivLinksInNewTab: preferences.openArxivLinksInNewTab, onToggle: button => bookmark(paper, button) });
       node.dataset.arxivId = paper.arxivId;
       const date = node.querySelectorAll('.metadata')[1];
-      date.textContent = `Submitted ${new Date(paper.publishedAt).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric', timeZone: 'UTC' })}${paper.categories.length ? ` · ${paper.categories.join(' · ')}` : ''}`;
       date.title = 'Initial arXiv submission date (UTC)';
       const match = document.createElement('p'); match.className = 'metadata feed-match';
       match.textContent = paper.reason.label; match.title = paper.reason.detail;
