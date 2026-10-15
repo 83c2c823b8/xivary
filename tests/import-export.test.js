@@ -247,7 +247,7 @@ test("a valid import commits a pending migration and merge in one write", async 
   target.fail(false);
   await target.repository.importCategory(JSON.stringify(file), "bookmarks");
   assert.equal(target.writes(), 3, "durable journal, completed migration, then one atomic import write");
-  assert.equal(target.state().schemaVersion, 6);
+  assert.equal(target.state().schemaVersion, 8);
   assert.equal(target.state().favorites.length, 1);
 });
 
@@ -323,7 +323,7 @@ test("category imports remain local without changing preference projection and R
     assert.equal(JSON.stringify(file).includes("_chromeSync"), false);
     assert.equal(JSON.stringify(file).includes("rev"), false);
     assert.equal(JSON.stringify(file).includes("tombstone"), false);
-    assert.equal(base.state().schemaVersion, 6);
+    assert.equal(base.state().schemaVersion, 8);
     assert.ok(base.state()[category === "bookmarks" ? "paperCollections" : "collections"].some(item => item.id === (category === "bookmarks"
       ? source.paperCollection.id : source.authorCollection.id)));
   }

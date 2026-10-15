@@ -140,7 +140,7 @@ test("local settings default safely, persist through RPC/restart, and isolate in
   const before = structuredClone(disk);
   assert.equal((await client.getPreferences()).renderLatexInAbstracts, true);
   for(const key of ["favorites","authors","collections","paperCollections","memberships","paperMemberships"]) assert.deepEqual(disk[key],before[key]);
-  assert.equal(disk.schemaVersion,6);
+  assert.equal(disk.schemaVersion,8);
   assert.equal(disk.settings.renderLatexInAbstracts,true);
   assert.equal(disk.settings.customLatexMacros,"");
   await client.setRenderLatexInAbstracts(false);

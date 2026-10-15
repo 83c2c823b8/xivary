@@ -22,6 +22,11 @@ export class SyncStorage {
     this.remote = null;
   }
 
+  readFollowingSelection() { return this.local.readFollowingSelection(); }
+  writeFollowingSelection(value) { return this.local.writeFollowingSelection(value); }
+  readLibrarySelection() { return this.local.readLibrarySelection(); }
+  writeLibrarySelection(value) { return this.local.writeLibrarySelection(value); }
+
   observe(changes) {
     let observed = false;
     for (const [key, change] of Object.entries(changes)) {

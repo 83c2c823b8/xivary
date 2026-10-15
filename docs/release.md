@@ -1,5 +1,92 @@
 # Xivary release records
 
+## v0.5.1 — 2026-10-15
+
+Prepared from the existing Xivary `master` at `fed11ad`, with `origin/master`
+matching after fetch and no existing `v0.5.1` tag/release. The user explicitly
+confirmed inclusion of the completed companion Library/Following reordering and
+collection-selection work. Pending source, documentation and tests were reviewed;
+no unrelated artifacts, logs, profiles or user data are included.
+
+### Scope and independent versions
+
+- Fix inert right-hand author handles inside a selected Following collection.
+  The old guard compared visible authors with all follows and disabled legitimate
+  collection drags. The guard now compares with the current collection scope.
+- Direct handle-only author dragging, grab/grabbing cursors, subtle insertion,
+  Arrow Up/Down/Home/End movement and visually hidden accessible announcements.
+  Pointer completion/cancellation clears its own focus; keyboard focus is retained.
+- Independent manual author order per collection, preserving All Following,
+  overlapping collections, names/aliases, memberships and sidebar order. Immediate
+  repository-owned local commits survive reload, worker and browser restart.
+- Registered schema 7 → 8 upgrade with validation and exact original recovery
+  snapshot; schemas 1–6 upgrade through the consecutive chain. Schema 6 → 7
+  preserves the old visible global Following order. No storage reset or PDF rewrite.
+- Portable backup v3 adds optional `ordering.authorsByCollection`. Existing v3
+  documents without it remain importable. Full/Following ZIP and self-contained
+  collection JSON restore orders and custom metadata; populated profiles merge
+  conservatively without rearranging unrelated records.
+- Confirmed companion work: direct Library collection/paper and Following sidebar
+  handles, reserved count/menu geometry, shared focus/cancellation polish, and
+  independent local last-selected collection restoration. Search/filter/scroll
+  remain transient; selection pointers stay out of backups and Chrome Sync.
+
+Authoritative package and common manifest versions are **0.5.1**; Firefox derives
+its manifest from the common source. Local storage **8**, portable backup **3**,
+Feed queue **3**, preference Sync **1**, Offline IndexedDB **2**, recovery IndexedDB
+**1** and Library RPC snapshot **2** remain independent. The release version bump
+introduces no further storage change, permissions or dependencies.
+
+### Verification and artifacts
+
+| Check | Result |
+| --- | --- |
+| `npm test` | 356/356 pass, no failures/skips, including ZIP creation/source equality/reproducibility |
+| `npm run build` | Chromium and Firefox 0.5.1, 181 runtime files each |
+| `npm run test:browser` | Chrome 154 Linux full fixture and geometry regressions pass |
+| `npm run test:firefox` | Firefox 157 full regressions and native ZIP repository round trip pass with documented direct binaries |
+| `node scripts/author-collection-reorder-smoke.mjs` | Actual selected-collection author handles, grab/grabbing/hit testing, repeated drags, keyboard/focus/cancel, independent orders/names/memberships/sidebar, schema 7→8 reload, worker/browser restart and all/section/collection backup restores pass |
+| `node scripts/following-reorder-smoke.mjs` | Actual 0.5.0→0.5.1 schema 6→8 upgrade, global order, custom metadata/PDF retention, search guard, keyboard/drag, restart and backup pass |
+| Following collection, Library selection and Library direct-order native suites | Hover/keyboard/direct drag, fixed aggregate/New, count/menu/long-name/narrow geometry, selection independence, explicit routes, deletion fallback, restart and backups pass |
+| `node scripts/reorder-focus-smoke.mjs` | Repeated mouse/emulated-touch drags, cancellation/capture loss/outside drop, click-to-keyboard and retained keyboard focus pass across collections/papers/authors |
+| `node scripts/migration-smoke.mjs` | Exact old-worker/new-UI collectionIds regression, same-manifest schema 5→8 upgrade, recovery snapshot, custom metadata/memberships/orders/Feed/PDF preservation, recoverable Retry and restart pass |
+| `node scripts/migration-quota-smoke.mjs` | Real 10-MiB local quota and six-MiB annotation, durable IDB recovery before activation, direct Library and worker restart pass |
+| `node scripts/backup-smoke.mjs` | Native Export All→fresh-profile Import, custom names/metadata, shared memberships/order, idempotence and PDF independence pass |
+| `npm run test:upgrade` | Retained historical source/profile upgrades preserve records/settings/exports, with no page/worker errors |
+| `npm run test:feed` and `npm run test:offline` | Incremental cache/request behavior, native PDF viewing, disconnected/worker/browser restart, quota/cancellation/version handling and bookmark independence pass |
+| `npm run test:release` | Native transfer, local-only research data, actual preference Sync events, real recovery alarm, worker/reload/profile restart pass; no account propagation claim |
+| First-party JS syntax and `git diff --check` | Pass |
+| Both packaging commands and actual ZIP validation | 181 exact production-source files per archive, generated root manifest 0.5.1, CRC/path/duplicate/license/fixed-timestamp checks pass |
+
+| Browser | Artifact | Bytes | SHA-256 |
+| --- | --- | --- | --- |
+| chromium | `dist/xivary-0.5.1-chromium.zip` | 1344772 | `ce5afbea3248b25ca163fc203b993987f67a6370d4a9f905f810ee546c28b859` |
+| firefox | `dist/xivary-0.5.1-firefox.zip` | 1344837 | `732a072a6b01f892d0bb11e81a9a0d234744cabda824d7a71eea73bf12f14e9c` |
+
+Run `npm run package` and `npm run package:firefox` to reproduce the archives.
+They contain only production extension files and licenses, with no tests, profiles,
+credentials, bookmarks, Following records, collections, Feed caches or PDF bytes.
+`dist/` is ignored; source commit and annotated tag use the existing `origin/master`
+remote without rewriting history.
+
+Logs are local `/tmp/xivary051-*.log`; focused screenshots remain in their scripts'
+documented `/tmp` directories. Wide/narrow author screenshots were inspected.
+Tests use disposable fixture profiles; the user's installed profile is not accessed.
+No live arXiv availability, same-account Sync, signed/store upgrade, minimum-version
+or physical accessibility claim is made. Historical results below are not substitutes
+for these rerun release checks.
+
+### Publication boundary
+
+The established project workflow is source commit, annotated Git tag and production
+ZIPs. The repository has no GitHub Releases history or publication workflow, so
+this release follows the existing tag/package process. GitHub authentication is
+available, but no new GitHub publication mechanism or store submission is introduced.
+Chrome Web Store and Firefox Add-ons submission/signing remain separate manual
+steps. Firefox ZIPs are unsigned; they are suitable for temporary development
+installation, not ordinary signed Firefox distribution.
+
+
 ## v0.5.0 — 2026-10-15
 
 Release preparation started in the Xivary repository on `master`, at `f8a3e44`,

@@ -1,8 +1,17 @@
 # Browser support and verification
 
+## v0.5.1 — 2026-10-15
+
+Current extension version is **0.5.1**, local schema **8**, portable backup **3**.
+Release verification is recorded in [the v0.5.1 release record](release.md#v051--2026-10-15).
+Checks use disposable Linux Chrome/Firefox profiles and deterministic arXiv fixtures;
+no account-mediated Sync, signed/store-installed upgrade or live arXiv availability
+is implied. Physical touch/screen-reader output and minimum versions remain manual.
+The v0.5.0 and older results below are historical.
+
 ## v0.5.0 — 2026-10-15
 
-Current extension version is **0.5.0**, with local schema 6 and portable backup 3.
+The v0.5.0 release used extension version **0.5.0**, local schema 6 and portable backup 3.
 Chrome 154 and Firefox 157 fixture regressions pass. Additional installed Chrome
 checks cover incremental Feed, native Offline PDFs, clean-profile portable backup
 restoration, collection ordering, all paper-list IDs and actual storage upgrades

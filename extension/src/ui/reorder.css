@@ -1,0 +1,10 @@
+.reorderable { position: relative; }
+.reorder-handle { position: absolute; left: 0; top: 8px; width: 22px; min-height: 32px; padding: 0; border: 0; background: transparent; color: var(--muted); cursor: grab; touch-action: none; user-select: none; opacity: 0; pointer-events: none; }
+.reorder-handle svg { width: 18px; height: 24px; fill: currentColor; }
+.reorderable:hover > .reorder-handle, .reorderable:focus-within > .reorder-handle { opacity: 1; pointer-events: auto; }
+.reorder-handle:disabled { opacity: 0; cursor: default; }
+.reorderable:hover > .reorder-handle:disabled, .reorderable:focus-within > .reorder-handle:disabled { opacity: .55; }
+.reorder-dragging { opacity: .55; }
+.drop-before::before, .drop-after::after { content: ''; position: absolute; left: 0; right: 0; height: 2px; background: var(--border-strong); pointer-events: none; }
+.drop-before::before { top: -2px; }
+.drop-after::after { bottom: -2px; }

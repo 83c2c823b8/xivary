@@ -16,7 +16,7 @@ all included sections. There is no Preferences transfer or PDF transfer.
 ## Version 3 structure
 
 The independent portable format is `xivary-library`, version **3**, separate from
-local schema 6, Chrome Sync v1, and extension version 0.5.0. The new transfer UI
+local schema 8, Chrome Sync v1, and extension version 0.5.1. The new transfer UI
 accepts version 3 only; unsupported/older versions fail clearly. Internal v1/v2
 repository methods remain for existing regression coverage, without migration
 into the new format.
@@ -102,7 +102,8 @@ are retained without exposing new note controls.
 ## Explicit ordering
 
 `ordering.json` has exactly `bookmarks`, `following`, `paperCollections`,
-`authorCollections`, `papersByCollection`, `manualPaperCollections`:
+`authorCollections`, `papersByCollection`, `manualPaperCollections`, and optional
+`authorsByCollection`:
 
 ```json
 {
@@ -113,17 +114,28 @@ are retained without exposing new note controls.
   "papersByCollection": [
     { "collectionId": "paper-collection:example", "paperIds": ["2610.12279"] }
   ],
-  "manualPaperCollections": ["paper-collection:example"]
+  "manualPaperCollections": ["paper-collection:example"],
+  "authorsByCollection": []
 }
 ```
 
 Arrays use stable IDs, never ZIP/filesystem ordering. Library's existing array
 order, collection sidebar order and independent manual paper order round-trip
 exactly into a fresh profile. `manualPaperCollections` distinguishes actual manual
-orders from fallback display order. Following's existing timestamp sorting stays
-in force; timestamps and original array order preserve its deterministic ties.
-There are no persistent sorting preferences or additional manual author/paper
-ordering systems in the current application. Transient text/date filters are not
+orders from fallback display order. `following` preserves the global manual
+author order (the live subsequence of the local author array); section and collection
+exports retain its relevant subsequence. Fresh imports restore that order exactly.
+Existing profiles keep their own author order and append new imported authors.
+The optional `authorsByCollection` array contains explicit
+`{collectionId, authorIds}` orders for Following collections. It is validated against
+that collection's exported memberships; missing/duplicate/foreign author IDs reject
+before any write. Its absence in an existing v3 backup means no manual overrides.
+Full/Following/collection exports include the relevant orders; fresh imports restore
+them exactly. Existing collection order wins and new members append; unrelated
+collection/global orders remain unchanged. Bookmarks-only import never touches
+Following orders.
+There are no persistent sorting preferences or manual author-paper ordering systems
+in the current application. Transient text/date filters are not
 preferences and are not exported.
 
 ## Conservative merge and atomic commit
@@ -194,3 +206,11 @@ independent PDF bytes, normal Library/Following/Feed/Offline views, and 360px Se
 Screenshots are in `/tmp/xivary-backup-screenshots`. `npm run test:release` retains
 native scoped transfer and Chrome Sync event/alarm/worker/restart checks. These
 fixtures do not prove Google-account propagation or physical screen-reader speech.
+
+The separate last-selected Library collection UI preference is not exported or
+imported. It is distinct from explicit manual collection/paper ordering.
+
+Following collection sidebar order uses the existing `ordering.authorCollections`
+array. Full and Following-section restores preserve it exactly in a fresh profile.
+The last-selected Following collection UI preference is excluded, independently
+of Library's selection; importing never changes either destination preference.

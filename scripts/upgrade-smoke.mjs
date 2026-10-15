@@ -87,7 +87,7 @@ try {
       session = await settings();
       assert.equal(await chrome.evaluate(session, 'chrome.runtime.getManifest().version'), releaseVersion);
       const after = await chrome.evaluate(session, state);
-      assert.equal(after.schemaVersion, 6);
+      assert.equal(after.schemaVersion, 8);
       for (const field of fields) assert.deepEqual(after[field], before[field], `${previousVersion} upgrade: ${field}`);
       for (const [key, value] of Object.entries(before.settings)) assert.deepEqual(after.settings[key], value, `retain setting ${key}`);
       assert.equal(after._chromeSync.id, before._chromeSync.id);
@@ -115,7 +115,7 @@ try {
       const sync = await chrome.evaluate(session, 'chrome.storage.sync.get(null)');
       assert.equal(Object.keys(sync).some(key => /vimMode|customLatexMacros|renderLatexInAbstracts/.test(key)), false);
       assert.deepEqual(runtimeErrors, []);
-      console.log(`UPGRADE PASS: source ${previousVersion} (${snapshot}) → ${releaseVersion}, same ID/profile, schema 5→6, papers/authors/collections/memberships/settings/exports retained; local Vim/macros reload/restart; page/worker errors absent`);
+      console.log(`UPGRADE PASS: source ${previousVersion} (${snapshot}) → ${releaseVersion}, same ID/profile, schema 5→8, papers/authors/collections/memberships/settings/exports retained; local Vim/macros reload/restart; page/worker errors absent`);
     } finally { await chrome.close(); }
   }
 } finally { await rm(temporary, { recursive: true, force: true }); }

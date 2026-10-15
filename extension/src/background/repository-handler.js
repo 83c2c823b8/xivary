@@ -1,6 +1,9 @@
 import { REPOSITORY_CHANNEL } from "../repository/repository-client.js";
 
 const methods = new Map([
+  ["setFollowingSelection", 1], ["moveAuthorCollection", 2],
+  ["setLibrarySelection", 1],
+  ['moveFollowedAuthor', 2], ['moveAuthorInCollection', 3],
   ["initialize", 0],
   ['exportBackup', 2], ['importBackup', 2],
   ["getFollowingFeedCache", 0], ["putFollowingFeedCache", 1],

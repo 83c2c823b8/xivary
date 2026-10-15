@@ -313,7 +313,7 @@ unfiltered. At widths up to 480px the count moves below the full-width field.
 
 Search matches a substring of the existing normalized author name, ignoring case
 and leading/trailing whitespace. Empty or whitespace-only queries show the full
-scope in its existing followed-date order. Accents remain significant; there is
+scope in its persisted collection order (global order for All Following). Accents remain significant; there is
 no fuzzy matching, ranking or discovery. A populated scope with no matches shows
 No matching authors. Genuine empty Following/collection states retain their
 existing messages. Clearing restores the list.
@@ -508,13 +508,27 @@ See [offline storage](offline-storage.md).
 
 A neutral divider below All Saved separates the aggregate from the collection
 list. Its selected-state background and existing lower divider remain unchanged.
-Library collections reveal a small ellipsis on hover/focus; their contextual menu
-adds Reorder collections and Reorder papers after Rename and Delete. Temporary
-reordering reveals six-dot handles on hover/focus, a subtle drop indicator, and a
-compact Done action. Normal browsing has no handles or reorder toolbar. Handle
-Arrow Up/Down and Home/End movement is announced; complete collection membership
-is shown while paper filters are temporarily disabled. See
-[ordering semantics and backup limitations](collection-reordering.md).
+Library rows reserve separate tracks for a hover/focus six-dot handle, the
+folder/name/count button and a hover/focus ellipsis. Counts stay right-aligned and
+the menu stays inside the sidebar; long names truncate. Organized Following
+uses the same reserved sidebar tracks and hover/focus ellipsis. Both menus retain
+Rename and Delete. Following collection moves use a visually hidden live region
+for success announcements. See [Following collections](following-collection-ordering.md).
+Direct collection and per-collection paper dragging requires no mode, Reorder menu
+action or Done button. Paper rows reserve a 28px handle gutter only in collections;
+All Saved and the other paper views retain their existing layout. Hover/focus does
+not change geometry. Handle Arrow Up/Down and Home/End movement is announced; no
+movement animation is used. If text/date filters hide members, paper handles are
+disabled with a Clear filters explanation to avoid ordering an incomplete subset.
+See [ordering semantics and verification](collection-reordering.md).
+
+Following author rows share the same `ui/reorder.css` handle, 28px reserved gutter,
+keyboard movement and insertion indicator. No edit mode or extra action menu is
+introduced. Collection handles reorder only authors in that collection. All Following keeps
+its global manual order. Search hiding scope members disables movement rather
+than unexpectedly rearranging hidden authors. Enabled handles use grab/grabbing
+cursors; successful moves announce through the hidden live region. See
+[Following order and upgrade tests](following-reordering.md).
 
 ## Portable backups
 

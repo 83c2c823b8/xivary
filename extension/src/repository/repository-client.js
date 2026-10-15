@@ -80,6 +80,9 @@ export class RepositoryClient extends PaperRepository {
   exportBackup(category, selection = { kind: 'all' }) { return this.request('exportBackup', [category, selection]); }
   importBackup(inputs, category = 'all') { return this.request('importBackup', [inputs, category]); }
 
+  setFollowingSelection(id) { return this.request("setFollowingSelection", [id]); }
+  moveAuthorCollection(id, beforeId) { return this.request("moveAuthorCollection", [id, beforeId]); }
+  setLibrarySelection(id) { return this.request("setLibrarySelection", [id]); }
   listFavorites() { return this.request("listFavorites"); }
   async initialize() { return this.request("initialize"); }
   async getPaperLibrary() { return normalizeLibrarySnapshot(await this.request("getPaperLibrary")); }
@@ -87,6 +90,8 @@ export class RepositoryClient extends PaperRepository {
   movePaperInCollection(collectionId, arxivId, beforeId) { return this.request('movePaperInCollection', [collectionId, arxivId, beforeId]); }
   savePaper(paper) { return this.request("savePaper", [paper]); }
   listFollowing() { return this.request("listFollowing"); }
+  moveAuthorInCollection(collectionId, id, beforeId) { return this.request('moveAuthorInCollection', [collectionId, id, beforeId]); }
+  moveFollowedAuthor(id, beforeId) { return this.request('moveFollowedAuthor', [id, beforeId]); }
   toggleFavorite(paper) { return this.request("toggleFavorite", [paper]); }
   removeFavorite(arxivId) { return this.request("removeFavorite", [arxivId]); }
   createPaperCollection(name, paper = null) { return this.request("createPaperCollection", [name, paper]); }

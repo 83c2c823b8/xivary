@@ -1,3 +1,6 @@
+import { reconcileAuthorOrdering, authorsInCollection } from '../domain/author-ordering.js';
+import { FOLLOWING_SELECTION_VERSION, selectedFollowingCollection } from '../domain/following-selection.js';
+import { LIBRARY_SELECTION_VERSION, selectedLibraryCollection } from '../domain/library-selection.js';
 import { migratingStorage, withStorageLock } from './migration-storage.js';
 import { LIBRARY_SNAPSHOT_VERSION } from '../domain/library-snapshot.js';
 import { prepareState, STORAGE_SCHEMA_VERSION, collectionName, paperCollectionName } from './local-schema.js';
@@ -75,14 +78,28 @@ export class LocalRepository extends PaperRepository {
   }
 
   getPaperLibrary() {
-    return this.run(state => structuredClone({
+    return this.run(async state => structuredClone({
+      selectedCollectionId: selectedLibraryCollection(await this.storage.readLibrarySelection(), state.paperCollections),
       snapshotVersion: LIBRARY_SNAPSHOT_VERSION, schemaVersion: STORAGE_SCHEMA_VERSION,
       papers: state.favorites, collections: state.paperCollections,
       memberships: state.paperMemberships, settings: state.settings, ordering: reconcilePaperOrdering(state),
     }));
   }
 
+  setLibrarySelection(id) {
+    if (typeof id !== 'string' || id.length > 256) return Promise.reject(new Error('Invalid Library selection.'));
+    return this.run(async state => {
+      const stored = await this.storage.readLibrarySelection();
+      if (Number.isInteger(stored?.version) && stored.version > LIBRARY_SELECTION_VERSION) throw new Error('This Library preference uses a newer format. It was left unchanged.');
+      const collectionId = id && state.paperCollections.some(collection => collection.id === id) ? id : '';
+      const value = { version: LIBRARY_SELECTION_VERSION, collectionId };
+      if (JSON.stringify(stored) !== JSON.stringify(value)) await this.storage.writeLibrarySelection(value);
+      return collectionId;
+    });
+  }
+
   async persist(state) {
+    state.authorOrdering = reconcileAuthorOrdering(state);
     if (state.paperOrdering !== undefined) state.paperOrdering = reconcilePaperOrdering(state);
     await this.storage.write(state);
   }
@@ -122,7 +139,7 @@ export class LocalRepository extends PaperRepository {
   listFollowing() {
     return this.run(state => {
       const followed = new Set(state.memberships.map(item => item.authorId));
-      return structuredClone(state.authors.filter(author => followed.has(author.id))).sort(newest("followedAt"));
+      return structuredClone(state.authors.filter(author => followed.has(author.id)));
     });
   }
 
@@ -197,10 +214,65 @@ export class LocalRepository extends PaperRepository {
   }
 
   getAuthorLibrary() {
-    return this.run(state => structuredClone({
-      authors: state.authors, collections: state.collections,
+    return this.run(async state => structuredClone({
+      selectedCollectionId: selectedFollowingCollection(await this.storage.readFollowingSelection(), state.collections),
+      authors: state.authors, authorOrdering: state.authorOrdering, collections: state.collections,
       memberships: state.memberships, settings: state.settings,
     }));
+  }
+
+  setFollowingSelection(id) {
+    if (typeof id !== 'string' || id.length > 256) return Promise.reject(new Error('Invalid Following selection.'));
+    return this.run(async state => {
+      const stored = await this.storage.readFollowingSelection();
+      if (Number.isInteger(stored?.version) && stored.version > FOLLOWING_SELECTION_VERSION) throw new Error('This Following preference uses a newer format. It was left unchanged.');
+      const collectionId = id && state.collections.some(collection => collection.id === id) ? id : '';
+      const value = { version: FOLLOWING_SELECTION_VERSION, collectionId };
+      if (JSON.stringify(stored) !== JSON.stringify(value)) await this.storage.writeFollowingSelection(value);
+      return collectionId;
+    });
+  }
+
+  moveAuthorCollection(id, beforeId) {
+    if (typeof id !== 'string' || (beforeId !== null && typeof beforeId !== 'string')) return Promise.reject(new Error('Invalid collection move.'));
+    return this.run(async state => {
+      const ids = state.collections.map(collection => collection.id), next = moveBefore(ids, id, beforeId);
+      if (JSON.stringify(ids) === JSON.stringify(next)) return false;
+      const byId = new Map(state.collections.map(collection => [collection.id, collection]));
+      state.collections = next.map(id => byId.get(id));
+      await this.persist(state); return true;
+    });
+  }
+
+  moveAuthorInCollection(collectionId, id, beforeId) {
+    if (typeof collectionId !== 'string' || typeof id !== 'string' || (beforeId !== null && typeof beforeId !== 'string')) return Promise.reject(new Error('Invalid author move.'));
+    return this.run(async state => {
+      requireCollection(state, collectionId);
+      const ids = authorsInCollection(state, collectionId).map(author => author.id);
+      const next = moveBefore(ids, id, beforeId);
+      if (JSON.stringify(ids) === JSON.stringify(next)) return false;
+      const ordering = reconcileAuthorOrdering(state);
+      state.authorOrdering = { version: 1, collectionOrders: [
+        ...ordering.collectionOrders.filter(order => order.collectionId !== collectionId),
+        { collectionId, authorIds: next },
+      ] };
+      await this.persist(state); return true;
+    });
+  }
+
+  moveFollowedAuthor(id, beforeId) {
+    if (typeof id !== 'string' || (beforeId !== null && typeof beforeId !== 'string')) return Promise.reject(new Error('Invalid author move.'));
+    return this.run(async state => {
+      const live = new Set(state.memberships.map(member => member.authorId));
+      const authors = state.authors.filter(author => live.has(author.id));
+      const ids = authors.map(author => author.id), next = moveBefore(ids, id, beforeId);
+      if (JSON.stringify(ids) === JSON.stringify(next)) return false;
+      const byId = new Map(authors.map(author => [author.id, author]));
+      let index = 0;
+      // Retained, unfollowed author metadata keeps its slot and is never moved.
+      state.authors = state.authors.map(author => live.has(author.id) ? byId.get(next[index++]) : author);
+      await this.persist(state); return true;
+    });
   }
 
   followAuthor(input) {
@@ -283,7 +355,8 @@ export class LocalRepository extends PaperRepository {
     const memberId = kind === "paper" ? "arxivId" : "authorId";
     const record = structuredClone(state[recordField].find(item => item[idField] === id));
     const before = state[membershipField].filter(item => item[memberId] === id);
-    const orderTargets = kind === 'paper' && state.paperOrdering ? reconcilePaperOrdering(state).paperOrders
+    const orderTargets = kind === 'author' ? reconcileAuthorOrdering(state).collectionOrders
+      .filter(order => order.authorIds.includes(id)).map(order => ({ collectionId: order.collectionId, successors: order.authorIds.slice(order.authorIds.indexOf(id) + 1) })) : state.paperOrdering ? reconcilePaperOrdering(state).paperOrders
       .filter(order => order.paperIds.includes(id)).map(order => ({ collectionId: order.collectionId, successors: order.paperIds.slice(order.paperIds.indexOf(id) + 1) })) : [];
     remove();
     const removed = before.filter(item => !state[membershipField].some(other => other[memberId] === id && other.collectionId === item.collectionId));
@@ -317,6 +390,15 @@ export class LocalRepository extends PaperRepository {
       const membershipField = kind === "paper" ? "paperMemberships" : "memberships";
       if (!state[recordField].some(item => item[idField] === id)) state[recordField].push(structuredClone(record));
       state[membershipField].push(...structuredClone(removed));
+      if (kind === 'author') {
+        state.authorOrdering = reconcileAuthorOrdering(state);
+        for (const target of receipt.orderTargets || []) {
+          const order = state.authorOrdering.collectionOrders.find(order => order.collectionId === target.collectionId);
+          if (order && removed.some(item => item.collectionId === target.collectionId)) {
+            order.authorIds = moveBefore(order.authorIds, id, target.successors.find(next => order.authorIds.includes(next)) ?? null);
+          }
+        }
+      }
       if (kind === 'paper' && state.paperOrdering) {
         state.paperOrdering = reconcilePaperOrdering(state);
         for (const target of receipt.orderTargets || []) {

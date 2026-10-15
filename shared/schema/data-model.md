@@ -1,4 +1,19 @@
-# Shared data model (schema version 5)
+# Shared data model
+
+The v0.5.1 local envelope is schema **8**. The record model below documents the
+schema-5 many-to-many foundation; it is retained rather than a complete description
+of the current envelope. Schema 6 adds required `paperOrdering`, schema 7 makes
+live-author array order authoritative for All Following, and schema 8 adds
+`authorOrdering: {version: 1, collectionOrders: [{collectionId, authorIds}]}` for
+independent author ordering within collections. Existing installed schemas upgrade
+automatically through consecutive, failure-safe steps; see
+[storage migrations](../../docs/storage-migrations.md).
+
+Library/Following last-selected collection IDs are separate local version-1 UI
+preferences, excluded from research backups and Sync. Settings transfers use
+[portable version 3](../../docs/import-export.md), including optional
+`ordering.authorsByCollection`; the internal v1/v2 descriptions below are historical
+and are not the Settings transfer format. Sync remains preference-only version 1.
 
 Portable import/export does not change local schema 5. Its two manual categories
 are Bookmarks (`favorites`, `paperCollections`, `paperMemberships`) and Following

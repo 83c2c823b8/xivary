@@ -1,10 +1,11 @@
+import { reconcileAuthorOrdering } from '../domain/author-ordering.js';
 import { createPaper } from '../domain/paper.js';
 import { createAuthor } from '../domain/author.js';
 import { cleanText, normalizeArxivId } from '../domain/identifiers.js';
 import { reconcilePaperOrdering } from '../domain/paper-ordering.js';
 import { normalizeCachedAuthorResults } from '../services/arxiv-paper-service.js';
 
-export const STORAGE_SCHEMA_VERSION = 6;
+export const STORAGE_SCHEMA_VERSION = 8;
 const DEFAULT_PAPER_COLLECTION_ID = 'paper-collection:saved-papers';
 export const SETTINGS_DEFAULTS = Object.freeze({lastUsedAuthorCollectionId:null,lastUsedPaperCollectionId:null,
   openXivaryFromToolbarInNewTab:true,openAuthorResultsInNewTab:true,openArxivLinksInNewTab:false,
@@ -44,9 +45,22 @@ export const STORAGE_MIGRATIONS = new Map([
     }
     state.paperOrdering=reconcilePaperOrdering(state);
   }],
+  [6,(state)=>{
+    if(!Array.isArray(state.authors))throw new Error('Invalid followed author data.');
+    // Author-array order now owns manual Following order. Preserve the old UI's
+    // newest-followed-first presentation once, including stable timestamp ties.
+    if(!Array.isArray(state.memberships))throw new Error('Invalid collection membership.');
+    const live=new Set(state.memberships.map(member=>member.authorId));
+    const ordered=state.authors.filter(author=>live.has(author.id)).sort((a,b)=>b.followedAt.localeCompare(a.followedAt));
+    let index=0;state.authors=state.authors.map(author=>live.has(author.id)?ordered[index++]:author);
+  }],
+  [7,(state)=>{
+    if(state.authorOrdering===undefined)state.authorOrdering={version:1,collectionOrders:[]};
+    state.authorOrdering=reconcileAuthorOrdering(state);
+  }],
 ]);
 export function freshState(now) {
-  return {schemaVersion:STORAGE_SCHEMA_VERSION,favorites:[],authors:[],collections:[],memberships:[],authorPaperCaches:[],
+  return {schemaVersion:STORAGE_SCHEMA_VERSION,authorOrdering:{version:1,collectionOrders:[]},favorites:[],authors:[],collections:[],memberships:[],authorPaperCaches:[],
     paperCollections:[{id:DEFAULT_PAPER_COLLECTION_ID,name:'Saved Papers',createdAt:now,updatedAt:now}],paperMemberships:[],
     settings:{...SETTINGS_DEFAULTS,lastUsedPaperCollectionId:DEFAULT_PAPER_COLLECTION_ID},
     paperOrdering:{version:1,collectionIds:[DEFAULT_PAPER_COLLECTION_ID],paperOrders:[]}};
@@ -139,6 +153,7 @@ export function validateCurrentState(state) {
   if (lastUsedPaper !== null && !paperCollectionIds.has(lastUsedPaper)) throw new Error("Invalid last-used paper collection.");
   if (state.paperOrdering === undefined) throw new Error('Missing Library ordering in current storage. Existing data was left unchanged.');
   state.paperOrdering = reconcilePaperOrdering(state);
+  state.authorOrdering = reconcileAuthorOrdering(state);
   return state;
 }
 

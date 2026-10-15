@@ -41,7 +41,7 @@ test("schema 4 favorites migrate losslessly and idempotently to Saved Papers", a
   assert.deepEqual(new Set(library.memberships.map(item => item.arxivId)), new Set(["2401.00001", "2401.00002"]));
   assert.ok(library.memberships.every(item => item.collectionId === library.collections[0].id));
   const migrated = await storage.read();
-  assert.equal(migrated.schemaVersion, 6);
+  assert.equal(migrated.schemaVersion, 8);
   assert.equal(migrated.retained, "yes");
   assert.equal(writes(), 2, "journal and validated active envelope; no subsequent migration writes");
   await repository.listFavorites();

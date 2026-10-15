@@ -1,3 +1,4 @@
+import { reconcileAuthorOrdering, authorsInCollection } from '../domain/author-ordering.js';
 import { createPaper } from '../domain/paper.js';
 import { createAuthor, createAuthorReference } from '../domain/author.js';
 import { normalizeArxivId, cleanText, isoDate } from '../domain/identifiers.js';
@@ -87,6 +88,8 @@ function completeOrdering(state,records) {
   const ordering=reconcilePaperOrdering(state),pc=new Set(paperCollections.map(identity));
   return {bookmarks:papers,following:authors,paperCollections:ordering.collectionIds.filter(id=>pc.has(id)),authorCollections:authorCollections.map(identity),
     papersByCollection:paperCollections.map(item=>({collectionId:identity(item),paperIds:(ordering.paperOrders.find(order=>order.collectionId===identity(item))?.paperIds || state.favorites.map(paper=>paper.arxivId)).filter(id=>item.memberships.some(member=>member.arxivId===id))})),
+    authorsByCollection:reconcileAuthorOrdering(state).collectionOrders.filter(order=>authorCollections.some(item=>identity(item)===order.collectionId))
+      .map(order=>({collectionId:order.collectionId,authorIds:order.authorIds.filter(id=>authors.includes(id))})),
     manualPaperCollections:ordering.paperOrders.map(order=>order.collectionId).filter(id=>pc.has(id))};
 }
 function selectRecords(state,category,selection) {
@@ -152,12 +155,14 @@ function validateDocument(doc) {
     const selected=doc.sections[0]==='bookmarks'?normalizeArxivId(doc.selection.id):doc.selection.id;
     if(chosen.length!==1 || identity(chosen[0])!==selected)fail('record does not match selection.');
   }
-  const order=doc.ordering;exact(order,['bookmarks','following','paperCollections','authorCollections','papersByCollection','manualPaperCollections']);
+  const order={...doc.ordering,authorsByCollection:doc.ordering?.authorsByCollection===undefined?[]:doc.ordering.authorsByCollection};exact(order,['bookmarks','following','paperCollections','authorCollections','papersByCollection','manualPaperCollections','authorsByCollection']);
+  if(!Array.isArray(order.authorsByCollection)||new Set(order.authorsByCollection.map(item=>item?.collectionId)).size!==order.authorsByCollection.length)fail('invalid per-collection author ordering.');
+  for(const item of order.authorsByCollection){exact(item,['collectionId','authorIds']);const collection=ac.find(c=>identity(c)===item.collectionId);if(!collection)fail('unknown author collection order.');ids(item.authorIds,collection.memberships.map(m=>m.authorId),'collection author');}
   ids(order.bookmarks,papers,'bookmark');ids(order.following,authors,'Following');ids(order.paperCollections,pc.map(identity),'collection');ids(order.authorCollections,ac.map(identity),'author collection');
   if(!Array.isArray(order.papersByCollection))fail('invalid per-collection ordering.');ids(order.papersByCollection.map(item=>item.collectionId),pc.map(identity),'paper collection');
   for(const item of order.papersByCollection){exact(item,['collectionId','paperIds']);ids(item.paperIds,pc.find(c=>identity(c)===item.collectionId).memberships.map(m=>m.arxivId),'paper');}
   if(!Array.isArray(order.manualPaperCollections)||new Set(order.manualPaperCollections).size!==order.manualPaperCollections.length||order.manualPaperCollections.some(id=>!order.paperCollections.includes(id)))fail('invalid manual order selection.');
-  return {...doc,records};
+  return {...doc,records,ordering:order};
 }
 function parse(text) {if(typeof text!=='string'||new TextEncoder().encode(text).length>MAX_JSON_BYTES)fail('JSON exceeds 1 MiB.');try{return JSON.parse(text);}catch{fail('not valid JSON.');}}
 export async function parseBackupFiles(inputs,category='all') {
@@ -188,7 +193,7 @@ export async function parseBackupFiles(inputs,category='all') {
       if(bytes>MAX_BACKUP_BYTES || expandedTotal>MAX_BACKUP_BYTES)fail('combined size exceeds 20 MiB.');docs.push(validateDocument(parse(input.data)));
     } else fail('unsupported file type.');
   }
-  const records=new Map(),order={bookmarks:[],following:[],paperCollections:[],authorCollections:[],papersByCollection:[],manualPaperCollections:[]};let duplicates=0;
+  const records=new Map(),order={bookmarks:[],following:[],paperCollections:[],authorCollections:[],papersByCollection:[],manualPaperCollections:[],authorsByCollection:[]};let duplicates=0;
   const append=(a,b)=>[...new Set([...a,...b])];
   for(const doc of docs) {
     for(const item of doc.records.filter(item=>category==='all'||item.category===category)) {
@@ -199,6 +204,7 @@ export async function parseBackupFiles(inputs,category='all') {
       else records.set(key(item),clone(item));
     }
     for(const field of ['bookmarks','following','paperCollections','authorCollections','manualPaperCollections'])order[field]=append(order[field],doc.ordering[field]);
+    for(const item of doc.ordering.authorsByCollection){const previous=order.authorsByCollection.find(o=>o.collectionId===item.collectionId);if(previous)previous.authorIds=append(previous.authorIds,item.authorIds);else order.authorsByCollection.push(clone(item));}
     for(const item of doc.ordering.papersByCollection){const previous=order.papersByCollection.find(o=>o.collectionId===item.collectionId);if(previous)previous.paperIds=append(previous.paperIds,item.paperIds);else order.papersByCollection.push(clone(item));}
   }
   if(records.size>MAX_BACKUP_FILES-2)fail('combined record count limit.');
@@ -265,6 +271,16 @@ export function mergeBackup(state,backup) {
   if(backup.sections.includes('following')){
     next.authors=orderedRecords(next.authors,append(pristineAuthors?[]:state.authors.map(a=>a.id),order.following));
     next.collections=orderedRecords(next.collections,append(pristineAuthors?[]:state.collections.map(c=>c.id),order.authorCollections));
+    const collectionOrders=clone(reconcileAuthorOrdering(state).collectionOrders);
+    for(const incoming of order.authorsByCollection){
+      const old=collectionOrders.find(item=>item.collectionId===incoming.collectionId);
+      if(old)old.authorIds=append(old.authorIds,incoming.authorIds);
+      else {
+        const base=state.collections.some(collection=>collection.id===incoming.collectionId)?authorsInCollection(state,incoming.collectionId).map(author=>author.id):[];
+        collectionOrders.push({collectionId:incoming.collectionId,authorIds:append(base,incoming.authorIds)});
+      }
+    }
+    next.authorOrdering=reconcileAuthorOrdering({...next,authorOrdering:{version:1,collectionOrders}});
   }
   return {state:next,result};
 }

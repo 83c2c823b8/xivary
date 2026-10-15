@@ -28,7 +28,7 @@ and the existing allowlisted, sender-validated background handler. Best-effort i
 pages through runtime messaging and supported abstracts through tab messaging. The shared
 background `LocalRepository` delegates offline operations to `OfflineRepository`;
 there is no second application repository or sync path. `OfflineStorage` owns the
-extension-origin IndexedDB connection. Calls wait for the shared local schema-6
+extension-origin IndexedDB connection. Calls wait for the shared local schema-8
 initialization barrier, then use independent PDF transactions. No PDF records or
 bytes enter the local research envelope, migration recovery snapshots, Chrome Sync
 projection or portable backups. See [upgrade safety](storage-migrations.md).

@@ -18,7 +18,7 @@ test('Vim preference defaults off, migrates without changing data, persists loca
   const before = structuredClone(disk);
   assert.equal((await new LocalRepository(storage).getPreferences()).vimMode, false);
   for(const key of ['favorites','authors','collections','paperCollections','memberships','paperMemberships'])assert.deepEqual(disk[key],before[key]);
-  assert.equal(disk.schemaVersion,6);
+  assert.equal(disk.schemaVersion,8);
   const migrated=structuredClone(disk);
   await assert.rejects(repo.setVimMode('true'), /true or false/);
   assert.deepEqual(disk, migrated);

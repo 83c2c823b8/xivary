@@ -42,7 +42,7 @@ try {
   const original=await chrome.evaluate(settings.sessionId,state);assert.equal(original.schemaVersion,5);
   const raw=await chrome.evaluate(settings.sessionId,`chrome.runtime.sendMessage({channel:'arxiv-library:repository:v1',method:'getPaperLibrary',args:[]})`);assert.equal(raw.result.ordering,undefined);
   // A real old worker + new UI file mismatch reproduces the user's exact crash.
-  for(const path of ['src/library/library.js','src/library/library.css','src/library/library.html','src/ui/reorder.js','src/ui/collection-sidebar.js','src/domain/paper-ordering.js','src/domain/library-snapshot.js','src/repository/repository-client.js','src/repository/paper-repository.js'])await copied(join(root,'extension'),path);
+  for(const path of ['src/library/library.js','src/library/library.css','src/library/library.html','src/ui/reorder.js','src/ui/reorder.css','src/ui/collection-sidebar.js','src/domain/paper-ordering.js','src/domain/library-selection.js','src/domain/library-snapshot.js','src/repository/repository-client.js','src/repository/paper-repository.js'])await copied(join(root,'extension'),path);
   const clientPath=join(extension,'src/repository/repository-client.js'),currentClient=await readFile(clientPath,'utf8');
   const currentMethod='async getPaperLibrary() { return normalizeLibrarySnapshot(await this.request("getPaperLibrary")); }';
   assert.ok(currentClient.includes(currentMethod),'current response adapter fixture');
@@ -72,25 +72,29 @@ try {
   await rm(extension,{recursive:true});await cp(join(root,'dist/chromium'),extension,{recursive:true});
   await reloadExtension();
   assert.equal(await chrome.evaluate(settings.sessionId,'chrome.runtime.getManifest().version'),releaseVersion);
-  const initialized=await chrome.evaluate(settings.sessionId,client('repository.initialize()'));assert.equal(initialized.schemaVersion,6);
-  const after=await chrome.evaluate(settings.sessionId,state);assert.equal(after.schemaVersion,6);assert.deepEqual(owner(after),owner(before));
-  const backupKey='xivary:local-migration:5:6';const backup=await chrome.evaluate(settings.sessionId,`chrome.storage.local.get(${JSON.stringify(backupKey)}).then(v=>v[${JSON.stringify(backupKey)}])`);assert.deepEqual(owner(backup.source),owner(before));
+  const initialized=await chrome.evaluate(settings.sessionId,client('repository.initialize()'));assert.equal(initialized.schemaVersion,8);
+  const after=await chrome.evaluate(settings.sessionId,state);assert.equal(after.schemaVersion,8);
+  const expected=structuredClone(before),live=new Set(before.memberships.map(m=>m.authorId));let next=0;
+  const ordered=before.authors.filter(a=>live.has(a.id)).sort((a,b)=>b.followedAt.localeCompare(a.followedAt));
+  expected.authors=before.authors.map(a=>live.has(a.id)?ordered[next++]:a);
+  assert.deepEqual(owner(after),owner(expected));
+  const backupKey='xivary:local-migration:5:8';const backup=await chrome.evaluate(settings.sessionId,`chrome.storage.local.get(${JSON.stringify(backupKey)}).then(v=>v[${JSON.stringify(backupKey)}])`);assert.deepEqual(owner(backup.source),owner(before));
   library=await page('library/library.html');await chrome.until(library.sessionId,"document.querySelectorAll('.paper-row').length===2");
   assert.deepEqual(await chrome.evaluate(library.sessionId,"[...document.querySelectorAll('.collection-link')].slice(1).map(node=>node.dataset.collectionId)"),before.paperOrdering.collectionIds);
-  await chrome.click(library.sessionId,`.collection-link[data-collection-id="${collections.a}"]`);assert.deepEqual(await chrome.evaluate(library.sessionId,"[...document.querySelectorAll('.paper-row h2 a')].map(a=>a.href.split('/abs/')[1])"),['2610.00002','2610.00001']);await shot(library,'schema6-library.png');
+  await chrome.click(library.sessionId,`.collection-link[data-collection-id="${collections.a}"]`);assert.deepEqual(await chrome.evaluate(library.sessionId,"[...document.querySelectorAll('.paper-row h2 a')].map(a=>a.href.split('/abs/')[1])"),['2610.00002','2610.00001']);await shot(library,'schema8-library.png');
   assert.deepEqual(await chrome.evaluate(settings.sessionId,client("repository.getOfflineCopy('2610.00001')")),offlineBefore);assert.equal(await chrome.evaluate(settings.sessionId,client("(await repository.readOfflinePdf('2610.00001')).blob.text()")),pdf);
   const feed=await page('feed/feed.html');await chrome.until(feed.sessionId,"document.querySelectorAll('.paper-row').length===1 && !document.querySelector('#refresh').disabled");assert.equal(await chrome.evaluate(feed.sessionId,"document.querySelector('.paper-row h2').textContent"),paper(3).title);assert.equal(await chrome.evaluate(feed.sessionId,"document.querySelector('#status').classList.contains('error')"),false);
   const following=await page('authors/authors.html');await chrome.until(following.sessionId,"document.querySelectorAll('.author-row').length===2");
-  await chrome.send('ServiceWorker.enable',{},settings.sessionId);await chrome.send('ServiceWorker.stopAllWorkers',{},settings.sessionId);await chrome.evaluate(settings.sessionId,client('repository.initialize()'));assert.deepEqual(owner(await chrome.evaluate(settings.sessionId,state)),owner(before));
+  await chrome.send('ServiceWorker.enable',{},settings.sessionId);await chrome.send('ServiceWorker.stopAllWorkers',{},settings.sessionId);await chrome.evaluate(settings.sessionId,client('repository.initialize()'));assert.deepEqual(owner(await chrome.evaluate(settings.sessionId,state)),owner(expected));
   // Incompatible completed data gets a Retry state, never a fake empty Library.
   const active=await chrome.evaluate(settings.sessionId,state),damaged=structuredClone(active);delete damaged.paperOrdering;
   await chrome.evaluate(settings.sessionId,`chrome.storage.local.set({arxivResearchLibrary:${JSON.stringify(damaged)}})`);await chrome.send('Page.reload',{},library.sessionId);
   await chrome.until(library.sessionId,"!document.querySelector('#retry-storage').hidden && document.querySelector('#status').textContent.includes('Missing Library ordering')");assert.equal(await chrome.evaluate(library.sessionId,"document.querySelector('#empty').hidden"),true);assert.deepEqual(await chrome.evaluate(settings.sessionId,state),damaged);await shot(library,'recoverable-error.png');
   await chrome.evaluate(settings.sessionId,`chrome.storage.local.set({arxivResearchLibrary:${JSON.stringify(active)}})`);await chrome.click(library.sessionId,'#retry-storage');await chrome.until(library.sessionId,"document.querySelectorAll('.paper-row').length===2 && document.querySelector('#retry-storage').hidden");
   // Repeated unchanged-version reload and full profile restart preserve data and backup.
-  await reloadExtension();assert.deepEqual(owner(await chrome.evaluate(settings.sessionId,state)),owner(before));
+  await reloadExtension();assert.deepEqual(owner(await chrome.evaluate(settings.sessionId,state)),owner(expected));
   await chrome.close();chrome=new ChromiumTestSession(profile);assert.equal((await chrome.send('Extensions.loadUnpacked',{path:extension})).id,id);await enable();await settingsPage();
-  assert.deepEqual(owner(await chrome.evaluate(settings.sessionId,state)),owner(before));assert.deepEqual(await chrome.evaluate(settings.sessionId,`chrome.storage.local.get(${JSON.stringify(backupKey)}).then(v=>v[${JSON.stringify(backupKey)}])`),backup);
+  assert.deepEqual(owner(await chrome.evaluate(settings.sessionId,state)),owner(expected));assert.deepEqual(await chrome.evaluate(settings.sessionId,`chrome.storage.local.get(${JSON.stringify(backupKey)}).then(v=>v[${JSON.stringify(backupKey)}])`),backup);
   assert.equal(await chrome.evaluate(settings.sessionId,client("(await repository.readOfflinePdf('2610.00001')).blob.text()")),pdf);
-  console.log(`MIGRATION PASS: exact real old-worker/new-UI collectionIds crash and validated DTO repair; unchanged-version actual unpacked upgrade, schema 5→6, custom titles/aliases/notes/preferences, explicit collection/paper ordering, memberships, local recovery snapshot, Feed and PDF byte retention, concurrent reads, worker suspension, retry error state, repeated reload and profile restart; screenshots ${screenshots}`);
+  console.log(`MIGRATION PASS: exact real old-worker/new-UI collectionIds crash and validated DTO repair; unchanged-version actual unpacked upgrade, schema 5→8, custom titles/aliases/notes/preferences, explicit collection/paper ordering, memberships, local recovery snapshot, Feed and PDF byte retention, concurrent reads, worker suspension, retry error state, repeated reload and profile restart; screenshots ${screenshots}`);
 } finally {await chrome.close();await rm(temporary,{recursive:true,force:true});}

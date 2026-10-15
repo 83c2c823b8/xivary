@@ -1,4 +1,7 @@
 @import url("../ui/collection-sidebar.css");
+@import url("../ui/reorder.css");
+.following-content .author-row.reorderable { padding-left: 28px; }
+.author-row.reorder-dragging > .reorder-handle { cursor: grabbing; opacity: 1; pointer-events: auto; }
 
 .author-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 16px; }
 .author-row h2 { margin: 0; }
@@ -25,3 +28,14 @@
   .following-toolbar .metadata { justify-self: start; }
   .following-content .author-row { grid-template-columns: minmax(0, 1fr); gap: 8px; }
 }
+
+/* Match Library's reserved handle/name-count/menu tracks without changing Library. */
+.collection-sidebar .collection-row { grid-template-columns: 24px minmax(0, 1fr) 28px; column-gap: 2px; }
+.collection-sidebar .collection-link { grid-column: 2; grid-row: 1; min-width: 0; padding-inline: 4px; }
+.collection-more { grid-column: 3; grid-row: 1; width: 28px; min-height: 32px; padding: 4px; border: 0; background: transparent; color: var(--muted); opacity: 0; pointer-events: none; }
+.collection-more svg { width: 18px; height: 18px; fill: currentColor; }
+.collection-row:hover .collection-more, .collection-row:focus-within .collection-more { opacity: 1; pointer-events: auto; }
+.collection-item { position: relative; }
+.collection-row > .reorder-handle { position: static; grid-column: 1; grid-row: 1; justify-self: center; }
+.collection-more:disabled { opacity: 0; cursor: default; }
+.collection-row:hover .collection-more:disabled, .collection-row:focus-within .collection-more:disabled { opacity: .55; }

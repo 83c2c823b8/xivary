@@ -195,7 +195,7 @@ try {
   await pickerVisualWorkflow({evaluate:evaluateAsync,key:pickerKey,screenshot:name=>screenshot(`library-${name}`)});
   await pickerPositionWorkflow({evaluate:evaluateAsync,until,click:pickerClick,resize:(width,height)=>command('/window/rect',{width,height:height+100}),screenshot:name=>screenshot(`library-${name}`)});
   const stored = await evaluateAsync("import('../lib/storage.js').then(async ({ BrowserLocalStorage }) => new BrowserLocalStorage().read())");
-  assert.equal(stored.schemaVersion, 6);
+  assert.equal(stored.schemaVersion, 8);
   assert.equal(stored.favorites.length, 1);
   assert.equal(stored.paperMemberships.length, 1);
   assert.equal(stored.authors.length, 1);

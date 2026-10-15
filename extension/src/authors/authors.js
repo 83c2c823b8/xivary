@@ -1,3 +1,6 @@
+import { authorsInCollection } from '../domain/author-ordering.js';
+import { explicitFollowingCollection } from '../domain/following-selection.js';
+import { bindReorder } from "../ui/reorder.js";
 import { bindVimMode } from "../ui/vim-mode.js";
 import { collectionSidebarRow, closeCollectionMenu, updateSidebarSelection } from "../ui/collection-sidebar.js";
 import { filterFollowedAuthors } from "./filter-authors.js";
@@ -15,12 +18,17 @@ bindVimMode(repository);
 const element = id => document.getElementById(id);
 let library;
 let selected = "";
+let selectionInitialized = false;
+let rememberedSelection;
 let busy = false;
 let editingId = null;
 let loadRevision = 0;
 let renderedCollections;
 let following = [];
 let scopedAuthors = [];
+const authorReorder = bindReorder(element("authors"), { move: saveAuthorMove });
+const collectionReorder = bindReorder(element("collection-list"), { move: saveCollectionMove });
+window.addEventListener("pagehide", () => { authorReorder.cancel(); collectionReorder.cancel(); });
 
 bindCollectionRenameOutside({
   getForm: () => document.querySelector("[data-rename-id]")?.closest("form"),
@@ -32,10 +40,10 @@ let renderedOrganization;
 
 const closeCreate = bindCollectionCreate({
   trigger: element("show-create"), form: element("create-form"), input: element("collection-name"),
-  onOpen: () => { editingId = null; renderCollections(); },
+  onOpen: () => { collectionReorder.cancel(); editingId = null; renderCollections(); },
   create: name => mutate(async () => { const collection = await repository.createAuthorCollection(name); selected = collection.id; }, { propagateError: true }),
 });
-window.addEventListener("focus", () => { if (!busy) void load(); });
+window.addEventListener("focus", () => { if (!busy && !authorReorder.dragging && !collectionReorder.dragging) void load(); });
 element("filter").addEventListener("input", renderAuthors);
 void load();
 
@@ -46,21 +54,28 @@ async function load() {
     if (revision !== loadRevision) return;
     library = snapshot;
     following = followedAuthors();
+    if (organized() && !selectionInitialized) {
+      rememberedSelection = snapshot.selectedCollectionId ?? '';
+      selected = explicitFollowingCollection(location.search) ?? rememberedSelection;
+      selectionInitialized = true;
+    }
     if (!organized() || !library.collections.some(collection => collection.id === selected)) selected = "";
     if (!organized()) {
+      selectionInitialized = false;
+      collectionReorder.cancel();
       closeAuthorCollectionPicker();
       closeCreate();
       editingId = null;
     }
     render();
     setStatus("");
-  } catch (error) { if (revision === loadRevision) setStatus(error.message, true); }
+  } catch (error) { if (revision === loadRevision) { setDisabled(true); setStatus(error.message, true); } }
 }
 
 function organized() { return library.settings.organizeFollowedAuthorsIntoCollections; }
 function followedAuthors() {
   const ids = new Set(library.memberships.map(item => item.authorId));
-  return library.authors.filter(author => ids.has(author.id)).sort((a, b) => b.followedAt.localeCompare(a.followedAt));
+  return library.authors.filter(author => ids.has(author.id));
 }
 
 function render() {
@@ -70,11 +85,11 @@ function render() {
   if (renderedOrganization !== organized()) { rows.clear(); renderedOrganization = organized(); }
   if (organized()) renderCollections();
   else { closeCollectionMenu(); renderedCollections = undefined; element("collection-list").replaceChildren(); }
-  const ids = selected ? new Set(library.memberships.filter(item => item.collectionId === selected).map(item => item.authorId)) : null;
-  scopedAuthors = following.filter(author => !ids || ids.has(author.id));
+  scopedAuthors = selected ? authorsInCollection(library, selected) : following;
   const live = new Set(following.map(author => author.id));
   for (const id of rows.keys()) if (!live.has(id)) rows.delete(id);
   renderAuthors();
+  rememberSelection();
 }
 
 function renderAuthors() {
@@ -89,8 +104,12 @@ function renderAuthors() {
     const row = rows.get(author.id);
     const link = row.querySelector("h2 a");
     if (link.textContent !== author.displayName) link.textContent = author.displayName;
+    row.dataset.reorderId = author.id;
+    authorReorder.attach(row, author.id, author.displayName, { disabled: authors.length !== scopedAuthors.length,
+      disabledReason: "Clear search to reorder the complete collection." });
     return row;
   });
+  if ([...element("authors").children].some((row, index) => row !== visible[index]) || element("authors").children.length !== visible.length) authorReorder.cancel();
   // Avoid moving an unchanged row so a focus refresh retains keyboard focus.
   for (const row of [...element("authors").children]) if (!visibleIds.has(row.dataset.authorId) || rows.get(row.dataset.authorId) !== row) row.remove();
   visible.forEach((row, index) => {
@@ -172,7 +191,12 @@ function renderCollections(preserveRows = false) {
       selected, aggregateIcon: "authors",
       select: () => { selected = entry.id; editingId = null; closeCreate(); render(); },
       rename: () => renameCollection(entry), remove: () => deleteCollection(entry),
+      menuTrigger: true,
     });
+    if (entry.id) {
+      item.dataset.reorderId = entry.id;
+      collectionReorder.attach(row, entry.id, entry.name);
+    }
     item.append(row);
     return item;
   };
@@ -182,10 +206,12 @@ function renderCollections(preserveRows = false) {
     if (entry) input.closest(".collection-item").replaceWith(buildItem(entry));
     return;
   }
+  collectionReorder.cancel();
   element("collection-list").replaceChildren(...entries.map(buildItem));
 }
 
 function renameCollection(entry) {
+  collectionReorder.cancel();
   editingId = entry.id;
   closeCreate();
   renderCollections();
@@ -193,6 +219,7 @@ function renameCollection(entry) {
 }
 
 function deleteCollection(entry) {
+  collectionReorder.cancel();
   editingId = null;
   closeCreate();
   confirmCollectionDeletion(entry, "Deleting removes this collection and its memberships. Authors followed only here become unfollowed; authors in other collections remain followed.", () => mutate(async () => {
@@ -228,7 +255,7 @@ function renameForm(entry) {
   return form;
 }
 
-async function mutate(operation, { focusCollectionId, propagateError = false } = {}) {
+async function mutate(operation, { focusCollectionId, preserveFocus = false, propagateError = false } = {}) {
   if (busy) return;
   busy = true;
   setDisabled(true);
@@ -238,16 +265,40 @@ async function mutate(operation, { focusCollectionId, propagateError = false } =
     await load();
     setDisabled(false);
     if (focusCollectionId) focusCollectionAction(focusCollectionId);
-    else focusSelection();
+    else if (!preserveFocus) focusSelection();
+    return true;
   }
   catch (error) { setStatus(error.message, true); if (propagateError) throw error; }
   finally { busy = false; setDisabled(false); }
 }
 
-function setDisabled(value) { document.querySelectorAll("main button,main input").forEach(node => { node.disabled = value; }); }
+function setDisabled(value) { document.querySelectorAll("main button,main input").forEach(node => { node.disabled = value || node.dataset.reorderUnavailable === "true"; }); }
 function setStatus(message, error = false) { element("status").textContent = message; element("status").classList.toggle("error", error); }
 
 function focusCollectionAction(id) {
   const button = document.querySelector(`[data-collection-id="${CSS.escape(id)}"]`);
   if (button) button.focus(); else focusSelection();
+}
+
+async function saveAuthorMove(id, beforeId, name) {
+  if (busy || element("authors").querySelector(".reorder-handle:disabled")) return;
+  let changed = false;
+  const success = await mutate(async () => { changed = selected ? await repository.moveAuthorInCollection(selected, id, beforeId) : await repository.moveFollowedAuthor(id, beforeId); }, { preserveFocus: true });
+  if (success && changed) element('reorder-status').textContent = `Moved ${name} to position ${scopedAuthors.findIndex(author => author.id === id) + 1} of ${scopedAuthors.length}.`;
+}
+
+async function saveCollectionMove(id, beforeId, name) {
+  if (busy || !organized()) return;
+  let changed = false;
+  const success = await mutate(async () => { changed = await repository.moveAuthorCollection(id, beforeId); }, { preserveFocus: true });
+  if (success && changed) element('reorder-status').textContent = `Moved ${name} to position ${library.collections.findIndex(collection => collection.id === id) + 1} of ${library.collections.length}.`;
+}
+
+function rememberSelection() {
+  if (!organized() || !selectionInitialized || selected === rememberedSelection) return;
+  const id = selected;
+  rememberedSelection = id;
+  void repository.setFollowingSelection(id).catch(error => {
+    if (selected === id) { rememberedSelection = undefined; setStatus(`Could not remember this collection: ${error.message}`, true); }
+  });
 }

@@ -18,12 +18,12 @@ try {
   await chrome.until(library.sessionId,"document.querySelectorAll('.paper-row').length===1 && !document.querySelector('#status').classList.contains('error')",30000);
   const result=await chrome.evaluate(library.sessionId,`(async()=>{
     const {BrowserLocalStorage}=await import('../lib/storage.js'),{MigrationRecovery}=await import('../repository/migration-recovery.js');
-    const state=await new BrowserLocalStorage().read(),key='xivary:local-migration:5:6';
+    const state=await new BrowserLocalStorage().read(),key='xivary:local-migration:5:8';
     const local=(await chrome.storage.local.get(key))[key],fallback=await new MigrationRecovery().get(key);
     return {version:state.schemaVersion,length:state.favorites[0].note.length,local:!!local,fallback:!!fallback,sourceLength:fallback?.source.favorites[0].note.length,sourceVersion:fallback?.source.schemaVersion};
   })()`);
-  assert.deepEqual(result,{version:6,length:6*1024*1024,local:false,fallback:true,sourceLength:6*1024*1024,sourceVersion:5});
+  assert.deepEqual(result,{version:8,length:6*1024*1024,local:false,fallback:true,sourceLength:6*1024*1024,sourceVersion:5});
   await chrome.send('ServiceWorker.enable',{},library.sessionId);await chrome.send('ServiceWorker.stopAllWorkers',{},library.sessionId);await chrome.send('Page.reload',{},library.sessionId);
   await chrome.until(library.sessionId,"document.querySelectorAll('.paper-row').length===1 && !document.querySelector('#status').classList.contains('error')",30000);
-  console.log('MIGRATION QUOTA PASS: actual 10-MiB Chrome local quota, six-MiB user annotation retained, independent IDB recovery committed before schema-6 activation, direct Library opening and worker restart; no permission change or data reset');
+  console.log('MIGRATION QUOTA PASS: actual 10-MiB Chrome local quota, six-MiB user annotation retained, independent IDB recovery committed before schema-8 activation, direct Library opening and worker restart; no permission change or data reset');
 }finally{await chrome.close();await rm(temporary,{recursive:true,force:true});}

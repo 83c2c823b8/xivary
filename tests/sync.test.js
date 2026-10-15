@@ -287,7 +287,7 @@ test("all schema 1–4 migrations remain lossless local operations before prefer
     await a.repo.getPreferences(); await n.settle();
     assert.deepEqual(library(await a.local.read()), library(expected));
     assert.equal((await a.local.read()).future, "keep");
-    assert.equal((await a.local.read()).schemaVersion, 6);
+    assert.equal((await a.local.read()).schemaVersion, 8);
     assert.deepEqual((await a.local.read())._chromeSync.bootstrapSnapshot, { settings: Object.fromEntries(PREFERENCES.map(name => [name, ["openAuthorResultsInNewTab", "openXivaryFromToolbarInNewTab"].includes(name)])) });
     for (const [key, value] of Object.entries(legacy)) assert.deepEqual(n.server[key], value);
   }
@@ -703,9 +703,63 @@ test('schema-5 migration retains research data and ordering while old-device pre
   const preference=syncKey('s','openAuthorResultsInNewTab'),n=network({...legacy,[preference]:record(false,100,'old-schema-peer')}),a=n.device('migration-a',original),b=n.device('migration-b');
   const libraryBefore=library(original),orderBefore=clone(original.paperOrdering);
   await Promise.all([a.repo.initialize(),b.repo.initialize()]);await n.settle();
-  assert.equal((await a.local.read()).schemaVersion,6);assert.deepEqual(library(await a.local.read()),libraryBefore);assert.deepEqual((await a.local.read()).paperOrdering,orderBefore);
+  assert.equal((await a.local.read()).schemaVersion,8);assert.deepEqual(library(await a.local.read()),libraryBefore);assert.deepEqual((await a.local.read()).paperOrdering,orderBefore);
   assert.equal((await a.repo.getPreferences()).openAuthorResultsInNewTab,false);
   for(const [key,value]of Object.entries(legacy))assert.deepEqual(n.server[key],value);
   const revisions=clone(n.server),uploads=a.writes+b.writes;a.restart();await a.repo.initialize();await n.settle();assert.deepEqual(n.server,revisions);assert.equal(a.writes+b.writes,uploads);
   await b.repo.setOpenAuthorResultsInNewTab(true);await n.settle();assert.equal((await a.repo.getPreferences()).openAuthorResultsInNewTab,true);assert.deepEqual(library(await a.local.read()),libraryBefore);
+});
+
+test('manual Following order remains local across two-device preference updates and worker recreation',async()=>{
+  const n=network(),a=n.device('following-order-a'),b=n.device('following-order-b');
+  for(const d of [a,b])for(const displayName of ['Alex Kim','Renée Smith','Beta Scholar'])await d.repo.followAuthor({displayName});
+  await n.settle();const remote=clone(n.server),uploads=a.writes+b.writes,beforeB=await b.repo.listFollowing();
+  const initial=await a.repo.listFollowing();await a.repo.moveFollowedAuthor(initial[2].id,initial[0].id);await n.settle();
+  assert.deepEqual(n.server,remote);assert.equal(a.writes+b.writes,uploads);
+  const ordered=await a.repo.listFollowing();assert.deepEqual(await b.repo.listFollowing(),beforeB);
+  await b.repo.setOpenAuthorResultsInNewTab(false);await n.settle();a.restart();b.restart();
+  assert.deepEqual(await a.repo.listFollowing(),ordered);assert.deepEqual(await b.repo.listFollowing(),beforeB);
+  assert.equal((await a.repo.getPreferences()).openAuthorResultsInNewTab,false);
+});
+
+test('last selected Library collection is an independent local adjunct, never a Sync register',async()=>{
+  const n=network(),a=n.device('selection-a'),b=n.device('selection-b'),selections=new Map();
+  for(const d of [a,b]) {
+    d.local.readLibrarySelection=async()=>clone(selections.get(d.id));
+    d.local.writeLibrarySelection=async value=>{selections.set(d.id,clone(value));};
+  }
+  const ac=await a.repo.createPaperCollection('A local'),bc=await b.repo.createPaperCollection('B local');await n.settle();
+  const remote=clone(n.server),uploads=a.writes+b.writes;
+  await a.repo.setLibrarySelection(ac.id);await b.repo.setLibrarySelection(bc.id);await n.settle();
+  assert.deepEqual(n.server,remote);assert.equal(a.writes+b.writes,uploads);
+  a.restart();b.restart();assert.equal((await a.repo.getPaperLibrary()).selectedCollectionId,ac.id);assert.equal((await b.repo.getPaperLibrary()).selectedCollectionId,bc.id);
+  await b.repo.setOpenArxivLinksInNewTab(true);await n.settle();
+  assert.equal((await a.repo.getPaperLibrary()).selectedCollectionId,ac.id);assert.equal((await b.repo.getPaperLibrary()).selectedCollectionId,bc.id);
+});
+
+test('Following collection order and selection stay local through two-device preference updates and restart',async()=>{
+  const n=network(),a=n.device('following-collections-a'),b=n.device('following-collections-b'),selection=new Map();
+  for(const d of [a,b]) {d.local.readFollowingSelection=async()=>clone(selection.get(d.id));d.local.writeFollowingSelection=async value=>{selection.set(d.id,clone(value));};}
+  const a1=await a.repo.createAuthorCollection('First'),a2=await a.repo.createAuthorCollection('Second'),b1=await b.repo.createAuthorCollection('B');await n.settle();
+  const remote=clone(n.server),uploads=a.writes+b.writes;
+  await a.repo.moveAuthorCollection(a2.id,a1.id);await a.repo.setFollowingSelection(a2.id);await b.repo.setFollowingSelection(b1.id);await n.settle();
+  assert.deepEqual(n.server,remote);assert.equal(a.writes+b.writes,uploads);
+  a.restart();b.restart();await b.repo.setOpenAuthorResultsInNewTab(false);await n.settle();
+  const al=await a.repo.getAuthorLibrary(),bl=await b.repo.getAuthorLibrary();
+  assert.deepEqual(al.collections.map(c=>c.id),[a2.id,a1.id]);assert.equal(al.selectedCollectionId,a2.id);assert.equal(bl.selectedCollectionId,b1.id);
+});
+
+test('independent per-collection author orders remain local across preference delivery and worker restart',async()=>{
+  const n=network(),a=n.device('scoped-a'),b=n.device('scoped-b');
+  const collection=await a.repo.createAuthorCollection('Authors');
+  for(const displayName of ['George Dimitrov','Tom Bridgeland'])await a.repo.addAuthorToCollection({displayName},collection.id);
+  const backup=await a.repo.exportBackup('following',{kind:'all'});await b.repo.importBackup([{kind:'zip',data:backup.base64}],'all');await n.settle();
+  const remote=clone(n.server),uploads=a.writes+b.writes,before=await b.repo.getAuthorLibrary();
+  const authors=await a.repo.listFollowing();await a.repo.moveAuthorInCollection(collection.id,authors[0].id,null);await n.settle();
+  assert.deepEqual(n.server,remote);assert.equal(a.writes+b.writes,uploads);
+  assert.deepEqual((await b.repo.getAuthorLibrary()).authorOrdering,before.authorOrdering);
+  const order=(await a.repo.getAuthorLibrary()).authorOrdering;a.restart();b.restart();
+  await b.repo.setOpenAuthorResultsInNewTab(false);await n.settle();
+  assert.deepEqual((await a.repo.getAuthorLibrary()).authorOrdering,order);assert.deepEqual((await b.repo.getAuthorLibrary()).authorOrdering,before.authorOrdering);
+  assert.deepEqual(await a.repo.listFollowing(),authors);
 });

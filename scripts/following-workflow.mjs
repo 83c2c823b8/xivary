@@ -185,7 +185,7 @@ export async function collectionMenuWorkflow({ evaluate, click, key, screenshot 
   await evaluate(`document.querySelector(${JSON.stringify(trigger)}).closest('.collection-row').querySelector('.collection-count').textContent=${JSON.stringify(savedCount)}`);
   assert.equal(await evaluate("!document.querySelector('.collection-menu-trigger,.collection-actions')"),true);
   await click(trigger,{button:'right'});
-  const actions = await evaluate("document.querySelector('.library-content') ? ['rename','delete','reorder-collections','reorder-papers'] : ['rename','delete']");
+  const actions = ['rename','delete'];
   assert.deepEqual(await evaluate("[...document.querySelectorAll('.collection-menu [data-action]')].map(node=>node.dataset.action)"),actions);
   assert.equal(await evaluate("Boolean(document.querySelector('.collection-menu')) && document.activeElement.dataset.action==='rename'"),true);
   assert.equal(await evaluate("document.querySelector('.collection-link[aria-current]').dataset.collectionId"),original,'right click does not select');

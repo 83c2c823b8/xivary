@@ -1,5 +1,14 @@
 # Architecture
 
+Current release: **0.5.1**, local schema **8**, portable backup **3**, preference
+Sync **1**. The detailed schema-5/v1/v2 discussions below describe the preserved
+foundation and historical transfer APIs. The current initialization barrier,
+recovery/upgrade chain and format are documented in
+[storage migrations](storage-migrations.md) and [portable backups](import-export.md).
+Following orders are independent per collection, with global All Following order
+unchanged by scoped moves; see [author ordering](following-reordering.md).
+
+
 The compact research discovery Feed combines membership-based follows, one-hop
 arXiv coauthorship evidence and small terminology-qualified area queries through
 the shared paced transport. A rolling 30-day initial-submission window, stable-ID

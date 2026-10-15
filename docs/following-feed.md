@@ -93,7 +93,7 @@ and in relevant tooltips.
 ## Incremental persistence and atomic commits
 
 `followingFeedCache` has independent **format version 3** inside the existing local
-research envelope (currently schema 6). It holds normalized entries/reasons/provenance, canonical IDs,
+research envelope (currently schema 8). It holds normalized entries/reasons/provenance, canonical IDs,
 original timestamps, followed-name scope, last full successful discovery time,
 last committed partial/full cycle time, coverage flags and a bounded area cache.
 An eligible seen-ID ledger (maximum 5000 IDs/timestamps, without duplicate metadata)

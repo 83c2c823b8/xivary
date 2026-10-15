@@ -4,32 +4,42 @@ Library keeps its ordinary rows and actions. A neutral divider below All Saved
 separates the aggregate from collection subsets; the selected background, icons,
 counts and divider above New collection stay unchanged.
 
-A collection's hover/focus ellipsis, right-click, Shift+F10 or Context Menu key
-opens its existing menu. Rename and Delete retain their positions, followed by
-Reorder collections and Reorder papers. Following's menu remains unchanged.
+Each real Library collection has a six-dot handle at the far left, revealed on
+row hover or keyboard focus. The row reserves fixed handle and ellipsis tracks
+around the folder/name/count button. Counts remain right-aligned; names truncate
+without displacing the count or menu. The hover/focus ellipsis, right-click,
+Shift+F10 or Context Menu key opens Rename/Delete; opening it does not select the
+collection. Organized Following uses [the same sidebar interaction](following-collection-ordering.md).
 
-Reordering is temporary. Six-dot handles appear only on hover or keyboard focus
-in the chosen mode. Drag a handle to the subtle drop indicator; ordinary rows,
-titles and actions are not draggable. Each completed move saves immediately.
-Done exits without another save. Escape cancels an active drag, or exits the mode
-when no menu or dialog is open. Dropping outside the list cancels the move.
-Handles support Arrow Up/Down and Home/End, with movement instructions and a live
-status announcement. Focus returns to the moved handle; no movement animation is
-used. Narrow layouts reserve a small gutter only in paper-reordering mode;
-titles stay aligned as handles appear on hover/focus. Long sidebars and pages scroll conservatively near their edges while the
-pointer moves.
+Drag a handle directly to the subtle insertion indicator. There is no reorder
+mode, Reorder menu action or Done button. Ordinary rows, titles and actions are
+not reorder triggers. Each completed move saves immediately. Escape, pointer
+cancellation and dropping outside the real reorderable rows cancel the move.
+The shared controller restores post-save focus only for keyboard moves; pointer
+drag completion/cancellation releases its own focused handle. No CSS focus
+outlines are suppressed. See [focus investigation and verification](following-reordering.md#focus-after-dragging).
+All Saved and New collection are outside the drop region. Handles support
+Arrow Up/Down and Home/End, with accessible movement instructions and a live
+announcement. Focus returns to the moved handle. No movement animation is used.
+Hover/focus controls occupy reserved space and do not shift titles, counts or
+sidebar width. Long lists scroll conservatively near their edges while dragging.
 
 All Saved remains first and New collection remains below the list. Every real
-collection can move, including the initial or a user-created Saved Papers; names
-have no special ordering semantics. Collection reordering preserves selection.
-Reorder papers selects that collection and temporarily shows all its members,
-ignoring and disabling text/date filters without changing their values. Done
-restores filtering. Paper order belongs to that collection alone; All Saved and
-collections without a manual order retain their existing presentation.
+collection can move, including an initial or user-created Saved Papers; names
+have no ordering semantics. Collection moves preserve selection and membership.
+
+Inside an individual collection, paper rows reserve a left handle gutter and
+support the same direct drag/keyboard interaction. Each collection owns its
+paper order. All Saved, Feed, Following and Offline gain no paper-reorder handles.
+Following has separate [global and per-collection author reordering](following-reordering.md).
+Text/date filtering keeps its existing behavior. If it hides any collection
+members, visible paper handles are disabled and explain “Clear filters to reorder
+the complete collection.” Filters remain usable and are never cleared silently.
+Empty collections have no paper handles; single-item moves are harmless no-ops.
 
 ## Local schema
 
-Local schema 6 requires the JSON-compatible `paperOrdering` value below. Older
+Local schema 8 retains the schema-6 requirement for the JSON-compatible `paperOrdering` value below. Older
 schema-5 records migrate automatically; no manual transfer is needed:
 
 ```json
@@ -85,14 +95,23 @@ backup files; see [the release workflow](release.md).
 orders, Saved Papers, metadata/membership/preference isolation, rename/add/delete,
 Undo, no-op and invalid moves, failed writes, recreation and reconciliation.
 `tests/reorder.test.js` covers keyboard moves, thresholds, drop indicators,
-commit-on-drop and Escape/pointer/outside-drop cancellation.
+commit-on-drop, fixed aggregate/drop boundaries, disabled filtered handles,
+detachment and Escape/pointer/outside-drop cancellation.
 
 Run `node scripts/reorder-smoke.mjs` after `npm run build` for native Chrome checks
 in a disposable profile. It exercises collection and handle-only paper dragging,
-fixed aggregate/New collection placement, selection/count stability, keyboard
-moves, cancellation, complete filtered collections, ordinary paper actions,
+fixed aggregate/New collection placement and drop exclusion, selection/count/menu
+alignment under long names and six-digit counts, hover/focus geometry, keyboard
+moves, cancellation, filtered-subset protection, empty/single collections, ordinary paper actions,
 accessibility-tree handle names, 360px layout, reload, service-worker suspension
-and full profile restart. Screenshots are written to
+full profile restart and full-backup restoration. Screenshots are written to
 `/tmp/xivary-reorder-screenshots`. Papers in this deterministic test are fixtures;
 no live arXiv retrieval is needed for ordering. Physical touch and assistive
 technology speech output remain manual checks.
+
+Historical direct-handle milestone verification at version 0.5.0: 323 archive-free unit tests pass
+(`npm test -- --test-skip-pattern='both ZIP artifacts'`), both unpacked production
+builds pass, and Chrome 154 / Firefox 157 full regressions pass. The direct drag
+suite, native fresh-profile backup round trip and unchanged-version migration
+suite also pass. No release ZIP is generated by these checks; Firefox smoke uses
+`XIVARY_NO_ARCHIVE=1`. Storage schema remains 6.

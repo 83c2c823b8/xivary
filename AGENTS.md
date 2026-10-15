@@ -37,7 +37,7 @@ Modules use `getBrowserApi()`; the classic content loader is the sole bootstrap
 exception inside that boundary. Prefer native Promise APIs (`browser`, then
 `chrome`); do not add browser checks in application code. Preserve one shared
 background repository entry point and schema-5 many-to-many semantics. Current
-local storage is schema 6, with automatic registered upgrades from schemas 1–5.
+local storage is schema 8, with automatic registered upgrades from schemas 1–7.
 Chrome synchronizes only the four designated preferences;
 Firefox stays local-only. Cross-browser execution does not imply shared state.
 
@@ -45,7 +45,7 @@ Chrome sync is below LocalRepository in `repository/sync-storage.js`, with pure
 record projection/merge in `repository/sync-model.js`. Do not move storage access
 into UI code or copy the whole local envelope to sync. Keep caches, full local
 paper metadata and last-used collection settings local. Sync v1 is independent
-of local schema 6; preserve preference logical revisions and retained winners. Legacy
+of local schema 8; preserve preference logical revisions and retained winners. Legacy
 library records/generations/tombstones remain inert and must never upload, merge
 or restore local library data. Leave remote legacy data untouched.
 Local commits (including pending replica records) precede best-effort sync writes.
@@ -123,9 +123,16 @@ Follow `docs/UI_DESIGN.md` for implemented compact UI conventions and
 `docs/DESIGN_PRINCIPLES.md` for reusable principles. Library/Following share the
 sidebar presentation helper: retain aggregate vs folder icons, stable counts and
 focusable rows with double-click/F2 rename and right-click/Shift+F10/Context Menu
-actions; Library may reveal its contextual ellipsis on hover/focus, while Following
-keeps contextual-only actions. Temporary reorder handles remain hidden outside
-editing mode. Collection menus do not select rows; retain
+actions; Library and organized Following reveal their contextual ellipsis on hover/focus. Library and Following author reorder handles appear on row hover/focus without an editing mode;
+reserve separate handle and menu tracks so counts never overlap controls. Following author-array order is authoritative for All Following;
+only live-author slots move there. Individual author collections use independent
+`authorOrdering.collectionOrders`; never change global order or other collections
+for a scoped move. Search hiding scope members disables movement. Portable v3
+`ordering.following` and optional `ordering.authorsByCollection` preserve both;
+do not re-sort by follow timestamp after migration.
+The shared reorder controller owns input-specific focus: preserve keyboard focus
+through saves, release pointer-drag focus on completion/cancellation, and never
+unconditionally refocus a handle from a page save callback. Collection menus do not select rows; retain
 keyboard/outside dismissal, focus return and existing deletion confirmation.
 The actual toolbar popup is 300px wide; retain native geometry coverage and
 launcher semantics. Inspect rendered screenshots alongside behavior tests.
@@ -147,3 +154,15 @@ MigrationStorage remains below SyncStorage. Keep Offline IDB/Feed versions and
 Library RPC snapshot versions explicit and independently tested. Current-schema
 integrity failures must surface recoverable errors, never fake empty results.
 See docs/storage-migrations.md for startup/reload/retry, recovery and developer rules.
+
+Library remembers only its last selected collection in the separate local
+`xivary:library-selection` version-1 UI preference. Keep it distinct from the
+last-used bookmark destination, Chrome Sync and portable backups. Restore before
+first render; explicit collection URLs win and missing IDs use All Saved. Do not
+persist search, filters or scroll. See docs/library-selection.md.
+Organized Following uses the same sidebar handles/menu tracks and keeps collection
+array order (portable `ordering.authorCollections`) independent of author order.
+Its separate `xivary:following-selection` version-1 UI preference is local-only,
+excluded from backups, and restored before rendering. Hiding organization must not
+rewrite it. Collection moves announce through the visually hidden live region.
+See docs/following-collection-ordering.md.

@@ -1,8 +1,9 @@
 # Xivary
 
-Version **0.5.0** adds an incremental research discovery Feed, collection ordering,
-portable backups and automatic storage upgrades. See the
-[release record](docs/release.md#v050--2026-10-15) for verification and remaining
+Version **0.5.1** fixes disabled Following author handles and adds independent
+collection author ordering, direct collection/paper handles, keyboard/focus polish
+and local last-selected collection restoration. See the
+[release record](docs/release.md#v051--2026-10-15) for verification and remaining
 manual distribution checks. No extension-store submission is included.
 
 Library (Bookmarks), Following, Offline and Author Results share a Settings gear in their
@@ -146,12 +147,27 @@ Existing profiles merge conservatively without rearranging unrelated records.
 Preferences, Offline PDF bytes, Feed caches, last-used pointers and Chrome Sync
 bookkeeping are excluded. See [format and limits](docs/import-export.md).
 
-Library collections offer Reorder collections and Reorder papers in their
-contextual menus. Temporary handles support dragging and keyboard moves; moves
-save immediately, Done exits, and ordinary browsing stays compact. All Saved and
-New collection remain fixed, with a subtle divider below All Saved. Each
-collection owns its paper order; All Saved retains its existing ordering. See
-[ordering behavior](docs/collection-reordering.md).
+Library collections and papers within a collection support direct handle-only
+dragging and keyboard moves. Six-dot handles appear on row hover/focus, and moves
+save immediately. All Saved and New collection remain fixed, with a subtle divider
+below All Saved. Counts and contextual menus have separate reserved space. Each
+collection owns its paper order; All Saved retains its existing ordering. Clear
+filters that hide members before reordering a collection's papers. See
+[ordering behavior](docs/collection-reordering.md). Library also remembers its
+last selected collection locally across navigation and browser restart; search,
+filters and scroll remain transient. See [selection behavior](docs/library-selection.md).
+
+Following authors use the same direct handles and keyboard moves. Their global
+manual order survives reload and portable backups. Each Following collection also
+has its own independent author order; moving its authors leaves All Following and
+other collections unchanged. Clear search hiding members before moving them. New follows append; author-paper date
+sorting stays unchanged. Existing installations automatically retain their previous
+visible Following order during automatic upgrades; schema 8 adds independent
+collection author orders without changing existing order. See
+[Following ordering](docs/following-reordering.md). With author organization
+enabled, collection rows also support direct handle/keyboard ordering and remember
+their last selection independently from Library. See
+[Following collections](docs/following-collection-ordering.md).
 
 See [PRIVACY.md](PRIVACY.md) for the stored data, network behavior, and permission
 rationale.
@@ -186,8 +202,8 @@ npm run package:firefox
 ```
 
 `npm run package` retains Chromium as the default and writes
-`dist/xivary-0.5.0-chromium.zip`; `npm run package:firefox` writes
-`dist/xivary-0.5.0-firefox.zip`. The ZIP builder sorts entries, fixes timestamps to
+`dist/xivary-0.5.1-chromium.zip`; `npm run package:firefox` writes
+`dist/xivary-0.5.1-firefox.zip`. The ZIP builder sorts entries, fixes timestamps to
 1980-01-01 UTC and includes the project and bundled dependency licenses. Rebuilding unchanged sources with
 the same zip implementation produces byte-identical archives. Unpacked artifacts
 are also generated under
@@ -275,6 +291,6 @@ Bundled [KaTeX](https://katex.org/) 0.19.0 retains its MIT license in
 and math fonts are packaged locally; no CDN or extra permissions are used.
 
 Storage upgrades run automatically through a shared repository barrier, independently
-of the manifest version. Local schema 6 preserves installed data and retains a
+of the manifest version. Local schema 8 preserves installed data and retains a
 local recovery snapshot before migration; normal updates do not require manual
 Export/Import. See [upgrade safety](docs/storage-migrations.md).

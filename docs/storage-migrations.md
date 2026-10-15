@@ -8,18 +8,21 @@ migration and upgrade-path tests in the same milestone.
 
 | Representation | Current version | Owner |
 | --- | --- | --- |
-| Browser-local research envelope | 6 (`schemaVersion`) | `repository/local-schema.js` |
+| Browser-local research envelope | 8 (`schemaVersion`) | `repository/local-schema.js` |
+| Following selection UI preference | 1 | `domain/following-selection.js` |
+| Library selection UI preference | 1 | `domain/library-selection.js` |
 | Library RPC snapshot | 2 (`snapshotVersion`) | `domain/library-snapshot.js` |
 | Portable research backup | 3 | `repository/portable-backup.js` |
 | Chrome preference Sync | 1 | `repository/sync-model.js` |
 | Migration recovery IndexedDB | 1 | `repository/migration-recovery.js` |
 | Offline IndexedDB | 2 | `repository/offline-storage.js` |
 | Persisted Feed queue | 3 | `feed/queue.js` |
-| Extension manifest | 0.5.0 | `extension/manifest.json` |
+| Extension manifest | 0.5.1 | `extension/manifest.json` |
 
 These versions are independent. No migration decision uses the manifest version.
-Schema 6 retains schema 5's local papers/authors/collections/memberships and adds
-mandatory `paperOrdering` plus the current settings defaults. Existing explicit
+Schema 6 introduced required ordering while retaining schema 5's local
+papers/authors/collections/memberships and adding mandatory `paperOrdering` plus
+the current settings defaults. Existing explicit
 collection/per-collection paper orders survive; absent schema-5 ordering derives
 from the original collection and Library arrays. Unordered collections stay on
 their existing fallback order; migration does not invent manual paper orders.
@@ -38,6 +41,18 @@ their existing fallback order; migration does not invent manual paper orders.
 5. 5 → 6: persist current defaults only where absent and initialize/validate
    ordering. Known partially introduced ordering fields can be completed;
    malformed values fail instead of being replaced by empty arrays.
+6. 6 → 7: make the author array authoritative for manual Following order. Initialize
+   live-author slots from the previous stable newest-followed-first UI ordering.
+   Retained unfollowed records keep their slots. No author field, identity,
+   timestamp, alias, membership, Library order, Feed cache or PDF changes. New
+   follows append; a re-follow resumes its retained slot. No new ordering field
+   or portable version is needed.
+
+7. 7 → 8: add required `authorOrdering: {version: 1, collectionOrders: []}` for
+   independent manual author orders inside Following collections. Empty manual
+   orders retain each collection's existing global-array subsequence. No author,
+   collection, membership, global order or custom metadata is rewritten. The exact
+   original envelope is saved before activation and interrupted upgrades retry.
 
 The entire candidate is constructed and validated in memory before any migration
 write. Records, canonical IDs, timestamps, duplicate identities, collection names,
@@ -90,7 +105,10 @@ No cross-key transaction is assumed. Single-key test/backend adapters can stage
 `_storageMigrationJournal` alongside unchanged old records, then atomically replace
 the envelope with the candidate and retained source journal. A restart validates
 that staging still matches the source before retrying. Current-schema checks do
-not replay completed journals.
+not replay completed journals. On a later schema upgrade, an older completed or
+interrupted in-band journal is retained inside the exact source snapshot of a new
+journal targeting the current schema. An interrupted same-target migration checks
+the source body and resumes; incompatible or conflicting journals stop safely.
 
 Backup quota errors, malformed data or failed active writes leave user records
 intact. Migrations never clear an area, reset preferences, remove memberships,
@@ -110,7 +128,7 @@ files, then repairs rendering through an explicit, validated v1 → v2 RPC snaps
 adapter in RepositoryClient. This adapter uses real validated records/memberships
 and their known previous array ordering. It does not write storage or synthesize
 empty papers. A declared v2 response missing ordering or containing broken
-references is rejected. New background replies always declare v2 and storage v6.
+references is rejected. New background replies always declare v2 and storage v8.
 
 Loading the same unpacked path through Chrome's testing LoadUnpacked command can
 reuse the running worker. The source-upgrade test performs a genuine runtime
@@ -124,13 +142,13 @@ updated worker, as with any extension-code update.
 Only the four designated boolean preference registers are synchronized. Migration
 versions, recovery journals, bookmarks, Following, collections, ordering, PDFs
 and Feed/evidence caches stay local. Sync v1 remains independent of local schema
-6. Migration happens before remote merge/flush; legacy library records from old
+8. Migration happens before remote merge/flush; legacy library records from old
 devices remain inert and untouched. Validated preference revisions retain their
 existing winner rules; migration adds no wall-clock conflict order or replay loop.
 
 Offline IndexedDB has its own transactional upgrade: version 1 → 2 adds the
 savedAt index without rewriting or deleting copy records/PDF blobs. Connections
-close on versionchange and blocked upgrades report an error. Local schema 6 does
+close on versionchange and blocked upgrades report an error. Local schema 8 does
 not change that database. Feed queue migration/eligibility remains on its existing
 versioned path; local research migration preserves its cache and provenance.
 
@@ -175,3 +193,27 @@ a six-MiB annotation, verifies the IDB snapshot before activation, and opens Lib
 directly and after worker restart. The real affected profile is not accessed or
 reset by these suites. Physical devices,
 Google-account propagation and assistive speech remain separate manual checks.
+
+`tests/following-order.test.js` and `scripts/following-reorder-smoke.mjs` cover the
+schema 6 → 7 order transition followed by 7 → 8 during a real 0.5.0 → current
+source upgrade,
+including original recovery data, custom metadata, PDF bytes, manual movement,
+worker/browser restart and full backup restoration. See [Following ordering](following-reordering.md).
+
+The optional local Library-selection preference uses a separate version-1 key;
+existing installations initialize by absence without transforming the research
+envelope. Its upgrade-path tests preserve installed research data and migration
+recovery snapshots. See [last selected collection](library-selection.md).
+
+Following collection moves reuse existing collection-array semantics, so they need
+no schema transition. The optional version-1 Following selection key initializes
+by absence independently of Library; installed-data/backup tests preserve prior
+records and order. See [Following collections](following-collection-ordering.md).
+
+`tests/author-collection-order.test.js` additionally checks the exact schema-7
+source, failed activation/retry, concurrent initialization, current-schema corruption,
+independent overlapping orders, Undo, portable restoration and category isolation.
+`node scripts/author-collection-reorder-smoke.mjs` verifies the actual right-hand
+author handles, grab/grabbing cursors and native drags inside a collection, plus
+same-version extension reload, worker/browser restart and all/section/collection
+backup restores in disposable Chrome profiles.

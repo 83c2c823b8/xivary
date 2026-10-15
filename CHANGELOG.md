@@ -1,5 +1,22 @@
 # Release notes
 
+## 0.5.1 — 2026-10-15
+
+- Fix incorrectly disabled drag handles in selected Following collections. Support
+  direct handle-only author dragging, grab/grabbing cursors, insertion indicators,
+  keyboard moves and quiet accessible announcements.
+- Persist author ordering independently for each Following collection while keeping
+  All Following, other collections, memberships, names and sidebar order intact.
+- Automatically upgrade local schema 7 to 8 with a recoverable original snapshot.
+  Existing version-3 backups remain importable; new backups preserve collection
+  author orders through full, section and collection restores.
+- Include completed companion direct Library/Following collection reordering,
+  independent Library paper ordering and pointer/keyboard focus cleanup.
+- Remember the last selected Library and Following collections independently,
+  locally across navigation/restart; explicit routes win and deleted IDs fall back.
+  Keep search, filters and scroll transient, and exclude UI selection from backups
+  and Chrome Sync.
+
 ## 0.5.0 — 2026-10-15
 
 - Add a persistent incremental research Feed: 30-day original submissions, 100-paper

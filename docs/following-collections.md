@@ -109,3 +109,20 @@ outside pointer cancellation and duplicate-submit guards. The shared Chrome/Fire
 workflow covers these changes and Unfollow/Undo, in addition to prior organization,
 collection operations, reload and isolation checks. Author results also offer
 Follow/Unfollow and the existing optional collection picker beside the name.
+
+## Direct author ordering
+
+All Following keeps its global manual author order. Each selected Following
+collection has an independent author order, without changing other collections,
+memberships or sidebar order. Hover/focus handles use Library's direct drag and
+keyboard interaction, without an editing mode. Search hiding scope members disables
+movement until the complete scope is visible. Author-page paper sorting remains
+unchanged. See [ordering, migration and verification](following-reordering.md).
+
+## Direct collection ordering and last selection
+
+Organized Following now uses Library's hover/focus collection handles and reserved
+ellipsis track. The existing collection-array order persists and round-trips in
+portable backups. A separate local UI preference restores only the selected
+Following collection; it does not synchronize or enter backups. Library selection
+and author ordering remain independent. See [implementation and verification](following-collection-ordering.md).

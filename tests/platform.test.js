@@ -82,7 +82,7 @@ test("actual Chrome background wires sync events, alarms, startup and repository
   storageHandler({ [key]: { oldValue, newValue: synced[key] } }, "sync");
   assert.equal((await client.getPreferences()).openArxivLinksInNewTab, true);
   startupHandler(); await client.listFavorites();
-  assert.equal(local[STORAGE_KEY].schemaVersion, 6);
+  assert.equal(local[STORAGE_KEY].schemaVersion, 8);
   assert.equal(local[STORAGE_KEY]._chromeSync.counter, 100);
 });
 
@@ -121,7 +121,7 @@ for (const namespace of ["chrome", "browser"]) {
     const client = new RepositoryClient();
     await client.savePaper({ arxivId: "2401.00001", title: "Portable paper", authors: ["Alex Kim"] });
     await client.followAuthor({ displayName: "Alex Kim" });
-    assert.equal(values[STORAGE_KEY].schemaVersion, 6);
+    assert.equal(values[STORAGE_KEY].schemaVersion, 8);
     assert.equal((await client.listFavorites()).length, 1);
     assert.equal((await client.listFollowing()).length, 1);
     await assert.rejects(client.savePaper({}), /arXiv ID/);

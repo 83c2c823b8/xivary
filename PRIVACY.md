@@ -11,7 +11,8 @@ contain:
 
 - saved-paper titles, arXiv identifiers, author names, categories, abstracts, and dates;
 - followed author names and normalized name identifiers;
-- paper and author collection names, memberships and explicit Library ordering;
+- paper and author collection names, memberships and explicit Library and Following ordering;
+- the last selected Library and Following collection IDs, as separate local-only UI preferences;
 - the bounded Feed queue, seen-ID ledger and coauthor/topic evidence with public
   paper provenance and cache/refresh timestamps;
 - local migration recovery snapshots retaining the original research envelope;

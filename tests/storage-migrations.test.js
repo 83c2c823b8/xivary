@@ -39,7 +39,7 @@ test('schema 5 upgrade preserves every owner field and derives deterministic exi
   const before=schema5(),f=disk(before);const library=await f.repo.getPaperLibrary();
   assert.deepEqual(owner(f.active()),owner(before));assert.deepEqual(library.papers,before.favorites);
   assert.deepEqual(library.ordering.collectionIds,before.paperCollections.map(c=>c.id));assert.deepEqual(library.ordering.paperOrders,[]);
-  const backup=f.raw()['xivary:local-migration:5:6'];assert.deepEqual(backup.source,before);
+  const backup=f.raw()['xivary:local-migration:5:8'];assert.deepEqual(backup.source,before);
   await f.repo.getFollowingFeedCache();assert.deepEqual(f.active().followingFeedCache,before.followingFeedCache);
   const stable=f.active();await new LocalRepository(f.storage).initialize();assert.deepEqual(f.active(),stable);assert.deepEqual(f.counts(),{activeWrites:1,backupWrites:1});
 });
@@ -56,16 +56,16 @@ test('safe missing schema-5 ordering fields initialize; malformed/current incomp
 });
 test('backup or active write failures preserve source and recover after worker recreation, without rewriting the backup',async()=>{
   const source=schema5(),f=disk(source);f.fail(false,true);await assert.rejects(f.repo.initialize(),/backup quota/);assert.deepEqual(f.active(),source);
-  f.fail(true);await assert.rejects(f.repo.initialize(),/interrupted/);assert.deepEqual(f.active(),source);assert.deepEqual(f.raw()['xivary:local-migration:5:6'].source,source);
-  f.fail(false);await new LocalRepository(f.storage,()=>new Date(Date.parse(now)+3600000).toISOString()).initialize();assert.equal(f.active().schemaVersion,6);assert.equal(f.counts().backupWrites,1);
+  f.fail(true);await assert.rejects(f.repo.initialize(),/interrupted/);assert.deepEqual(f.active(),source);assert.deepEqual(f.raw()['xivary:local-migration:5:8'].source,source);
+  f.fail(false);await new LocalRepository(f.storage,()=>new Date(Date.parse(now)+3600000).toISOString()).initialize();assert.equal(f.active().schemaVersion,8);assert.equal(f.counts().backupWrites,1);
 });
 test('single-key adapters recover an interrupted in-band journal and use the original migration timestamp',async()=>{
   const original={schemaVersion:4,favorites:[paper(1)],authors:[],collections:[],memberships:[],authorPaperCaches:[],settings:{lastUsedAuthorCollectionId:null}};
   let state=structuredClone(original),writes=0,fail=true;
-  const storage={read:async()=>structuredClone(state),write:async value=>{writes++;if(fail&&value.schemaVersion===6)throw Error('suspended');state=structuredClone(value);}};
+  const storage={read:async()=>structuredClone(state),write:async value=>{writes++;if(fail&&value.schemaVersion===8)throw Error('suspended');state=structuredClone(value);}};
   let ticks=0;
   await assert.rejects(new LocalRepository(storage,()=>new Date(Date.parse(now)+ticks++*1000).toISOString()).initialize(),/suspended/);assert.equal(state.schemaVersion,4);assert.deepEqual(state._storageMigrationJournal.source,original);const stamp=state._storageMigrationJournal.createdAt;assert.equal(ticks,1);
-  fail=false;await new LocalRepository(storage,()=>new Date(Date.parse(now)+3600000).toISOString()).initialize();assert.equal(state.schemaVersion,6);assert.equal(state.paperCollections[0].createdAt,stamp);assert.equal(writes,3);
+  fail=false;await new LocalRepository(storage,()=>new Date(Date.parse(now)+3600000).toISOString()).initialize();assert.equal(state.schemaVersion,8);assert.equal(state.paperCollections[0].createdAt,stamp);assert.equal(writes,3);
 });
 test('concurrent repository instances and clients share a migration/mutation lock and never lose or duplicate additions',async()=>{
   const f=disk(schema5()),second=new LocalRepository(new BrowserLocalStorage(f.area),()=>now);
@@ -83,14 +83,14 @@ test('exact collectionIds regression is a legacy DTO mismatch; explicit response
   assert.throws(()=>normalizeLibrarySnapshot({...legacy,memberships:[]}),/no collection membership/);
 });
 test('registered 1–5 upgrade chain is complete; ambiguous legacy metadata stops safely',async()=>{
-  assert.deepEqual([...STORAGE_MIGRATIONS.keys()],[1,2,3,4,5]);
+  assert.deepEqual([...STORAGE_MIGRATIONS.keys()],[1,2,3,4,5,6,7]);
   const name='Alex Kim',at=now,id=index=>`arxiv-author:v1:2610.00001:${index}:alex%20kim`;
   const old={schemaVersion:1,favorites:[],following:[0,1].map(index=>({id:id(index),displayName:name,normalizedName:'alex kim',sourceArxivId:'2610.00001',sourceAuthorIndex:index,followedAt:at,updatedAt:at,alias:`Distinct alias ${index}`}))};
   const f=disk(old);await assert.rejects(f.repo.initialize(),/Conflicting legacy author metadata/);assert.deepEqual(f.active(),old);
 });
 test('Offline operations wait for local initialization without touching PDF stores during migration',async()=>{
   const before=schema5(),f=disk(before);let calls=0;const pdf=Object.freeze({bytes:'unchanged PDF',count:1});
-  f.repo.offline={list:async()=>{calls++;assert.equal(f.active().schemaVersion,6);return pdf;}};
+  f.repo.offline={list:async()=>{calls++;assert.equal(f.active().schemaVersion,8);return pdf;}};
   f.fail(true);await assert.rejects(f.repo.getOfflineLibrary());assert.equal(calls,0);f.fail(false);
   assert.equal(await f.repo.getOfflineLibrary(),pdf);assert.equal(calls,1);assert.deepEqual(pdf,{bytes:'unchanged PDF',count:1});
 });
@@ -103,11 +103,25 @@ test('local snapshot quota falls back to durable independent recovery storage be
   }};
   const recovery={get:async key=>structuredClone(records.get(key)),put:async(key,value)=>{recoveries++;records.set(key,structuredClone(value));}};
   const storage=new BrowserLocalStorage(area,recovery),repo=new LocalRepository(storage,()=>now);await repo.initialize();
-  assert.equal(values[STORAGE_KEY].schemaVersion,6);assert.deepEqual(owner(values[STORAGE_KEY]),owner(source));assert.deepEqual(records.get('xivary:local-migration:5:6').source,source);
+  assert.equal(values[STORAGE_KEY].schemaVersion,8);assert.deepEqual(owner(values[STORAGE_KEY]),owner(source));assert.deepEqual(records.get('xivary:local-migration:5:8').source,source);
   await new LocalRepository(storage).initialize();assert.equal(recoveries,1);
 });
 test('failed recovery database writes leave active records and schema unchanged',async()=>{
   const source=schema5();let values={[STORAGE_KEY]:structuredClone(source)};
   const storage=new BrowserLocalStorage({get:async()=>structuredClone(values),set:async()=>{throw Error('QUOTA_BYTES quota exceeded');}}, {get:async()=>undefined,put:async()=>{throw Error('recovery disk full');}});
   await assert.rejects(new LocalRepository(storage).initialize(),/recovery disk full/);assert.deepEqual(values[STORAGE_KEY],source);
+});
+
+test('older completed and interrupted in-band journals upgrade and retry without losing either recovery source',async()=>{
+  for(const completed of [false,true]) {
+    const source=schema5(),old={format:'xivary-local-migration',version:1,from:5,to:6,createdAt:now,source:structuredClone(source)};
+    const body=completed?prepareState(source,now):structuredClone(source);if(completed)body.schemaVersion=6;
+    const initial={...body,_storageMigrationJournal:old};let active=structuredClone(initial),fail=true,writes=0;
+    const storage={read:async()=>structuredClone(active),write:async state=>{writes++;if(fail&&state.schemaVersion===8)throw Error('worker stopped');active=structuredClone(state);}};
+    await assert.rejects(new LocalRepository(storage,()=>now).initialize(),/worker stopped/);
+    assert.deepEqual(active._storageMigrationJournal.source,initial);assert.equal(active._storageMigrationJournal.to,8);
+    fail=false;await new LocalRepository(storage,()=>now).initialize();assert.equal(active.schemaVersion,8);
+    assert.deepEqual(active._storageMigrationJournal.source,initial);assert.deepEqual(owner(active),owner(initial));
+    const count=writes;await new LocalRepository(storage).initialize();assert.equal(writes,count);
+  }
 });

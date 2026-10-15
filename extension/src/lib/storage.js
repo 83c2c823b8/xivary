@@ -19,6 +19,22 @@ export class BrowserLocalStorage {
     await this.area.set({ [STORAGE_KEY]: state });
   }
 
+  async readLibrarySelection() {
+    return (await this.area.get("xivary:library-selection"))["xivary:library-selection"];
+  }
+
+  async writeLibrarySelection(value) {
+    await this.area.set({ "xivary:library-selection": value });
+  }
+
+  async readFollowingSelection() {
+    return (await this.area.get("xivary:following-selection"))["xivary:following-selection"];
+  }
+
+  async writeFollowingSelection(value) {
+    await this.area.set({ "xivary:following-selection": value });
+  }
+
   async readMigrationBackup(from, to) {
     const key = `xivary:local-migration:${from}:${to}`;
     return (await this.area.get(key))[key] ?? await this.recovery.get(key);

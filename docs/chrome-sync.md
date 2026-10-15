@@ -22,9 +22,9 @@ account, OAuth, backend or alternative provider.
 Settings → RepositoryClient → shared RPC → LocalRepository → SyncStorage →
 MigrationStorage → BrowserLocalStorage is the local path; SyncStorage separately
 uses BrowserSyncStorage for the four preference registers. UI/domain code never
-opens native storage areas. Local schema 6 initializes through registered
-upgrades from schemas 1–5 before Sync merge/flush, retaining schema-5 research semantics and
-local recovery snapshots. See [upgrade safety](storage-migrations.md).
+opens native storage areas. Local schema 8 initializes through registered
+upgrades from schemas 1–7 before Sync merge/flush, retaining schema-5 research
+semantics, local manual Following order and local recovery snapshots. See [upgrade safety](storage-migrations.md).
 Portable `xivary-library` v3 ZIP/JSON backups remain separate: no preferences,
 caches, last-used pointers or Sync internals. Category imports change local
 research state without acquiring Sync revisions.

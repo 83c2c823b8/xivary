@@ -4,6 +4,11 @@
  * Author entities persist independently of their many-to-many memberships.
  */
 export class PaperRepository {
+  async setFollowingSelection(id) { throw new Error("Not implemented"); }
+  async moveAuthorCollection(id, beforeId) { throw new Error("Not implemented"); }
+  async setLibrarySelection(id) { throw new Error("Not implemented"); }
+  async moveAuthorInCollection(collectionId, id, beforeId) { throw new Error('Not implemented'); }
+  async moveFollowedAuthor(id, beforeId) { throw new Error('Not implemented'); }
   async initialize() { throw new Error("Not implemented"); }
   async exportBackup(category, selection) { throw new Error('Not implemented'); }
   async importBackup(inputs, category) { throw new Error('Not implemented'); }
